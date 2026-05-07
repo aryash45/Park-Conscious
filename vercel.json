@@ -98,13 +98,6 @@
 
     {
       "source": "/event/:id",
-      "has": [
-        {
-          "type": "header",
-          "key": "user-agent",
-          "value": ".*(facebookexternalhit|Twitterbot|WhatsApp|Slackbot|LinkedInBot|Embedly|googlebot|Discordbot|TelegramBot).*"
-        }
-      ],
       "destination": "/api/render-event.js?id=:id"
     },
     {
