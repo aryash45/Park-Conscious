@@ -44,20 +44,31 @@ export default async function handler(req, res) {
         
         // Optimize Cloudinary image for Social Media
         if (absoluteImageUrl.includes('res.cloudinary.com')) {
-            absoluteImageUrl = absoluteImageUrl.replace(/\/upload\/v\d+\//, '/upload/').replace('/upload/', '/upload/q_auto,f_auto,w_1200,h_630,c_fill/');
+            absoluteImageUrl = absoluteImageUrl.replace(/\/upload\/v\d+\//, '/upload/').replace('/upload/', `/upload/q_auto,f_auto,w_1200,h_630,c_fill/v${Date.now()}/`);
+        } else {
+            absoluteImageUrl = `${absoluteImageUrl}?v=${Date.now()}`;
         }
 
         const canonicalUrl = `https://events.parkconscious.in/event/${id}`;
 
         // Fetch the actual index.html from the build
-        // On Vercel, we can fetch it from the same host to get the latest build content
         const host = req.headers.host || 'events.parkconscious.in';
         const protocol = host.includes('localhost') ? 'http' : 'https';
-        const indexResponse = await fetch(`${protocol}://${host}/index.html?render=true`);
-        let html = await indexResponse.text();
+        
+        let html = '';
+        try {
+            const indexResponse = await fetch(`${protocol}://${host}/index.html?render=true`, { 
+                headers: { 'User-Agent': 'Backstage-SEO-Renderer' }
+            });
+            html = await indexResponse.text();
+        } catch (fetchErr) {
+            console.error('Fetch index.html failed:', fetchErr);
+            return res.redirect('/');
+        }
 
         // Inject our dynamic meta tags by replacing the static ones
         const metaTags = `
+    <!-- Dynamic SEO Injected by Backstage Renderer -->
     <title>${title}</title>
     <meta name="description" content="${description}">
     <meta property="og:type" content="website">
@@ -74,15 +85,21 @@ export default async function handler(req, res) {
     <meta name="twitter:image" content="${absoluteImageUrl}">
         `;
 
-        // Replace the static title and meta tags section
-        html = html.replace(/<title>.*?<\/title>/, '');
-        html = html.replace(/<!-- SEO & Social Media Metadata -->[\s\S]*?<meta name="twitter:card" content="summary_large_image" \/>/, '');
+        // More robust replacement logic
+        html = html.replace(/<title>.*?<\/title>/gi, '');
+        html = html.replace(/<meta property="og:.*?".*?>/gi, '');
+        html = html.replace(/<meta name="twitter:.*?".*?>/gi, '');
+        html = html.replace(/<meta name="description".*?>/gi, '');
+        html = html.replace(/<!-- SEO & Social Media Metadata -->/gi, '');
         
-        // Insert our new tags into the <head>
-        html = html.replace('<head>', `<head>${metaTags}`);
+        // Insert into head
+        html = html.replace(/<head>/i, `<head>${metaTags}`);
 
         res.setHeader('Content-Type', 'text/html');
-        res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+        // Explicitly tell scrapers NOT to cache this result
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
         res.statusCode = 200;
         res.end(html);
     } catch (err) {
