@@ -97,6 +97,17 @@
     },
 
     {
+      "source": "/event/:id",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(facebookexternalhit|Twitterbot|WhatsApp|Slackbot|LinkedInBot|Embedly|googlebot|Discordbot|TelegramBot).*"
+        }
+      ],
+      "destination": "/api/render-event.js?id=:id"
+    },
+    {
       "source": "/((?!api/|static/|sitemap\\.xml|robots\\.txt).*)",
       "has": [{ "type": "host", "value": "events.parkconscious.in" }],
       "destination": "/apps/events/build/index.html"

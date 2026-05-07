@@ -15,6 +15,7 @@ import {
   MapPin, Ticket, X, 
   Calendar, Clock, Users, ArrowUpRight, Share2, Instagram
 } from "lucide-react";
+import { Helmet } from "react-helmet";
 
 /**
  * Inject Cloudinary transformations into a Cloudinary URL.
@@ -115,6 +116,17 @@ const EventPage = () => {
 
   return (
     <PremiumBackground themeConfig={liveTheme}>
+      <Helmet>
+        <title>{`${event.displayTitle} | BACKSTAGE`}</title>
+        <meta name="description" content={event.displayDescription?.substring(0, 160) || "Join us for an exclusive event experience."} />
+        <meta property="og:title" content={event.displayTitle} />
+        <meta property="og:description" content={event.displayDescription?.substring(0, 160) || "Join us for an exclusive event experience."} />
+        <meta property="og:image" content={clUrl(event.images?.[0] || event.image)} />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={event.displayTitle} />
+        <meta name="twitter:description" content={event.displayDescription?.substring(0, 160) || "Join us for an exclusive event experience."} />
+        <meta name="twitter:image" content={clUrl(event.images?.[0] || event.image)} />
+      </Helmet>
       <div className={`pb-32 font-['Inter'] ${displayMode === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>
         <div className="container mx-auto px-6 md:px-12 lg:px-32 pt-24 lg:pt-32">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20">
