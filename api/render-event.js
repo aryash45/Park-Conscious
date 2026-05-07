@@ -1,10 +1,10 @@
 /**
  * api/render-event.js
  * 
- * Purpose: Server-side rendering of meta tags for event pages.
- * This function is used to provide dynamic Open Graph and Twitter Card 
- * metadata for social media scrapers (WhatsApp, Facebook, Twitter, etc.)
- * which do not execute client-side JavaScript.
+ * Purpose: Dynamic Server-Side Rendering of meta tags for event pages.
+ * Fetches the actual index.html and injects event-specific metadata 
+ * to ensure perfect social media previews (WhatsApp, Slack, etc.) 
+ * while maintaining the full React SPA experience for users.
  */
 import connectDB from './lib/mongodb.js';
 import * as models from './lib/models.js';
@@ -32,6 +32,8 @@ export default async function handler(req, res) {
         // Prepare metadata
         const title = `${event.title} | BACKSTAGE`;
         const description = event.description?.substring(0, 160) || "Join us for an exclusive event experience.";
+        
+        // Use a high-res fallback if the event image is missing
         const imageUrl = event.images?.[0] || event.image || 'https://events.parkconscious.in/new_backstage.png';
         
         // Ensure image URL is absolute and uses HTTPS
@@ -39,49 +41,50 @@ export default async function handler(req, res) {
         if (imageUrl.startsWith('/')) {
             absoluteImageUrl = `https://events.parkconscious.in${imageUrl}`;
         }
-        // Optimize Cloudinary image if applicable
+        
+        // Optimize Cloudinary image for Social Media
         if (absoluteImageUrl.includes('res.cloudinary.com')) {
-            absoluteImageUrl = absoluteImageUrl.replace('/upload/', '/upload/q_auto,f_auto,w_1200,h_630,c_fill/');
+            absoluteImageUrl = absoluteImageUrl.replace(/\/upload\/v\d+\//, '/upload/').replace('/upload/', '/upload/q_auto,f_auto,w_1200,h_630,c_fill/');
         }
 
         const canonicalUrl = `https://events.parkconscious.in/event/${id}`;
 
-        // Return HTML with injected meta tags
-        // We include a minimal structure that looks like our index.html
-        // and a script that handles the redirect to the actual React app
-        // for real users while providing the tags for crawlers.
-        
-        res.setHeader('Content-Type', 'text/html');
-        res.statusCode = 200;
-        res.end(`
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8" />
+        // Fetch the actual index.html from the build
+        // On Vercel, we can fetch it from the same host to get the latest build content
+        const host = req.headers.host || 'events.parkconscious.in';
+        const protocol = host.includes('localhost') ? 'http' : 'https';
+        const indexResponse = await fetch(`${protocol}://${host}/index.html?render=true`);
+        let html = await indexResponse.text();
+
+        // Inject our dynamic meta tags by replacing the static ones
+        const metaTags = `
     <title>${title}</title>
     <meta name="description" content="${description}">
-
-    <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
+    <meta property="og:site_name" content="BACKSTAGE">
     <meta property="og:url" content="${canonicalUrl}">
     <meta property="og:title" content="${title}">
     <meta property="og:description" content="${description}">
     <meta property="og:image" content="${absoluteImageUrl}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="${title}">
+    <meta name="twitter:description" content="${description}">
+    <meta name="twitter:image" content="${absoluteImageUrl}">
+        `;
 
-    <!-- Twitter -->
-    <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:url" content="${canonicalUrl}">
-    <meta property="twitter:title" content="${title}">
-    <meta property="twitter:description" content="${description}">
-    <meta property="twitter:image" content="${absoluteImageUrl}">
-</head>
-<body>
-    <h1>${event.title}</h1>
-    <p>${description}</p>
-    <img src="${absoluteImageUrl}" alt="${event.title}" />
-</body>
-</html>
-        `);
+        // Replace the static title and meta tags section
+        html = html.replace(/<title>.*?<\/title>/, '');
+        html = html.replace(/<!-- SEO & Social Media Metadata -->[\s\S]*?<meta name="twitter:card" content="summary_large_image" \/>/, '');
+        
+        // Insert our new tags into the <head>
+        html = html.replace('<head>', `<head>${metaTags}`);
+
+        res.setHeader('Content-Type', 'text/html');
+        res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+        res.statusCode = 200;
+        res.end(html);
     } catch (err) {
         console.error('Render Error:', err);
         return res.redirect('/');
