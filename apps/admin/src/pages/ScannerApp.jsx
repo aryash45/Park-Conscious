@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { 
     QrCode, Download, WifiOff, Wifi, Search, 
@@ -8,7 +8,7 @@ import { useAuth } from '../hooks/useAuth';
 import api from '../services/api'; // Using axios instance
 
 const ScannerApp = () => {
-    const { admin, logout } = useAuth();
+    const { logout } = useAuth();
     const [events, setEvents] = useState([]);
     const [selectedEventId, setSelectedEventId] = useState(null);
     const [attendees, setAttendees] = useState([]);
@@ -22,49 +22,7 @@ const ScannerApp = () => {
 
     const scannerRef = useRef(null);
 
-    useEffect(() => {
-        const handleOnline = () => setIsOffline(false);
-        const handleOffline = () => setIsOffline(true);
-        window.addEventListener('online', handleOnline);
-        window.addEventListener('offline', handleOffline);
-        
-        fetchEvents();
-
-        return () => {
-            window.removeEventListener('online', handleOnline);
-            window.removeEventListener('offline', handleOffline);
-            stopScanner();
-        };
-    }, []);
-
-    const fetchEvents = async () => {
-        try {
-            setLoading(true);
-            const { data } = await api.get('/api/admin/scanner/events');
-            setEvents(data);
-            if (data.length === 1) handleSelectEvent(data[0]._id);
-        } catch (e) {
-            console.error('Failed to fetch events:', e);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleSelectEvent = async (eventId) => {
-        setSelectedEventId(eventId);
-        
-        // Load offline data if available
-        const localData = localStorage.getItem(`scanner_data_${eventId}`);
-        if (localData) {
-            setAttendees(JSON.parse(localData));
-        }
-
-        if (!isOffline) {
-            await syncAttendees(eventId);
-        }
-    };
-
-    const syncAttendees = async (eventId) => {
+    const syncAttendees = useCallback(async (eventId) => {
         try {
             setSyncing(true);
             
@@ -93,7 +51,60 @@ const ScannerApp = () => {
         } finally {
             setSyncing(false);
         }
-    };
+    }, []);
+
+    const handleSelectEvent = useCallback(async (eventId) => {
+        setSelectedEventId(eventId);
+        
+        // Load offline data if available
+        const localData = localStorage.getItem(`scanner_data_${eventId}`);
+        if (localData) {
+            setAttendees(JSON.parse(localData));
+        }
+
+        if (!isOffline) {
+            await syncAttendees(eventId);
+        }
+    }, [isOffline, syncAttendees]);
+
+    const fetchEvents = useCallback(async () => {
+        try {
+            setLoading(true);
+            const { data } = await api.get('/api/admin/scanner/events');
+            setEvents(data);
+            if (data.length === 1) handleSelectEvent(data[0]._id);
+        } catch (e) {
+            console.error('Failed to fetch events:', e);
+        } finally {
+            setLoading(false);
+        }
+    }, [handleSelectEvent]);
+
+    const stopScanner = useCallback(() => {
+        if (scannerRef.current && scannerRef.current.isScanning) {
+            scannerRef.current.stop().then(() => {
+                scannerRef.current.clear();
+                scannerRef.current = null;
+            });
+        }
+        setScanning(false);
+    }, []);
+
+    useEffect(() => {
+        const handleOnline = () => setIsOffline(false);
+        const handleOffline = () => setIsOffline(true);
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+        
+        fetchEvents();
+
+        return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+            stopScanner();
+        };
+    }, [fetchEvents, stopScanner]);
+
 
     const startScanner = async () => {
         if (!selectedEventId) return alert('Select an event first');
@@ -118,7 +129,7 @@ const ScannerApp = () => {
                         scannerRef.current.pause();
                     }
                 },
-                (errorMessage) => {
+                (_errorMessage) => {
                     // ignore frequent read errors
                 }
             );
@@ -129,15 +140,7 @@ const ScannerApp = () => {
         }
     };
 
-    const stopScanner = () => {
-        if (scannerRef.current && scannerRef.current.isScanning) {
-            scannerRef.current.stop().then(() => {
-                scannerRef.current.clear();
-                scannerRef.current = null;
-            });
-        }
-        setScanning(false);
-    };
+
 
     const handleScan = (ticketId) => {
         const attendee = attendees.find(a => 
@@ -202,7 +205,7 @@ const ScannerApp = () => {
                 osc.start();
                 osc.stop(ctx.currentTime + 0.4);
             }
-        } catch (e) {
+        } catch (_e) {
             console.warn("Audio not supported");
         }
     };
