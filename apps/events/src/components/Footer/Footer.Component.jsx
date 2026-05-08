@@ -29,7 +29,7 @@ const Footer = () => {
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start gap-12">
         <div className="w-full md:w-1/3">
           <div className="flex items-center gap-3 mb-6">
-            <h3 className="text-3xl font-black text-white uppercase tracking-tighter">BACK<span className="text-indigo-500">STAGE</span></h3>
+            <h3 className="text-3xl font-black text-white uppercase tracking-tighter italic">BACK<span className="text-indigo-500 italic">STAGE</span></h3>
           </div>
           <p className="text-gray-400 text-sm leading-relaxed mb-8 pr-4">
             The biggest concerts and festivals in Delhi NCR are here. Pre-book your parking spot and walk straight to the front row.
@@ -59,7 +59,7 @@ const Footer = () => {
         </div>
       </div>
       <div className="max-w-7xl mx-auto mt-16 pt-8 border-t border-darkBackground-700 flex flex-col md:flex-row justify-between items-center gap-4">
-        <p className="text-gray-500 text-xs tracking-wider uppercase">&copy; 2026 BACKSTAGE. All rights reserved.</p>
+        <p className="text-gray-500 text-xs tracking-wider uppercase">&copy; 2026 <span className="italic font-black">BACKSTAGE</span>. All rights reserved.</p>
         <div className="flex gap-6 text-gray-500 text-xs text-center w-full justify-center md:w-auto">
           <Link to="/legal" className="hover:text-vibrantBlue transition-colors">Privacy Policy</Link>
           <Link to="/legal" className="hover:text-vibrantBlue transition-colors">Terms of Service</Link>

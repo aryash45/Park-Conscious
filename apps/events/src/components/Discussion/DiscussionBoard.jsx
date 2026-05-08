@@ -177,7 +177,7 @@ const DiscussionBoard = () => {
   return (
     <div>
       {/* ── Section Header ── */}
-      <div className="flex items-start justify-between mb-8 gap-4">
+      <div className="flex flex-col sm:flex-row items-start justify-between mb-10 gap-6">
         <div>
           <h2 className="text-2xl font-bold text-white">Event Discussions</h2>
           <p className="text-gray-400 text-sm mt-1">
