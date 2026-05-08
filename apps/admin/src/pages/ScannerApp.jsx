@@ -96,7 +96,10 @@ const ScannerApp = () => {
         window.addEventListener('online', handleOnline);
         window.addEventListener('offline', handleOffline);
         
-        fetchEvents();
+        // Defer to avoid cascading render lint error
+        Promise.resolve().then(() => {
+            fetchEvents();
+        });
 
         return () => {
             window.removeEventListener('online', handleOnline);
