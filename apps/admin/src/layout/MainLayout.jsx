@@ -10,7 +10,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { 
   BarChart, Calendar, Users, Settings, 
   LogOut, Menu, Shield, Bell,
-  Search, Activity, Inbox
+  Search, Activity, Inbox, QrCode
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
@@ -76,6 +76,7 @@ const MainLayout = () => {
               <SidebarItem icon={BarChart} label="Dashboard" to="/" />
               <SidebarItem icon={Calendar} label="Events" to="/events" />
               <SidebarItem icon={Users} label="Attendees" to="/attendees" />
+              {isSuperAdmin && <SidebarItem icon={QrCode} label="Scanner App" to="/scanner" />}
               
               {isSuperAdmin && (
                 <>

@@ -165,39 +165,57 @@ export default async function handler(req, res) {
         }
 
         if (url.includes('users') && method === 'POST') {
-            if (!user || (user.role !== 'superadmin' && user.role !== 'admin')) return json(res, 403, { message: 'Access Denied: Administrative privileges required' });
-            
-            const { name, email, password, role, assignedEventIds } = body;
-            if (!name || !email || !password) return json(res, 400, { message: 'Missing required fields' });
+            try {
+                if (!user || (user.role !== 'superadmin' && user.role !== 'admin')) return json(res, 403, { message: 'Access Denied: Administrative privileges required' });
+                
+                const { name, email, password, role, assignedEventIds } = body;
+                if (!name || !email || !password) return json(res, 400, { message: 'Missing required fields' });
 
-            const existing = await Owner.findOne({ email: email.toLowerCase() });
-            if (existing) return json(res, 400, { message: 'User already exists' });
+                const existing = await Owner.findOne({ email: email.toLowerCase() });
+                if (existing) return json(res, 400, { message: 'User already exists' });
 
-            const hashedPassword = await bcrypt.hash(password, 10);
-            const newUser = await Owner.create({
-                name,
-                email: email.toLowerCase(),
-                password: hashedPassword,
-                role: role || 'organizer'
-            });
+                const hashedPassword = await bcrypt.hash(password, 10);
+                const newUser = await Owner.create({
+                    name,
+                    email: email.toLowerCase(),
+                    password: hashedPassword,
+                    role: role || 'organizer'
+                });
 
-            // Handle bulk event assignment
-            if (Array.isArray(assignedEventIds) && assignedEventIds.length > 0) {
-               await Event.updateMany(
-                   { _id: { $in: assignedEventIds } },
-                   { $set: { organizerId: String(newUser._id) } }
-               );
-               console.log(`[USER MGMT] Assigned ${assignedEventIds.length} events to new user ${newUser._id}`);
+                // Handle bulk event assignment
+                if (Array.isArray(assignedEventIds) && assignedEventIds.length > 0) {
+                   if (role === 'scanner') {
+                       await Event.updateMany(
+                           { _id: { $in: assignedEventIds } },
+                           { $addToSet: { scannerIds: String(newUser._id) } }
+                       );
+                   } else {
+                       await Event.updateMany(
+                           { _id: { $in: assignedEventIds } },
+                           { $set: { organizerId: String(newUser._id) } }
+                       );
+                   }
+                   console.log(`[USER MGMT] Assigned ${assignedEventIds.length} events to new user ${newUser._id} as ${role}`);
+                }
+
+                // Mirror new admin/organizer to Park Conscious database
+                await syncIdentity(newUser, true);
+
+                return json(res, 201, { 
+                    success: true, 
+                    user: { id: newUser._id, name, email, role: newUser.role },
+                    assignedCount: assignedEventIds?.length || 0
+                });
+            } catch (error) {
+                console.error("[USER CREATION ERROR]:", error);
+                await SystemLog.create({
+                    source: 'admin_api',
+                    type: 'user_creation_error',
+                    message: error.message,
+                    stack: error.stack
+                });
+                return json(res, 500, { message: `Internal Server Error: ${error.message}` });
             }
-
-            // Mirror new admin/organizer to Park Conscious database
-            await syncIdentity(newUser, true);
-
-            return json(res, 201, { 
-                success: true, 
-                user: { id: newUser._id, name, email, role: newUser.role },
-                assignedCount: assignedEventIds?.length || 0
-            });
         }
 
         if (url.includes('users/') && method === 'DELETE') {
@@ -633,6 +651,113 @@ export default async function handler(req, res) {
                 events: eventStats.sort((a, b) => b.revenue - a.revenue),
                 parkingRevenue // Extra detail if needed
             });
+        }
+
+        // -- Scanner Application API --
+        if (url.includes('scanner/events') && method === 'GET') {
+            if (!user || (user.role !== 'scanner' && user.role !== 'superadmin')) {
+                return json(res, 403, { message: 'Access Denied: Scanner role required' });
+            }
+            
+            // Find events where the scanner is assigned or return all for superadmin
+            const query = user.role === 'superadmin' ? {} : { scannerIds: String(user.id) };
+            const events = await Event.find(query).lean();
+            return json(res, 200, events);
+        }
+
+        if (url.includes('scanner/attendees/') && method === 'GET') {
+            if (!user || (user.role !== 'scanner' && user.role !== 'superadmin')) {
+                return json(res, 403, { message: 'Access Denied' });
+            }
+            const eventId = url.split('/').pop();
+            
+            // Verify access
+            try {
+                const event = await Event.findById(eventId);
+                if (!event || (!event.scannerIds.includes(String(user.id)) && user.role !== 'superadmin')) {
+                    return json(res, 403, { message: 'Access Denied: Not assigned to this event' });
+                }
+
+                // Fetch confirmed bookings
+                const bookings = await Booking.find({ 
+                    eventId, 
+                    status: { $in: ["Confirmed", "confirmed"] } 
+                }).lean();
+
+            const uids = [...new Set(bookings.map(b => b.userId).filter(id => id && id.length === 24))];
+            const usersList = await User.find({ _id: { $in: uids } }).lean();
+            const ownersList = await Owner.find({ _id: { $in: uids } }).lean();
+            const userMap = {};
+            usersList.forEach(u => userMap[String(u._id)] = { name: u.name, email: u.email });
+            ownersList.forEach(o => userMap[String(o._id)] = { name: o.name, email: o.email });
+
+            const formattedBookings = bookings.map(b => {
+                let name = b.name || 'Guest';
+                let email = b.email || b.phone || 'N/A';
+                if (b.userId && userMap[String(b.userId)]) {
+                    name = userMap[String(b.userId)].name;
+                    if (email === 'N/A' || !email) email = userMap[String(b.userId)].email;
+                }
+                return {
+                    _id: b._id,
+                    ticketId: b.ticketId || b.transactionId || String(b._id).slice(-8),
+                    name,
+                    email,
+                    phone: b.phone,
+                    tierName: b.tierName,
+                    attended: b.attended || false
+                };
+            });
+
+            return json(res, 200, formattedBookings);
+            } catch (err) {
+                console.error("[SCANNER ATTENDEES ERROR]:", err);
+                return json(res, 500, { message: 'Failed to fetch attendees', error: err.message });
+            }
+        }
+
+        if (url.includes('scanner/sync/') && method === 'POST') {
+            if (!user || (user.role !== 'scanner' && user.role !== 'superadmin')) {
+                return json(res, 403, { message: 'Access Denied' });
+            }
+            const eventId = url.split('/').pop();
+            const { checkIns } = body; 
+            
+            if (!Array.isArray(checkIns) || checkIns.length === 0) {
+                return json(res, 400, { message: 'checkIns array required' });
+            }
+
+            try {
+                // Verify access
+                const event = await Event.findById(eventId);
+                if (!event || (!event.scannerIds.includes(String(user.id)) && user.role !== 'superadmin')) {
+                    return json(res, 403, { message: 'Access Denied: Not assigned to this event' });
+                }
+
+                const now = new Date();
+                const scannerName = user.name || 'Scanner';
+
+                const result = await Booking.updateMany(
+                    { eventId, ticketId: { $in: checkIns }, attended: false },
+                    { $set: { attended: true, attendedAt: now, scannedBy: scannerName } }
+                );
+                
+                const result2 = await Booking.updateMany(
+                    { eventId, transactionId: { $in: checkIns }, ticketId: { $exists: false }, attended: false },
+                    { $set: { attended: true, attendedAt: now, scannedBy: scannerName } }
+                );
+
+                console.log(`[SCANNER SYNC] ${scannerName} synced ${result.modifiedCount + result2.modifiedCount} check-ins for event ${eventId}`);
+
+                return json(res, 200, { 
+                    success: true, 
+                    updated: result.modifiedCount + result2.modifiedCount,
+                    totalSynced: checkIns.length
+                });
+            } catch (err) {
+                console.error("[SCANNER SYNC ERROR]:", err);
+                return json(res, 500, { message: 'Sync failed', error: err.message });
+            }
         }
 
         return json(res, 404, { message: 'Admin endpoint not matched: ' + url });

@@ -25,7 +25,7 @@ const ownerSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true, lowercase: true },
     password: String,
     googleId: String,
-    role: { type: String, default: "organizer", enum: ["superadmin", "admin", "organizer", "owner"] },
+    role: { type: String, default: "organizer", enum: ["superadmin", "admin", "organizer", "owner", "scanner"] },
   },
   { timestamps: true }
 );
@@ -54,6 +54,7 @@ const eventSchema = new mongoose.Schema(
     capacity: { type: Number, default: 0 },
     status: { type: String, default: 'draft', enum: ['draft', 'published', 'cancelled'] },
     organizerId: { type: String, default: null }, // UID of the event owner
+    scannerIds: { type: [String], default: [] }, // Array of scanner UIDs assigned to this event
     requiredFields: {
       name: { type: Boolean, default: true },
       email: { type: Boolean, default: true },
@@ -175,6 +176,8 @@ const bookingSchema = new mongoose.Schema(
     vehicleNumber: String,
     ticketId: { type: String, unique: true, sparse: true }, // Unique ID for QR code
     attended: { type: Boolean, default: false }, // Check-in status
+    attendedAt: { type: Date, default: null },
+    scannedBy: { type: String, default: null },
     startTime: String,
     endTime: String,
     amount: String,
