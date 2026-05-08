@@ -36,7 +36,7 @@ function NavSm({ defaultLocation }) {
       <div className="flex items-center justify-between px-2">
         <div className="flex flex-col">
           <Link to="/" className="cursor-pointer">
-            <h3 className="text-xl font-black uppercase tracking-tighter leading-none italic">BACK<span className="text-indigo-500 italic block">STAGE</span></h3>
+            <h3 className="text-xl font-black uppercase tracking-tighter leading-none italic">BACK<span className="text-indigo-500 italic">STAGE</span></h3>
           </Link>
           <span className="text-slate-600 text-[8px] font-black uppercase tracking-[0.4em] flex items-center mt-2 cursor-pointer hover:text-white transition-colors">
             {defaultLocation || "Select Location"} <BiChevronDown className="ml-1" />
@@ -64,7 +64,7 @@ function NavSm({ defaultLocation }) {
         <div className={`absolute top-0 right-0 h-full w-[85%] glass-menu p-12 transition-transform duration-500 ease-out ${isOpen ? "translate-x-0" : "translate-x-full"}`}>
           <div className="flex flex-col h-full">
              <div className="flex justify-between items-start mb-12">
-                <h2 className="text-2xl font-black uppercase tracking-tighter italic">BACK<span className="text-indigo-500">STAGE</span></h2>
+                <h2 className="text-2xl font-black uppercase tracking-tighter italic">BACK<span className="text-indigo-500 italic">STAGE</span></h2>
                 <button onClick={() => setIsOpen(false)} className="text-slate-500 hover:text-white text-[10px] font-black uppercase tracking-widest">Close</button>
              </div>
              

@@ -19,6 +19,8 @@ import DefaultlayoutHoc from "../layout/Default.layout";
 
 // Components
 import PosterSlider from "../components/PosterSlider/PosterSlider.Component";
+import SearchBar from "../components/SearchBar/SearchBar";
+
 const FeaturedEventsSection = lazy(() => import("../components/FeaturedEvents/FeaturedEventsSection"));
 const DiscussionBoard = lazy(() => import("../components/Discussion/DiscussionBoard"));
 
@@ -57,6 +59,7 @@ const HomePage = () => {
     const [currentAd, setCurrentAd] = useState(0);
     const [selectedCategory, setSelectedCategory] = useState("All Events");
     const [missingConfig, setMissingConfig] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
 
     // Ticker Rotation
     useEffect(() => {
@@ -106,14 +109,32 @@ const HomePage = () => {
     }, []);
   
     const filteredEvents = useMemo(() => {
-      if (selectedCategory === "All Events") return premierMovies;
-      return premierMovies.filter(event => {
+      let events = premierMovies;
+      if (selectedCategory !== "All Events") {
+        events = events.filter(event => {
           const categoryString = Array.isArray(event.category) 
             ? event.category.join(' ').toLowerCase() 
             : String(event.category || "").toLowerCase();
           return categoryString.includes(selectedCategory.toLowerCase());
-      });
-    }, [selectedCategory, premierMovies]);
+        });
+      }
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        events = events.filter(event => {
+          const title = String(event.title || event.original_title || "").toLowerCase();
+          const location = String(
+            (typeof event.location === 'object' ? event.location?.name || event.location?.address : event.location) || 
+            (typeof event.venue === 'object' ? event.venue?.name : event.venue) || 
+            ""
+          ).toLowerCase();
+          const category = String(event.category || "").toLowerCase();
+          const host = String(event.host || event.organizer || event.author || "").toLowerCase();
+          
+          return title.includes(query) || location.includes(query) || category.includes(query) || host.includes(query);
+        });
+      }
+      return events;
+    }, [selectedCategory, premierMovies, searchQuery]);
   
     return (
       <div className="bg-[#050507] min-h-screen text-white pb-24 w-full selection:bg-indigo-500/30">
@@ -153,15 +174,12 @@ const HomePage = () => {
                  <p className="text-slate-400 text-sm md:text-lg font-medium leading-relaxed uppercase tracking-[0.4em]">
                     Curated experiences across Delhi NCR. Pre-booked parking included.
                  </p>
-                 <div className="flex items-center justify-center">
-                    <button 
-                      onClick={() => document.getElementById('event-grid').scrollIntoView({ behavior: 'smooth' })}
-                      className="group relative px-12 py-4 bg-white text-black rounded-full font-black text-[12px] uppercase tracking-[0.3em] hover:bg-indigo-600 hover:text-white transition-all shadow-2xl active:scale-95"
-                    >
-                       Explore Experiences
-                       <div className="absolute -inset-1 bg-white/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                    </button>
-                 </div>
+                 <SearchBar 
+                    onSearch={(query) => {
+                       setSearchQuery(query);
+                       document.getElementById('event-grid').scrollIntoView({ behavior: 'smooth' });
+                    }} 
+                 />
               </div>
            </div>
         </div>

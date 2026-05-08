@@ -30,7 +30,7 @@ const DiscussionListPage = () => {
            </p>
         </div>
 
-        <div className="bg-black/20 backdrop-blur-3xl border border-white/5 rounded-[4rem] p-8 md:p-20 shadow-3xl">
+        <div className="bg-black/20 backdrop-blur-3xl border border-white/5 rounded-[2.5rem] md:rounded-[4rem] p-6 md:p-20 shadow-3xl">
            <DiscussionBoard />
         </div>
       </div>

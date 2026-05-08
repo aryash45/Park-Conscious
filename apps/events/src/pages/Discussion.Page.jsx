@@ -47,8 +47,8 @@ const CommentItem = ({ comment, onVote, onReply, currentUser, isReply = false })
   };
 
   return (
-    <div className={`flex gap-4 md:gap-6 py-6 md:py-8 ${isReply ? "ml-4 md:ml-12 border-l border-white/5 pl-4 md:pl-8" : "border-b border-white/5"} last:border-0 group animate-reveal`}>
-      <div className="flex flex-col items-center gap-2 min-w-[2rem] md:min-w-[2.5rem]">
+    <div className={`flex gap-3 md:gap-6 py-6 md:py-8 ${isReply ? "ml-4 md:ml-12 border-l border-white/5 pl-4 md:pl-8" : "border-b border-white/5"} last:border-0 group animate-reveal`}>
+      <div className="flex flex-col items-center gap-1.5 md:gap-2 min-w-[1.8rem] md:min-w-[2.5rem]">
         <button
           onClick={() => onVote(comment._id, "upvote")}
           className={`p-1.5 md:p-2 rounded-xl transition-all ${userUpvoted ? "bg-indigo-500/10 text-indigo-400" : "text-slate-600 hover:text-white hover:bg-white/5"}`}
@@ -80,7 +80,7 @@ const CommentItem = ({ comment, onVote, onReply, currentUser, isReply = false })
           </div>
         </div>
         
-        <p className="text-slate-400 text-sm md:text-base leading-relaxed font-medium italic break-words overflow-hidden">"{comment.text}"</p>
+        <p className="text-slate-400 text-sm md:text-base leading-relaxed font-medium italic break-words">"{comment.text}"</p>
         
         <div className="flex items-center gap-6">
           {!isReply && currentUser && (
@@ -293,26 +293,26 @@ const DiscussionPage = () => {
         </Link>
 
         {/* Discussion Header */}
-        <div className="bg-white/5 border border-white/5 rounded-[3.5rem] p-10 md:p-16 mb-16 backdrop-blur-3xl relative overflow-hidden group shadow-2xl">
+        <div className="bg-white/5 border border-white/5 rounded-[2.5rem] md:rounded-[3.5rem] p-8 md:p-16 mb-16 backdrop-blur-3xl relative overflow-hidden group shadow-2xl">
           <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/5 blur-[100px] -z-10 rounded-full"></div>
 
-          <div className="flex gap-10">
+          <div className="flex flex-col md:flex-row gap-8 md:gap-10">
             {/* Votes */}
-            <div className="flex flex-col items-center gap-3 min-w-[3rem]">
+            <div className="flex md:flex-col items-center justify-center gap-2 md:gap-3 bg-white/5 md:bg-transparent rounded-full md:rounded-none px-4 py-2 md:p-0 w-fit md:min-w-[3rem] self-start md:self-auto shadow-xl md:shadow-none border border-white/5 md:border-none">
               <button
                 onClick={() => handlePostVote("upvote")}
-                className={`p-3 rounded-2xl transition-all ${userUpvoted ? "bg-indigo-500/10 text-indigo-400" : "text-slate-700 hover:text-white hover:bg-white/5"}`}
+                className={`p-1.5 md:p-3 rounded-full md:rounded-2xl transition-all ${userUpvoted ? "bg-indigo-500 text-white shadow-[0_0_20px_rgba(99,102,241,0.4)]" : "text-slate-500 hover:text-white hover:bg-white/5"}`}
               >
-                <BiUpvote className="w-8 h-8" />
+                <BiUpvote className="w-5 h-5 md:w-8 md:h-8" />
               </button>
-              <span className={`text-sm font-black italic tracking-widest ${score > 0 ? "text-indigo-400" : score < 0 ? "text-rose-500" : "text-slate-800"}`}>
+              <span className={`text-xs md:text-sm font-black italic tracking-widest px-1 ${score > 0 ? "text-indigo-400" : score < 0 ? "text-rose-500" : "text-slate-500"}`}>
                 {score}
               </span>
               <button
                 onClick={() => handlePostVote("downvote")}
-                className={`p-3 rounded-2xl transition-all ${userDownvoted ? "bg-rose-500/10 text-rose-500" : "text-slate-700 hover:text-rose-500 hover:bg-rose-500/5"}`}
+                className={`p-1.5 md:p-3 rounded-full md:rounded-2xl transition-all ${userDownvoted ? "bg-rose-500 text-white shadow-[0_0_20px_rgba(244,63,94,0.4)]" : "text-slate-500 hover:text-rose-500 hover:bg-rose-500/5"}`}
               >
-                <BiDownvote className="w-8 h-8" />
+                <BiDownvote className="w-5 h-5 md:w-8 md:h-8" />
               </button>
             </div>
 
@@ -326,14 +326,14 @@ const DiscussionPage = () => {
                   />
                 )}
                 <div className="space-y-3">
-                  <h2 className="text-white font-black text-4xl uppercase tracking-tighter italic leading-none">{discussion.eventTitle}</h2>
-                  <div className="pt-2">
+                  <h2 className="text-white font-black text-2xl md:text-4xl uppercase tracking-tighter italic leading-none">{discussion.eventTitle}</h2>
+                  <div className="pt-1">
                     <StarRating rating={discussion.rating} />
                   </div>
                 </div>
               </div>
 
-              <p className="text-slate-400 text-2xl leading-[1.6] font-medium italic opacity-90">"{discussion.review}"</p>
+              <p className="text-lg md:text-2xl leading-[1.6] font-medium italic opacity-90 break-words">"{discussion.review}"</p>
 
               <div className="flex items-center gap-6 pt-6 opacity-40">
                 {discussion.authorPhoto && (
@@ -376,7 +376,7 @@ const DiscussionPage = () => {
            </form>
 
            {/* Comments List */}
-           <div className="bg-white/5 border border-white/5 rounded-[3.5rem] px-10 md:px-16 divide-y divide-white/5 shadow-2xl backdrop-blur-3xl">
+           <div className="bg-white/5 border border-white/5 rounded-[2.5rem] md:rounded-[3.5rem] px-6 md:px-16 divide-y divide-white/5 shadow-2xl backdrop-blur-3xl">
              {parentComments.length === 0 ? (
                <p className="text-slate-700 text-[10px] font-black uppercase tracking-[0.5em] text-center py-20 italic">
                  No comments yet. Be the first to start the discussion!
