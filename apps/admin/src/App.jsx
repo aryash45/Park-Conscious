@@ -20,6 +20,7 @@ import Login from './pages/Login';
 import EditEvent from './pages/EditEvent';
 import SystemHealth from './pages/SystemHealth';
 import Inquiries from './pages/Inquiries';
+import ScannerApp from './pages/ScannerApp';
 import { RefreshCw } from 'lucide-react';
 
 const PrivateRoute = ({ children }) => {
@@ -32,7 +33,23 @@ const PrivateRoute = ({ children }) => {
     </div>
   );
   
+  if (admin && admin.role === 'scanner') return <Navigate to="/scanner" replace />;
   return admin ? children : <Navigate to="/login" replace />;
+};
+
+const ScannerRoute = ({ children }) => {
+  const { admin, loading } = useAuth();
+  
+  if (loading) return (
+    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-4">
+      <RefreshCw className="text-sky-500 animate-spin" size={40} />
+    </div>
+  );
+  
+  if (!admin) return <Navigate to="/login" replace />;
+  if (admin.role !== 'scanner' && admin.role !== 'superadmin') return <Navigate to="/" replace />;
+  
+  return children;
 };
 
 const SuperAdminRoute = ({ children }) => {
@@ -113,6 +130,12 @@ function App() {
               <Route path="attendees" element={<Attendees />} />
               <Route path="settings" element={<Settings />} />
             </Route>
+
+            <Route path="/scanner" element={
+              <ScannerRoute>
+                <ScannerApp />
+              </ScannerRoute>
+            } />
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

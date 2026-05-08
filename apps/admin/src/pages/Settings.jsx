@@ -21,6 +21,8 @@ const RoleBadge = ({ role }) => {
     <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all ${
       isSuper 
         ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' 
+        : role === 'scanner'
+        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
         : 'bg-sky-500/10 text-sky-400 border-sky-500/20'
     }`}>
       <Shield size={10} />
@@ -290,6 +292,7 @@ const Settings = () => {
                     onChange={(e) => setForm({ ...form, role: e.target.value })}
                   >
                     <option value="organizer">Organizer</option>
+                    <option value="scanner">Ticket Scanner</option>
                     <option value="superadmin">Super Admin</option>
                   </select>
                 </div>
