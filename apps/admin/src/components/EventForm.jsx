@@ -123,10 +123,17 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData(prev => ({ 
-      ...prev, 
-      [name]: type === 'checkbox' ? checked : value 
-    }));
+    setFormData(prev => {
+      const newVal = type === 'checkbox' ? checked : value;
+      let nextData = { ...prev, [name]: newVal };
+
+      // If turning off Startup Registration, automatically prune the st_ fields
+      if (name === 'startupFormEnabled' && !newVal) {
+        nextData.customForms = prev.customForms.filter(f => !f.id.startsWith('st_'));
+      }
+
+      return nextData;
+    });
   };
 
   const handleImageUpload = async (e) => {
