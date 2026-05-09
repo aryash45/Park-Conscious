@@ -116,6 +116,34 @@ const Attendees = () => {
     }
   };
 
+  const handleDispatchEmails = async (bookingIds) => {
+    if (!bookingIds || bookingIds.length === 0) return;
+    const confirmMsg = bookingIds.length === 1 
+      ? "Dispatch ticket email to this guest?" 
+      : `Broadcast tickets to ${bookingIds.length} guests in the current pool?`;
+    
+    if (!window.confirm(confirmMsg)) return;
+
+    setToggleLoading(bookingIds.length === 1 ? 'dispatch-' + bookingIds[0] : 'bulk-dispatch');
+    try {
+      await bookingService.broadcastEmails(bookingIds);
+      alert(bookingIds.length === 1 ? "Ticket dispatched successfully!" : "Bulk broadcast initiated.");
+      
+      // Update local state if needed (though emailSent is managed by backend)
+      if (bookingIds.length === 1) {
+        setAttendees(prev => prev.map(a => a._id === bookingIds[0] ? { ...a, emailSent: true } : a));
+        if (selectedAttendee?._id === bookingIds[0]) setSelectedAttendee(prev => ({ ...prev, emailSent: true }));
+      } else {
+        fetchData();
+      }
+    } catch (err) {
+      console.error("Dispatch failed:", err);
+      alert("Dispatch protocol failed. Check logs.");
+    } finally {
+      setToggleLoading(null);
+    }
+  };
+
   const handleExportCSV = () => {
     if (!filteredData || filteredData.length === 0) {
       alert("No data available to export.");
@@ -201,6 +229,14 @@ const Attendees = () => {
         <div className="flex items-center gap-3">
            <button onClick={() => fetchData(true)} className="p-4 bg-zinc-900/50 border border-white/5 text-zinc-500 hover:text-white rounded-[1.5rem] transition-all">
              <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+           </button>
+           <button 
+             onClick={() => handleDispatchEmails(filteredData.map(a => a._id))}
+             disabled={toggleLoading === 'bulk-dispatch' || filteredData.length === 0}
+             className="bg-zinc-900/50 hover:bg-white/5 border border-white/5 text-white px-8 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.25em] transition-all flex items-center gap-3 disabled:opacity-50"
+           >
+             {toggleLoading === 'bulk-dispatch' ? <RefreshCw size={16} className="animate-spin" /> : <Mail size={16} />} 
+             Bulk Dispatch
            </button>
            <button onClick={handleExportCSV} className="bg-sky-500 hover:bg-sky-400 text-zinc-950 px-8 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.25em] transition-all flex items-center gap-3 shadow-xl">
              <Download size={16} strokeWidth={3} /> Export Master List
@@ -370,12 +406,22 @@ const Attendees = () => {
                      </div>
                   </div>
                </div>
-               <button 
-                 onClick={() => setSelectedAttendee(null)}
-                 className="mt-6 w-full py-4 bg-zinc-800 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-zinc-300 hover:text-white transition-all"
-               >
-                 Close Identity File
-               </button>
+               <div className="space-y-3">
+                  <button 
+                    onClick={() => handleDispatchEmails([selectedAttendee._id])}
+                    disabled={toggleLoading === 'dispatch-' + selectedAttendee._id}
+                    className="w-full py-4 bg-sky-500 hover:bg-sky-400 text-zinc-950 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+                  >
+                    {toggleLoading === 'dispatch-' + selectedAttendee._id ? <RefreshCw size={14} className="animate-spin" /> : <Mail size={14} />}
+                    Dispatch Gate Token
+                  </button>
+                  <button 
+                    onClick={() => setSelectedAttendee(null)}
+                    className="w-full py-4 bg-zinc-800 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-zinc-300 hover:text-white transition-all"
+                  >
+                    Close Identity File
+                  </button>
+               </div>
             </div>
 
             {/* RIGHT: TELEMETRY MATRIX */}
