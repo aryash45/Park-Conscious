@@ -16,8 +16,6 @@ import AppErrorBoundary from "./components/AppErrorBoundary";
 
 // Lazy load components
 const HomePage = lazy(() => import("./pages/Home.Page"));
-const MoviePage = lazy(() => import("./pages/Movie.Page"));
-const PlayPage = lazy(() => import("./pages/Play.Page"));
 const ErrorPage = lazy(() => import("./pages/404"));
 const CategoryPage = lazy(() => import("./pages/Category.Page"));
 const DiscussionPage = lazy(() => import("./pages/Discussion.Page"));
@@ -50,8 +48,6 @@ function App() {
           <Route path="/legal" element={<LegalPage />} />
           <Route path="/host" element={<HostPage />} />
           <Route path="/my-bookings" element={<MyBookingsPage />} />
-          <Route path="/movie/:id" element={<MoviePage />} />
-          <Route path="/plays" element={<PlayPage />} />
           <Route path="/category/:id" element={<CategoryPage />} />
           <Route path="/discussion" element={<DiscussionListPage />} />
           <Route path="/discussion/:id" element={<DiscussionPage />} />
