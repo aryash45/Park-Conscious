@@ -3,7 +3,7 @@
  */
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
-  Users, Search, Download, CheckCircle, Clock, 
+  Users, Search, Filter, Download, CheckCircle, Clock, 
   RefreshCw, Trash2, Activity, ArrowUpRight, 
   ExternalLink, FileText, Smartphone, Monitor, Globe, User as UserIcon,
   Briefcase, MailCheck, MailX
@@ -49,7 +49,21 @@ const Attendees = () => {
     }
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      try {
+        const { data } = await bookingService.getAllAttendees();
+        if (active) setAttendees(data || []);
+      } catch (err) {
+        console.error('Init fetch failed:', err);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    load();
+    return () => { active = false; };
+  }, []);
 
   // Handle Body Scroll Lock when modal is open
   useEffect(() => {
@@ -191,6 +205,47 @@ const Attendees = () => {
            <button onClick={handleExportCSV} className="bg-sky-500 hover:bg-sky-400 text-zinc-950 px-8 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.25em] transition-all flex items-center gap-3 shadow-xl">
              <Download size={16} strokeWidth={3} /> Export Master List
            </button>
+        </div>
+      </div>
+
+      {/* Filters & Search */}
+      <div className="flex flex-col md:flex-row gap-4 animate-in slide-in-from-bottom-4 duration-700 delay-150">
+        <div className="flex-1 relative group">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-sky-400 transition-colors" size={18} />
+          <input 
+            type="text" 
+            placeholder="Search Identity, Email, or Token..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-zinc-900/50 border border-white/5 rounded-2xl py-4 pl-12 pr-6 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-sky-500/50 transition-all shadow-inner"
+          />
+        </div>
+        <div className="flex gap-4">
+          <div className="relative">
+            <select 
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="bg-zinc-900/50 border border-white/5 rounded-2xl px-6 py-4 text-[10px] font-black uppercase tracking-widest text-zinc-400 focus:outline-none focus:border-sky-500/50 appearance-none cursor-pointer pr-12 min-w-[160px]"
+            >
+              <option value="all">All Status</option>
+              <option value="attended">Verified</option>
+              <option value="pending">Pending</option>
+            </select>
+            <Filter className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-600 pointer-events-none" size={14} />
+          </div>
+          <div className="relative">
+            <select 
+              value={eventFilter}
+              onChange={(e) => setEventFilter(e.target.value)}
+              className="bg-zinc-900/50 border border-white/5 rounded-2xl px-6 py-4 text-[10px] font-black uppercase tracking-widest text-zinc-400 focus:outline-none focus:border-sky-500/50 appearance-none cursor-pointer pr-12 min-w-[200px]"
+            >
+              <option value="all">All Events</option>
+              {[...new Set(attendees.map(a => a.event?.title))].filter(Boolean).map(title => (
+                <option key={title} value={title}>{title}</option>
+              ))}
+            </select>
+            <Activity className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-600 pointer-events-none" size={14} />
+          </div>
         </div>
       </div>
 
