@@ -34,6 +34,7 @@ const Attendees = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [eventFilter, setEventFilter] = useState('all');
+  const [selectedIds, setSelectedIds] = useState([]);
   const [toggleLoading, setToggleLoading] = useState(null);
   const [selectedAttendee, setSelectedAttendee] = useState(null);
 
@@ -141,8 +142,24 @@ const Attendees = () => {
       alert("Dispatch protocol failed. Check logs.");
     } finally {
       setToggleLoading(null);
+      if (bookingIds.length > 1) setSelectedIds([]);
     }
   };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredData.length && filteredData.length > 0) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredData.map(a => a._id));
+    }
+  };
+
+  const toggleSelect = (id) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
 
   const handleExportCSV = () => {
     if (!filteredData || filteredData.length === 0) {
@@ -236,8 +253,18 @@ const Attendees = () => {
              className="bg-zinc-900/50 hover:bg-white/5 border border-white/5 text-white px-8 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.25em] transition-all flex items-center gap-3 disabled:opacity-50"
            >
              {toggleLoading === 'bulk-dispatch' ? <RefreshCw size={16} className="animate-spin" /> : <Mail size={16} />} 
-             Dispatch Pending
+             Dispatch Pending ({filteredData.filter(a => !a.emailSent).length})
            </button>
+
+           {selectedIds.length > 0 && (
+             <button 
+               onClick={() => handleDispatchEmails(selectedIds)} 
+               disabled={toggleLoading === 'bulk-dispatch'}
+               className="bg-emerald-500 hover:bg-emerald-400 text-zinc-950 px-8 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.25em] transition-all flex items-center gap-3 shadow-lg shadow-emerald-500/20 animate-in zoom-in-95 duration-300"
+             >
+               <CheckCircle size={16} /> Dispatch Selection ({selectedIds.length})
+             </button>
+           )}
            <button onClick={handleExportCSV} className="bg-sky-500 hover:bg-sky-400 text-zinc-950 px-8 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.25em] transition-all flex items-center gap-3 shadow-xl">
              <Download size={16} strokeWidth={3} /> Export Master List
            </button>
@@ -297,6 +324,14 @@ const Attendees = () => {
             <table className="w-full text-left">
               <thead>
                 <tr className="text-[10px] text-zinc-600 font-black uppercase tracking-[0.3em] border-b border-white/5">
+                  <th className="px-10 py-6 w-10">
+                    <input 
+                      type="checkbox" 
+                      checked={selectedIds.length === filteredData.length && filteredData.length > 0}
+                      onChange={toggleSelectAll}
+                      className="w-4 h-4 rounded border-white/10 bg-zinc-900/50 text-sky-500 focus:ring-0 focus:ring-offset-0 cursor-pointer transition-all"
+                    />
+                  </th>
                   <th className="px-10 py-6">Identity Profile</th>
                   <th className="px-10 py-6">Verification Protocol</th>
                   <th className="px-10 py-6 text-right">Actions</th>
@@ -305,6 +340,14 @@ const Attendees = () => {
               <tbody className="divide-y divide-white/[0.03]">
                 {filteredData.map((item) => (
                   <tr key={item._id} className="group hover:bg-white/[0.02] transition-all cursor-pointer" onClick={() => setSelectedAttendee(item)}>
+                    <td className="px-10 py-8 w-10" onClick={(e) => e.stopPropagation()}>
+                      <input 
+                        type="checkbox" 
+                        checked={selectedIds.includes(item._id)}
+                        onChange={() => toggleSelect(item._id)}
+                        className="w-4 h-4 rounded border-white/10 bg-zinc-900/50 text-sky-500 focus:ring-0 focus:ring-offset-0 cursor-pointer transition-all"
+                      />
+                    </td>
                     <td className="px-10 py-8">
                        <div className="flex items-center gap-6">
                           <div className="w-12 h-12 rounded-2xl bg-zinc-900 border border-white/10 flex items-center justify-center group-hover:border-sky-500 transition-all">
