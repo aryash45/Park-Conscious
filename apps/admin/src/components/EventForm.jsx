@@ -51,10 +51,10 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
       email: true,
       phone: true
     },
-    customForms: [],
     mediaGallery: [],
     hosts: [],
     ticketTiers: [],
+    startupFormEnabled: false,
     themeConfig: {
       primaryColor: '#E33B76',
       themeStyle: 'pastel-light',
@@ -105,6 +105,7 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
           },
           hosts: initialData.hosts || [],
           ticketTiers: initialData.ticketTiers || [],
+          startupFormEnabled: initialData.startupFormEnabled || false,
           themeConfig: initialData.themeConfig || {
             primaryColor: '#E33B76',
             themeStyle: 'pastel-light',
@@ -173,6 +174,7 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
         mediaGallery: formData.mediaGallery || [],
         hosts: formData.hosts || [],
         ticketTiers: formData.ticketTiers || [],
+        startupFormEnabled: formData.startupFormEnabled || false,
         themeConfig: formData.themeConfig
     };
     onSubmit(submissionData);
@@ -526,84 +528,172 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
               ))}
             </div>
 
-            {/* Custom Dynamic Fields Builder */}
+            {/* Startup Registration Toggle */}
+            <div className="pt-8 border-t border-slate-800">
+               <label className="flex items-center justify-between p-6 bg-slate-950 border border-slate-800 rounded-3xl cursor-pointer hover:border-emerald-500/40 transition-all group shadow-inner">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500 group-hover:bg-emerald-500 group-hover:text-white transition-all">
+                     <Star size={24} />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-black text-white uppercase tracking-widest">Enable Startup Registration</p>
+                    <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-1">Activate the internal \"Google Form\" for founders & pitch-decks</p>
+                  </div>
+                </div>
+                <div className="relative">
+                  <input
+                    type="checkbox" name="startupFormEnabled"
+                    checked={formData.startupFormEnabled}
+                    onChange={handleChange}
+                    className="sr-only peer"
+                  />
+                  <div className="w-12 h-6 bg-slate-800 rounded-full peer-checked:bg-emerald-500 transition-all relative">
+                    <div className="absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-all peer-checked:translate-x-6" style={{transform: formData.startupFormEnabled ? 'translateX(24px)' : 'translateX(0)'}} />
+                  </div>
+                </div>
+              </label>
+            </div>
+
             <div className="pt-8 border-t border-slate-800">
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h4 className="text-[10px] font-black text-white uppercase tracking-[0.2em] flex items-center gap-2">
                     <PlusCircle className="text-sky-500" size={16} /> Dynamic Data Collection
                   </h4>
-                  <p className="text-[9px] font-medium text-slate-500 uppercase tracking-widest mt-1">Add custom text inputs for checkout</p>
+                  <p className="text-[9px] font-medium text-slate-500 uppercase tracking-widest mt-1">Add custom inputs for checkout</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setFormData(prev => ({
-                    ...prev,
-                    customForms: [...prev.customForms, { id: Date.now().toString(), label: '', required: false }]
-                  }))}
-                  className="flex items-center gap-2 bg-sky-500/10 hover:bg-sky-500/20 text-sky-500 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] transition-all border border-sky-500/20"
-                >
-                  <PlusCircle size={14} /> Add Field
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const startupFields = [
+                        { id: 'st_stall', label: 'Do you want a stall?', type: 'select', options: ['Yes', 'No'], required: true },
+                        { id: 'st_name', label: 'Startup Name', type: 'text', required: true },
+                        { id: 'st_link', label: 'Website / LinkedIn Page', type: 'text', required: true },
+                        { id: 'st_sector', label: 'Startup Sector / Industry', type: 'select', options: ['FinTech', 'HealthTech', 'EdTech', 'AgriTech', 'SaaS', 'AI / ML', 'E-commerce', 'Climate / CleanTech', 'Other'], required: true },
+                        { id: 'st_stage', label: 'Startup Stage', type: 'select', options: ['Idea Stage', 'MVP Stage', 'Early Revenue', 'Growth Stage', 'Other'], required: true },
+                        { id: 'st_desc', label: 'Brief Startup Description', type: 'textarea', required: true },
+                        { id: 'st_deck', label: 'Pitch Deck (PDF/PPT)', type: 'file', required: true },
+                        { id: 'st_prob', label: 'Problem You Are Solving', type: 'textarea', required: true },
+                        { id: 'st_sol', label: 'Solution / Product Overview', type: 'textarea', required: true },
+                        { id: 'st_market', label: 'Target Customers / Market', type: 'textarea', required: true },
+                        { id: 'st_confirm', label: 'I confirm all information is accurate', type: 'checkbox', required: true },
+                      ];
+                      setFormData(prev => ({
+                        ...prev,
+                        startupFormEnabled: true,
+                        customForms: [...prev.customForms, ...startupFields.filter(sf => !prev.customForms.some(cf => cf.id === sf.id))]
+                      }));
+                    }}
+                    className="flex items-center gap-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] transition-all border border-emerald-500/20"
+                  >
+                    <RefreshCw size={12} /> Load Startup Template
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({
+                      ...prev,
+                      customForms: [...prev.customForms, { id: Date.now().toString(), label: '', type: 'text', required: false, options: [] }]
+                    }))}
+                    className="flex items-center gap-2 bg-sky-500/10 hover:bg-sky-500/20 text-sky-500 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] transition-all border border-sky-500/20"
+                  >
+                    <PlusCircle size={14} /> Add Field
+                  </button>
+                </div>
               </div>
 
               {formData.customForms && formData.customForms.length > 0 ? (
                 <div className="space-y-4">
                   {formData.customForms.map((field, index) => (
-                    <div key={field.id} className="flex items-center gap-4 p-4 bg-slate-950 border border-slate-800 rounded-2xl group animate-in slide-in-from-left-2">
-                      <div className="flex-1">
-                        <input
-                          type="text"
-                          placeholder="e.g. University Name, T-Shirt Size"
-                          value={field.label}
-                          onChange={(e) => {
-                            const newForms = [...formData.customForms];
-                            newForms[index].label = e.target.value;
-                            setFormData(prev => ({ ...prev, customForms: newForms }));
-                          }}
-                          className="w-full bg-transparent text-sm text-white focus:outline-none placeholder:text-slate-700 font-medium"
-                        />
-                      </div>
-                      
-                      <label className="flex items-center gap-2 cursor-pointer border-l border-slate-800 pl-4 py-1">
-                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 group-hover:text-amber-500 transition-colors">Required</span>
-                        <div className="relative">
-                          <input 
-                            type="checkbox"
-                            checked={field.required}
+                    <div key={field.id} className="flex flex-col gap-4 p-6 bg-slate-950 border border-slate-800 rounded-3xl group animate-in slide-in-from-left-2">
+                      <div className="flex items-center gap-4">
+                        <div className="flex-1">
+                          <input
+                            type="text"
+                            placeholder="Field Label (e.g. University Name)"
+                            value={field.label}
                             onChange={(e) => {
                               const newForms = [...formData.customForms];
-                              newForms[index].required = e.target.checked;
+                              newForms[index].label = e.target.value;
                               setFormData(prev => ({ ...prev, customForms: newForms }));
                             }}
-                            className="sr-only peer"
+                            className="w-full bg-transparent text-sm text-white focus:outline-none placeholder:text-slate-800 font-bold uppercase tracking-tight"
                           />
-                          <div className="w-5 h-5 border-2 border-slate-700 rounded-md peer-checked:bg-amber-500 peer-checked:border-amber-500 transition-all flex items-center justify-center">
-                            <svg className="w-3 h-3 text-white opacity-0 peer-checked:opacity-100 transition-opacity" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="20 6 9 17 4 12" />
-                            </svg>
-                          </div>
                         </div>
-                      </label>
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setFormData(prev => ({
-                            ...prev,
-                            customForms: prev.customForms.filter(f => f.id !== field.id)
-                          }));
-                        }}
-                        className="p-2 text-slate-600 hover:text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all ml-2"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                        <select
+                          value={field.type || 'text'}
+                          onChange={(e) => {
+                            const newForms = [...formData.customForms];
+                            newForms[index].type = e.target.value;
+                            setFormData(prev => ({ ...prev, customForms: newForms }));
+                          }}
+                          className="bg-slate-900 border border-slate-800 text-[10px] font-black text-slate-400 px-3 py-1.5 rounded-lg outline-none focus:border-sky-500/50 uppercase tracking-widest"
+                        >
+                          <option value="text">Text</option>
+                          <option value="textarea">Textarea</option>
+                          <option value="select">Dropdown</option>
+                          <option value="file">File Upload</option>
+                          <option value="checkbox">Checkbox</option>
+                        </select>
+                        
+                        <label className="flex items-center gap-2 cursor-pointer border-l border-slate-800 pl-4 py-1">
+                          <span className="text-[9px] font-black uppercase tracking-widest text-slate-700 group-hover:text-amber-500 transition-colors">Required</span>
+                          <div className="relative">
+                            <input 
+                              type="checkbox"
+                              checked={field.required}
+                              onChange={(e) => {
+                                const newForms = [...formData.customForms];
+                                newForms[index].required = e.target.checked;
+                                setFormData(prev => ({ ...prev, customForms: newForms }));
+                              }}
+                              className="sr-only peer"
+                            />
+                            <div className="w-5 h-5 border-2 border-slate-800 rounded-md peer-checked:bg-amber-500 peer-checked:border-amber-500 transition-all flex items-center justify-center">
+                              <svg className="w-3.5 h-3.5 text-white opacity-0 peer-checked:opacity-100 transition-opacity" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                            </div>
+                          </div>
+                        </label>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormData(prev => ({
+                              ...prev,
+                              customForms: prev.customForms.filter(f => f.id !== field.id)
+                            }));
+                          }}
+                          className="p-2 text-slate-800 hover:text-rose-500 transition-all ml-2"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+
+                      {field.type === 'select' && (
+                        <div className="pl-4 border-l-2 border-sky-500/20 space-y-3">
+                          <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Dropdown Options (Comma separated)</p>
+                          <input
+                            type="text"
+                            placeholder="Option 1, Option 2, Option 3"
+                            value={Array.isArray(field.options) ? field.options.join(', ') : ''}
+                            onChange={(e) => {
+                              const newForms = [...formData.customForms];
+                              newForms[index].options = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
+                              setFormData(prev => ({ ...prev, customForms: newForms }));
+                            }}
+                            className="w-full bg-slate-950 border border-slate-900 rounded-xl px-4 py-3 text-xs text-slate-300 focus:outline-none focus:border-sky-500/30"
+                          />
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center p-8 border border-dashed border-slate-800 rounded-2xl bg-slate-950/50">
-                  <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">No custom fields deployed</p>
+                <div className="text-center p-8 border border-dashed border-slate-800 rounded-3xl bg-slate-950/50">
+                  <p className="text-[10px] font-bold text-slate-700 uppercase tracking-widest">No custom parameters deployed</p>
                 </div>
               )}
             </div>
