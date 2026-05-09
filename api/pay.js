@@ -98,7 +98,9 @@ export default async function handler(req, res) {
                     email: body.email || null,
                     ticketId: ticketId,
                     tierName: body.tierName || null,
-                    customData: customData || {}
+                    customData: customData || {},
+                    ipAddress: req.headers['x-forwarded-for'] || req.socket.remoteAddress || null,
+                    userAgent: req.headers['user-agent'] || null
                 });
 
                 if (targetEventId && targetEventId.length === 24) {
@@ -152,7 +154,9 @@ export default async function handler(req, res) {
                 name: name || body.name || null,
                 email: body.email || null,
                 tierName: body.tierName || null,
-                customData: customData || {}
+                customData: customData || {},
+                ipAddress: req.headers['x-forwarded-for'] || req.socket.remoteAddress || null,
+                userAgent: req.headers['user-agent'] || null
             });
 
             return json(res, 200, { 
@@ -368,10 +372,24 @@ export default async function handler(req, res) {
         if (err.missingConfig) {
              return json(res, 200, { success: false, missingConfig: true, message: 'Missing database configuration.' });
         }
-        console.error('[PAYMENT ERROR]:', err);
-        if (err.statusCode === 401) {
-             return json(res, 500, { success: false, message: 'Razorpay Authentication failed. Please verify RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in your backend .env file.' });
+        
+        console.error('[PAYMENT_PROCESS_ERROR]:', err);
+        
+        // Specific handling for Razorpay Connection/Auth issues
+        if (err.statusCode === 401 || err.description?.includes('Unauthorized')) {
+             return json(res, 500, { 
+                success: false, 
+                message: 'Razorpay Authentication failed. Please verify your RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in the .env file.' 
+             });
         }
+
+        if (err.code === 'ECONNRESET' || err.code === 'ETIMEDOUT') {
+            return json(res, 503, { 
+                success: false, 
+                message: 'Network connection lost while reaching payment gateway. Please check your internet or Razorpay status.' 
+            });
+        }
+
         return json(res, 500, { success: false, message: 'Server error processing payment: ' + err.message });
     }
 }
