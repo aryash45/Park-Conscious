@@ -6,7 +6,7 @@ import {
   Users, Search, Filter, Download, CheckCircle, Clock, 
   RefreshCw, Trash2, Activity, ArrowUpRight, 
   ExternalLink, FileText, Smartphone, Monitor, Globe, User as UserIcon,
-  Briefcase, MailCheck, MailX
+  Briefcase, Mail, MailCheck, MailX
 } from 'lucide-react';
 import { bookingService } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
