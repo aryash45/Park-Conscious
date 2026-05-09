@@ -1,18 +1,12 @@
 /**
  * apps/admin/src/pages/Attendees.jsx
- *
- * Purpose: Attendee management page for the Admin Panel.
- * Lists all confirmed bookings with filtering by event/status.
- * Supports check-in toggling, ticket email broadcasting, payment sync,
- * and booking deletion.
  */
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
-  Users, Search, Filter, Download, 
-  CheckCircle, XCircle, Clock, 
-  ChevronRight, Calendar, Mail, Ticket, Image,
-  RefreshCw, Trash2, History,
-  Activity, ArrowUpRight
+  Users, Search, Filter, Download, CheckCircle, Clock, 
+  RefreshCw, Trash2, Activity, ArrowUpRight, 
+  ExternalLink, FileText, Smartphone, Monitor, Globe, User as UserIcon,
+  Briefcase, Mail, MailCheck, MailX
 } from 'lucide-react';
 import { bookingService } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
@@ -21,11 +15,11 @@ const StatusBadge = ({ attended, onToggle, loading }) => (
   <button 
     onClick={(e) => { e.stopPropagation(); onToggle(); }}
     disabled={loading}
-    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest transition-all ${
+    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
     attended 
-      ? 'bg-emerald-500/5 text-emerald-500 border border-emerald-500/10' 
-      : 'bg-amber-500/5 text-amber-500 border border-amber-500/10'
-  } ${loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-white/5'}`}>
+      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
+      : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+  } ${loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-white/10 active:scale-95'}`}>
     {loading ? <RefreshCw size={10} className="animate-spin" /> : attended ? <CheckCircle size={10} /> : <Clock size={10} />}
     {attended ? 'Verified' : 'Pending'}
   </button>
@@ -41,10 +35,7 @@ const Attendees = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [eventFilter, setEventFilter] = useState('all');
   const [toggleLoading, setToggleLoading] = useState(null);
-  
-  const [broadcasting, setBroadcasting] = useState(false);
-  const [broadcastProgress, setBroadcastProgress] = useState({ current: 0, total: 0 });
-  const [syncing, setSyncing] = useState(false);
+  const [selectedAttendee, setSelectedAttendee] = useState(null);
 
   const fetchData = useCallback(async (force = false) => {
     if (force) setLoading(true);
@@ -58,15 +49,33 @@ const Attendees = () => {
     }
   }, []);
 
-  useEffect(() => { 
-    Promise.resolve().then(() => fetchData());
-  }, [fetchData]);
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      try {
+        const { data } = await bookingService.getAllAttendees();
+        if (active) setAttendees(data || []);
+      } catch (err) {
+        console.error('Init fetch failed:', err);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    load();
+    return () => { active = false; };
+  }, []);
 
-  const eventOptions = useMemo(() => {
-    if (!Array.isArray(attendees)) return ['all'];
-    const names = attendees.map(a => a.event?.title).filter(Boolean);
-    return ['all', ...new Set(names)];
-  }, [attendees]);
+  // Handle Body Scroll Lock when modal is open
+  useEffect(() => {
+    if (selectedAttendee) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [selectedAttendee]);
 
   const filteredData = useMemo(() => {
     if (!Array.isArray(attendees)) return [];
@@ -75,16 +84,8 @@ const Attendees = () => {
         (item.user?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
         (item.user?.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
         (item.ticketId || '').toLowerCase().includes(searchQuery.toLowerCase());
-      
-      const matchesStatus = 
-        statusFilter === 'all' || 
-        (statusFilter === 'attended' && item.attended) ||
-        (statusFilter === 'pending' && !item.attended);
-
-      const matchesEvent = 
-        eventFilter === 'all' || 
-        item.event?.title === eventFilter;
-
+      const matchesStatus = statusFilter === 'all' || (statusFilter === 'attended' && item.attended) || (statusFilter === 'pending' && !item.attended);
+      const matchesEvent = eventFilter === 'all' || item.event?.title === eventFilter;
       return matchesSearch && matchesStatus && matchesEvent;
     });
   }, [attendees, searchQuery, statusFilter, eventFilter]);
@@ -93,12 +94,10 @@ const Attendees = () => {
     if (toggleLoading) return;
     setToggleLoading(item.ticketId);
     try {
-      if (item.attended) {
-        await bookingService.unCheckIn(item.ticketId);
-      } else {
-        await bookingService.checkIn(item.ticketId);
-      }
+      if (item.attended) await bookingService.unCheckIn(item.ticketId);
+      else await bookingService.checkIn(item.ticketId);
       setAttendees(prev => prev.map(a => a._id === item._id ? { ...a, attended: !a.attended } : a));
+      if (selectedAttendee?._id === item._id) setSelectedAttendee(prev => ({ ...prev, attended: !prev.attended }));
     } catch (err) {
       console.error("Toggle failed:", err);
     } finally {
@@ -107,243 +106,245 @@ const Attendees = () => {
   };
 
   const handleDeleteBooking = async (id) => {
-    if (!window.confirm("ARE YOU SURE? THIS IS PERMANENT.")) return;
+    if (!window.confirm("CONFIRM DELETION: This action is permanent. Guest ticket will be invalidated.")) return;
     try {
       await bookingService.deleteBooking(id);
       setAttendees(prev => prev.filter(a => a._id !== id));
+      if (selectedAttendee?._id === id) setSelectedAttendee(null);
     } catch (err) {
       console.error("Delete failed:", err);
     }
   };
 
-  const handleSyncPayments = async () => {
-    if (syncing) return;
-    setSyncing(true);
+  const handleDispatchEmails = async (bookingIds) => {
+    if (!bookingIds || bookingIds.length === 0) return;
+    const confirmMsg = bookingIds.length === 1 
+      ? "Dispatch ticket email to this guest?" 
+      : `Broadcast tickets to ${bookingIds.length} guests in the current pool?`;
+    
+    if (!window.confirm(confirmMsg)) return;
+
+    setToggleLoading(bookingIds.length === 1 ? 'dispatch-' + bookingIds[0] : 'bulk-dispatch');
     try {
-      const { data } = await bookingService.reconcilePayments();
-      if (data.recovered > 0 || data.failed > 0) fetchData();
+      await bookingService.broadcastEmails(bookingIds);
+      alert(bookingIds.length === 1 ? "Ticket dispatched successfully!" : "Bulk broadcast initiated.");
+      
+      // Update local state if needed (though emailSent is managed by backend)
+      if (bookingIds.length === 1) {
+        setAttendees(prev => prev.map(a => a._id === bookingIds[0] ? { ...a, emailSent: true } : a));
+        if (selectedAttendee?._id === bookingIds[0]) setSelectedAttendee(prev => ({ ...prev, emailSent: true }));
+      } else {
+        fetchData();
+      }
     } catch (err) {
-      console.error("Sync failed:", err);
+      console.error("Dispatch failed:", err);
+      alert("Dispatch protocol failed. Check logs.");
     } finally {
-      setSyncing(false);
+      setToggleLoading(null);
     }
   };
 
-  const handleBroadcast = async () => {
-    const targetAttendees = filteredData.filter(a => a.status === 'Confirmed' && a.email && !a.emailSent);
-    if (targetAttendees.length === 0) return;
-    if (!window.confirm(`Dispatched tickets to ${targetAttendees.length} verified guests?`)) return;
-
-    setBroadcasting(true);
-    setBroadcastProgress({ current: 0, total: targetAttendees.length });
-
-    const batchSize = 10; 
-    let processed = 0;
-
-    try {
-      for (let i = 0; i < targetAttendees.length; i += batchSize) {
-        const batch = targetAttendees.slice(i, i + batchSize);
-        const batchIds = batch.map(b => b._id);
-        const response = await bookingService.broadcastEmails(batchIds);
-        if (!response.data.success) throw new Error(response.data.message);
-        
-        processed += batch.length;
-        setBroadcastProgress({ current: processed, total: targetAttendees.length });
-        if (i + batchSize < targetAttendees.length) await new Promise(res => setTimeout(res, 1000));
-      }
-      fetchData(); 
-    } catch (err) {
-      console.error(`Broadcast failed: ${err.message}`);
-    } finally {
-      setBroadcasting(false);
+  const handleExportCSV = () => {
+    if (!filteredData || filteredData.length === 0) {
+      alert("No data available to export.");
+      return;
     }
+
+    const headers = ['Name', 'Email', 'Event', 'Ticket ID', 'Status', 'Email Sent'];
+    
+    // Dynamically find all unique custom fields across the filtered set
+    const customFieldKeys = new Set();
+    filteredData.forEach(item => {
+      if (item.customData) {
+        Object.keys(item.customData).forEach(key => {
+          if (key !== 'registrationType') {
+            // Try to find the human readable label if available
+            const field = item.event?.customForms?.find(f => String(f.id) === String(key));
+            customFieldKeys.add(field ? field.label : key);
+          }
+        });
+      }
+    });
+    
+    const customFieldsArray = Array.from(customFieldKeys);
+    const allHeaders = [...headers, ...customFieldsArray];
+
+    const rows = filteredData.map(item => {
+      const baseRow = [
+        `"${String(item.user?.name || 'Guest').replace(/"/g, '""')}"`,
+        `"${String(item.user?.email || item.email || '').replace(/"/g, '""')}"`,
+        `"${String(item.event?.title || '').replace(/"/g, '""')}"`,
+        `"${String(item.ticketId || '').replace(/"/g, '""')}"`,
+        item.attended ? 'Verified' : 'Pending',
+        item.emailSent ? 'Yes' : 'No'
+      ];
+      
+      const customRow = customFieldsArray.map(headerKey => {
+        // Find the matching key in customData by checking the label
+        let val = '';
+        if (item.customData) {
+           for (const [k, v] of Object.entries(item.customData)) {
+              const field = item.event?.customForms?.find(f => String(f.id) === String(k));
+              const label = field ? field.label : k;
+              if (label === headerKey) {
+                 val = v;
+                 break;
+              }
+           }
+        }
+        return `"${String(val || '').replace(/"/g, '""')}"`;
+      });
+      
+      return [...baseRow, ...customRow].join(',');
+    });
+
+    const csvContent = [allHeaders.map(h => `"${h}"`).join(','), ...rows].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `nexus_registry_export_${new Date().toISOString().split('T')[0]}.csv`;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
-    <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+    <div className="min-h-screen space-y-12 animate-in fade-in duration-1000 pb-20">
       {/* Header Area */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 pb-10 border-b border-white/5">
         <div>
-          <div className="flex items-center gap-2 text-sky-400 text-[9px] font-bold uppercase tracking-[0.3em] mb-2">
-            <Activity size={10} /> Attendee Overview
+          <div className="flex items-center gap-2 text-sky-400 text-[10px] font-black uppercase tracking-[0.4em] mb-3">
+            <Activity size={12} strokeWidth={3} /> Registry Management
           </div>
-          <h1 className="text-3xl font-black text-zinc-100 tracking-tight uppercase flex items-center gap-3">
-            Attendees
+          <h1 className="text-4xl lg:text-5xl font-black text-white tracking-tighter uppercase leading-none">
+            Attendee <span className="text-zinc-600">Dossier</span>
           </h1>
-          <p className="text-zinc-600 text-xs font-medium mt-1">
-            {isSuperAdmin ? `Managing ${attendees.length} guests.` : `Viewing ${attendees.length} guests for your assigned events.`}
+          <p className="text-zinc-500 text-sm font-medium mt-4 max-w-xl leading-relaxed uppercase tracking-widest text-[10px]">
+            {isSuperAdmin ? `Verifying ${attendees.length} identities in cluster.` : `Managing assigned guest protocols.`}
           </p>
         </div>
         
-        <div className="flex items-center gap-2">
-          <button 
-            onClick={() => fetchData(true)}
-            className="p-2.5 bg-zinc-900/50 border border-white/5 text-zinc-500 hover:text-white rounded-xl transition-all"
-            disabled={loading}
-          >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          </button>
-          
-          <button 
-            onClick={handleBroadcast}
-            disabled={loading || broadcasting}
-            className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 px-5 py-2.5 rounded-xl text-[9px] font-bold uppercase tracking-[0.2em] transition-all flex items-center gap-2 disabled:opacity-50"
-          >
-            <Mail size={14} /> Broadcast
-          </button>
-          
-          {isSuperAdmin && (
-            <button 
-              onClick={handleSyncPayments}
-              disabled={loading || syncing}
-              className="bg-zinc-900 border border-white/5 text-zinc-500 hover:text-zinc-200 px-5 py-2.5 rounded-xl text-[9px] font-bold uppercase tracking-[0.2em] transition-all disabled:opacity-50 flex items-center gap-2"
-            >
-              <History size={14} /> Sync
-            </button>
-          )}
-
-          <button className="bg-sky-500 hover:bg-sky-400 text-zinc-950 px-5 py-2.5 rounded-xl text-[9px] font-bold uppercase tracking-[0.2em] transition-all flex items-center gap-2">
-            <Download size={14} /> Export
-          </button>
+        <div className="flex items-center gap-3">
+           <button onClick={() => fetchData(true)} className="p-4 bg-zinc-900/50 border border-white/5 text-zinc-500 hover:text-white rounded-[1.5rem] transition-all">
+             <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+           </button>
+           <button 
+             onClick={() => handleDispatchEmails(filteredData.filter(a => !a.emailSent).map(a => a._id))}
+             disabled={toggleLoading === 'bulk-dispatch' || filteredData.filter(a => !a.emailSent).length === 0}
+             className="bg-zinc-900/50 hover:bg-white/5 border border-white/5 text-white px-8 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.25em] transition-all flex items-center gap-3 disabled:opacity-50"
+           >
+             {toggleLoading === 'bulk-dispatch' ? <RefreshCw size={16} className="animate-spin" /> : <Mail size={16} />} 
+             Dispatch Pending
+           </button>
+           <button onClick={handleExportCSV} className="bg-sky-500 hover:bg-sky-400 text-zinc-950 px-8 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.25em] transition-all flex items-center gap-3 shadow-xl">
+             <Download size={16} strokeWidth={3} /> Export Master List
+           </button>
         </div>
       </div>
 
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-2 p-2 glass-card rounded-2xl">
-        <div className="flex-1 min-w-[300px] relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-700" size={14} />
+      {/* Filters & Search */}
+      <div className="flex flex-col md:flex-row gap-4 animate-in slide-in-from-bottom-4 duration-700 delay-150">
+        <div className="flex-1 relative group">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-sky-400 transition-colors" size={18} />
           <input 
-            type="text"
-            placeholder="Search Name or Ticket ID..."
+            type="text" 
+            placeholder="Search Identity, Email, or Token..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-white/[0.02] border border-white/[0.03] text-zinc-200 pl-11 pr-4 py-3 rounded-xl focus:outline-none focus:border-sky-500/20 transition-all font-mono text-[10px] uppercase tracking-widest"
+            className="w-full bg-zinc-900/50 border border-white/5 rounded-2xl py-4 pl-12 pr-6 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-sky-500/50 transition-all shadow-inner"
           />
         </div>
-        
-        <select 
-          value={eventFilter}
-          onChange={(e) => setEventFilter(e.target.value)}
-          className="bg-white/[0.02] border border-white/[0.03] text-zinc-500 px-4 py-3 rounded-xl focus:outline-none text-[9px] font-bold uppercase tracking-[0.2em] cursor-pointer hover:bg-white/[0.04] transition-all"
-        >
-          <option value="all">All Events</option>
-          {eventOptions.filter(opt => opt !== 'all').map(opt => (
-            <option key={opt} value={opt}>{opt}</option>
-          ))}
-        </select>
-        
-        <select 
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="bg-white/[0.02] border border-white/[0.03] text-zinc-500 px-4 py-3 rounded-xl focus:outline-none text-[9px] font-bold uppercase tracking-[0.2em] cursor-pointer hover:bg-white/[0.04] transition-all"
-        >
-          <option value="all">All Statuses</option>
-          <option value="attended">Verified</option>
-          <option value="pending">Pending</option>
-        </select>
+        <div className="flex gap-4">
+          <div className="relative">
+            <select 
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="bg-zinc-900/50 border border-white/5 rounded-2xl px-6 py-4 text-[10px] font-black uppercase tracking-widest text-zinc-400 focus:outline-none focus:border-sky-500/50 appearance-none cursor-pointer pr-12 min-w-[160px]"
+            >
+              <option value="all">All Status</option>
+              <option value="attended">Verified</option>
+              <option value="pending">Pending</option>
+            </select>
+            <Filter className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-600 pointer-events-none" size={14} />
+          </div>
+          <div className="relative">
+            <select 
+              value={eventFilter}
+              onChange={(e) => setEventFilter(e.target.value)}
+              className="bg-zinc-900/50 border border-white/5 rounded-2xl px-6 py-4 text-[10px] font-black uppercase tracking-widest text-zinc-400 focus:outline-none focus:border-sky-500/50 appearance-none cursor-pointer pr-12 min-w-[200px]"
+            >
+              <option value="all">All Events</option>
+              {[...new Set(attendees.map(a => a.event?.title))].filter(Boolean).map(title => (
+                <option key={title} value={title}>{title}</option>
+              ))}
+            </select>
+            <Activity className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-600 pointer-events-none" size={14} />
+          </div>
+        </div>
       </div>
 
-      {/* Broadcast Progress */}
-      {broadcasting && (
-        <div className="glass-card rounded-[2rem] p-8 animate-in slide-in-from-top-4 duration-500 border-emerald-500/10">
-           <div className="flex items-center justify-between mb-5">
-              <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-                    <Mail size={18} className="text-emerald-400 animate-pulse" />
-                  </div>
-                  <div>
-                    <h3 className="text-emerald-400 text-xs font-bold uppercase tracking-widest">Sending Tickets</h3>
-                    <p className="text-zinc-600 text-[9px] font-bold uppercase tracking-widest mt-0.5">Sending emails to attendees...</p>
-                  </div>
-              </div>
-              <div className="text-right">
-                 <span className="text-3xl font-black text-zinc-100 font-outfit">{broadcastProgress.current}</span>
-                 <span className="text-zinc-700 text-xs font-bold ml-1">/ {broadcastProgress.total}</span>
-              </div>
-           </div>
-           <div className="h-1 bg-zinc-900 rounded-full overflow-hidden">
-             <div className="h-full bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.5)] transition-all duration-500" style={{ width: `${(broadcastProgress.current / broadcastProgress.total) * 100}%` }} />
-           </div>
-        </div>
-      )}
-
-      {/* Table Container */}
-      <div className="glass-card rounded-[2.5rem] overflow-hidden">
+      {/* Main Registry Table */}
+      <div className="bg-zinc-900/30 border border-white/5 rounded-[3rem] overflow-hidden">
         {loading ? (
-          <div className="h-96 flex flex-col items-center justify-center gap-4">
-            <RefreshCw className="text-sky-500/50 animate-spin" size={32} />
-            <span className="text-[9px] font-bold text-zinc-700 uppercase tracking-[0.3em]">Loading Attendees...</span>
+          <div className="h-[60vh] flex flex-col items-center justify-center gap-6">
+            <RefreshCw className="text-sky-500 animate-spin" size={48} />
+            <span className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.5em]">Fetching Metadata...</span>
           </div>
         ) : filteredData.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
-                <tr className="text-[9px] text-zinc-700 font-bold uppercase tracking-[0.2em] border-b border-white/[0.02]">
-                  <th className="px-8 py-5">Guest Name</th>
-                  <th className="px-8 py-5">Event</th>
-                  <th className="px-8 py-5">Ticket ID</th>
-                  <th className="px-8 py-5">Status</th>
-                  <th className="px-8 py-5 text-right w-20"></th>
+                <tr className="text-[10px] text-zinc-600 font-black uppercase tracking-[0.3em] border-b border-white/5">
+                  <th className="px-10 py-6">Identity Profile</th>
+                  <th className="px-10 py-6">Verification Protocol</th>
+                  <th className="px-10 py-6 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/[0.02]">
+              <tbody className="divide-y divide-white/[0.03]">
                 {filteredData.map((item) => (
-                  <tr key={item._id} className="group hover:bg-white/[0.01] transition-all duration-300">
-                    <td className="px-8 py-6">
-                      <div className="flex items-center gap-4">
-                        <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-white/5 flex items-center justify-center group-hover:border-sky-500/20 transition-all">
-                          <Users size={14} className="text-zinc-600 group-hover:text-sky-400" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-zinc-200 uppercase tracking-tight leading-none mb-1">{item.user?.name || 'Anonymous'}</p>
-                          <div className="flex items-center gap-2">
-                            <p className="text-[9px] font-bold text-zinc-600 uppercase tracking-widest leading-none">
-                              {item.user?.email || item.email || 'N/A'}
-                            </p>
-                            {item.emailSent && <span className="py-0.5 px-1.5 rounded-full bg-emerald-500/5 text-emerald-500 text-[7px] font-bold uppercase tracking-widest border border-emerald-500/10">Sent</span>}
+                  <tr key={item._id} className="group hover:bg-white/[0.02] transition-all cursor-pointer" onClick={() => setSelectedAttendee(item)}>
+                    <td className="px-10 py-8">
+                       <div className="flex items-center gap-6">
+                          <div className="w-12 h-12 rounded-2xl bg-zinc-900 border border-white/10 flex items-center justify-center group-hover:border-sky-500 transition-all">
+                             <UserIcon size={20} className="text-zinc-600 group-hover:text-sky-400" />
                           </div>
-                          {item.customData && Object.keys(item.customData).length > 0 && (
-                            <div className="mt-3 flex flex-wrap gap-3">
-                              {Object.entries(item.customData).map(([fieldId, value]) => {
-                                const customFieldObj = item.event?.customForms?.find(f => String(f.id) === String(fieldId));
-                                const label = customFieldObj ? customFieldObj.label : fieldId;
-                                return (
-                                  <div key={fieldId} className="flex flex-col gap-0.5">
-                                    <span className="text-[7px] font-bold uppercase tracking-[0.2em] text-sky-500/60 leading-none">{label}</span>
-                                    <span className="text-[9px] font-medium text-zinc-400 truncate max-w-[120px] leading-none">{value}</span>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                          <div className="space-y-1.5">
+                             <div className="flex items-center gap-3">
+                                <p className="text-[15px] font-black text-white tracking-tight group-hover:text-sky-400 transition-colors">{item.user?.name || 'Nexus Guest'}</p>
+                                {item.customData?.registrationType === 'startup' && (
+                                  <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-[8px] font-black uppercase text-emerald-400 tracking-widest">Founder</span>
+                                )}
+                             </div>
+                             <p className="text-[11px] font-medium text-zinc-600 font-mono tracking-tighter">{item.user?.email || item.email}</p>
+                          </div>
+                       </div>
                     </td>
-                    <td className="px-8 py-6 text-zinc-400">
-                       <p className="text-[10px] font-bold text-zinc-300 uppercase tracking-tight truncate max-w-[180px] leading-none mb-1">{item.event?.title || 'External Event'}</p>
-                       <p className="text-[9px] font-bold text-zinc-700 uppercase tracking-widest leading-none">
-                        {item.event?.date ? new Date(item.event.date).toLocaleDateString() : 'TBA'}
-                      </p>
+                    <td className="px-10 py-8">
+                       <div className="flex flex-col gap-2 items-start">
+                          <StatusBadge 
+                            attended={item.attended} 
+                            onToggle={() => handleToggleAttendance(item)}
+                            loading={toggleLoading === item.ticketId}
+                          />
+                          <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[8px] font-black uppercase tracking-widest ${
+                            item.emailSent 
+                              ? 'text-sky-400 bg-sky-500/10 border border-sky-500/20'
+                              : 'text-zinc-500 bg-zinc-500/10 border border-zinc-500/20'
+                          }`}>
+                            {item.emailSent ? <MailCheck size={10} /> : <MailX size={10} />}
+                            {item.emailSent ? 'Ticket Sent' : 'Mail Pending'}
+                          </div>
+                       </div>
                     </td>
-                    <td className="px-8 py-6">
-                      <span className="text-[9px] font-mono font-bold text-sky-400/70 bg-sky-400/5 px-2 py-1 rounded-md border border-sky-400/10 uppercase tracking-widest">
-                        {item.ticketId || 'NO-HASH'}
-                      </span>
-                    </td>
-                    <td className="px-8 py-6">
-                      <StatusBadge 
-                        attended={item.attended} 
-                        onToggle={() => handleToggleAttendance(item)}
-                        loading={toggleLoading === item.ticketId}
-                      />
-                    </td>
-                    <td className="px-8 py-6 text-right">
-                      <button 
-                        onClick={() => handleDeleteBooking(item._id)}
-                        className="p-2 text-zinc-700 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                    <td className="px-10 py-8 text-right">
+                       <button 
+                         onClick={(e) => { e.stopPropagation(); handleDeleteBooking(item._id); }}
+                         className="p-3 text-zinc-700 hover:text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all"
+                       >
+                         <Trash2 size={16} />
+                       </button>
                     </td>
                   </tr>
                 ))}
@@ -351,19 +352,155 @@ const Attendees = () => {
             </table>
           </div>
         ) : (
-          <div className="p-32 flex flex-col items-center justify-center text-center space-y-4">
-            <div className="w-14 h-14 rounded-full bg-zinc-900 border border-white/5 flex items-center justify-center text-zinc-800">
-              <Users size={24} />
-            </div>
-            <div className="max-w-xs">
-              <p className="text-xs font-bold text-zinc-600 uppercase tracking-tight">No Guest Matches Found</p>
-              <p className="text-[9px] text-zinc-800 font-bold uppercase tracking-widest mt-2 leading-relaxed">
-                Adjust your verification type or search filters.
-              </p>
-            </div>
+          <div className="h-96 flex flex-col items-center justify-center text-center p-20">
+             <h3 className="text-xl font-black text-zinc-800 uppercase tracking-tighter">Identity Pool Empty</h3>
           </div>
         )}
       </div>
+
+      {/* --- DOSSIER OVERLAY MODAL --- */}
+      {selectedAttendee && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 sm:p-8">
+          {/* Overlay Backdrop - onClick to close */}
+          <div 
+            className="absolute inset-0 bg-[#050508]/90 backdrop-blur-md animate-in fade-in duration-300" 
+            onClick={() => setSelectedAttendee(null)} 
+          />
+          
+          {/* Modal Container */}
+          <div className="w-[95vw] lg:w-[90vw] max-w-6xl h-[90vh] bg-[#0c0c0e] border border-white/10 rounded-[2rem] overflow-hidden relative z-10 flex flex-col md:flex-row shadow-2xl animate-in zoom-in-95 duration-300">
+            
+            {/* LEFT: IDENTITY PANEL */}
+            <div className="w-full md:w-[350px] bg-zinc-900/30 p-8 border-r border-white/5 flex flex-col">
+               <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-8">
+                  <div className="w-20 h-20 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400">
+                     <UserIcon size={36} strokeWidth={2.5} />
+                  </div>
+                  <div>
+                     <h2 className="text-2xl font-black text-white uppercase tracking-tighter">{selectedAttendee.user?.name || 'Guest'}</h2>
+                     <p className="text-xs font-medium text-sky-500/60 font-mono tracking-tighter mt-1">{selectedAttendee.user?.email || selectedAttendee.email}</p>
+                  </div>
+                  <div className="space-y-6 pt-6 border-t border-white/5">
+                     <div>
+                        <p className="text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-1">Entry Token</p>
+                        <p className="text-xl font-black text-white tracking-widest">{selectedAttendee.ticketId}</p>
+                     </div>
+                     <div>
+                        <p className="text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-2">Check-in Status</p>
+                        <StatusBadge 
+                          attended={selectedAttendee.attended} 
+                          onToggle={() => handleToggleAttendance(selectedAttendee)}
+                          loading={toggleLoading === selectedAttendee.ticketId}
+                        />
+                     </div>
+                     <div>
+                        <p className="text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-2">Comms Protocol</p>
+                        <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                          selectedAttendee.emailSent 
+                            ? 'bg-sky-500/10 text-sky-400 border border-sky-500/20'
+                            : 'bg-zinc-500/10 text-zinc-400 border border-zinc-500/20'
+                        }`}>
+                          {selectedAttendee.emailSent ? <MailCheck size={12} /> : <MailX size={12} />}
+                          {selectedAttendee.emailSent ? 'Token Dispatched' : 'Pending Dispatch'}
+                        </div>
+                     </div>
+                  </div>
+               </div>
+               <div className="space-y-3">
+                  <button 
+                    onClick={() => handleDispatchEmails([selectedAttendee._id])}
+                    disabled={toggleLoading === 'dispatch-' + selectedAttendee._id}
+                    className="w-full py-4 bg-sky-500 hover:bg-sky-400 text-zinc-950 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+                  >
+                    {toggleLoading === 'dispatch-' + selectedAttendee._id ? <RefreshCw size={14} className="animate-spin" /> : <Mail size={14} />}
+                    Dispatch Gate Token
+                  </button>
+                  <button 
+                    onClick={() => setSelectedAttendee(null)}
+                    className="w-full py-4 bg-zinc-800 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-zinc-300 hover:text-white transition-all"
+                  >
+                    Close Identity File
+                  </button>
+               </div>
+            </div>
+
+            {/* RIGHT: TELEMETRY MATRIX */}
+            <div className="flex-1 flex flex-col min-h-0 bg-black/40">
+               <div className="p-6 border-b border-white/5 flex items-center justify-between">
+                  <h3 className="text-xs font-black text-white uppercase tracking-[0.3em]">Submission Telemetry</h3>
+                  <div className="text-zinc-500">
+                     {selectedAttendee.userAgent?.toLowerCase().includes('mobi') ? <Smartphone size={16} /> : <Monitor size={16} />}
+                  </div>
+               </div>
+
+               <div className="flex-1 overflow-y-auto p-6 md:px-8 md:py-6 space-y-6 custom-scrollbar">
+                  {Object.entries(selectedAttendee.customData || {}).map(([id, value]) => {
+                     if (id === 'registrationType') return null;
+                     const field = selectedAttendee.event?.customForms?.find(f => String(f.id) === String(id));
+                     const label = field ? field.label : id;
+                     const isUrl = String(value).trim().startsWith('http');
+                     const isError = String(value).toLowerCase().includes('upload failed');
+
+                     return (
+                       <div key={id} className="space-y-4">
+                          <h4 className="text-[11px] font-black text-sky-400 uppercase tracking-widest ml-1">{label}</h4>
+
+                          {isUrl && !isError ? (
+                             <div className="space-y-4">
+                                <a 
+                                  href={value} target="_blank" rel="noreferrer"
+                                  className="inline-flex items-center gap-3 px-4 py-3 bg-zinc-900 border border-white/10 rounded-xl hover:bg-zinc-800 transition-colors"
+                                >
+                                  <FileText size={16} className="text-sky-400" />
+                                  <span className="text-xs font-bold text-white">Open Raw Asset</span>
+                                  <ExternalLink size={14} className="text-zinc-500" />
+                                </a>
+                                
+                                {/* NATIVE PDF PREVIEWER */}
+                                <div className="rounded-xl overflow-hidden border border-white/10 h-[500px] bg-zinc-950 w-full relative">
+                                  {/* Using <object> is highly reliable for PDFs */}
+                                  <object 
+                                    data={value} 
+                                    type="application/pdf" 
+                                    className="w-full h-full"
+                                  >
+                                    <div className="flex flex-col items-center justify-center h-full p-6 text-center">
+                                      <p className="text-zinc-400 text-sm mb-4">Your browser does not support inline PDFs.</p>
+                                      <a href={value} target="_blank" rel="noreferrer" className="text-sky-400 underline">Click here to download the PDF</a>
+                                    </div>
+                                  </object>
+                                </div>
+                             </div>
+                          ) : (
+                             <div className={`p-6 rounded-xl border ${isError ? 'bg-rose-500/10 border-rose-500/20' : 'bg-white/[0.02] border-white/5'}`}>
+                                <p className={`text-sm leading-relaxed whitespace-pre-wrap ${isError ? 'text-rose-400 font-mono' : 'text-zinc-200'}`}>
+                                   {String(value)}
+                                </p>
+                             </div>
+                          )}
+                       </div>
+                     );
+                  })}
+                  
+                  {(!selectedAttendee.customData || Object.keys(selectedAttendee.customData).length <= 1) && (
+                    <div className="h-40 flex flex-col items-center justify-center text-center opacity-30">
+                       <Briefcase size={40} className="mb-4" />
+                       <p className="text-[10px] font-black uppercase tracking-widest">No custom data</p>
+                    </div>
+                  )}
+               </div>
+            </div>
+            
+          </div>
+        </div>
+      )}
+
+      {/* GLOBAL SCROLLBAR STYLING */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+      `}} />
     </div>
   );
 };

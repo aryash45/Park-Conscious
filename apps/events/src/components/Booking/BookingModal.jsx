@@ -10,7 +10,8 @@ import { Dialog, Transition } from "@headlessui/react";
 import { Fragment } from "react";
 import { backendAxios } from "../../axios";
 import { useAuth } from "../../context/DiscussionAuth.context";
-import { X, CheckCircle2, AlertCircle, Loader2, CreditCard, User, Mail, Phone, ShieldCheck } from 'lucide-react';
+import { X, CheckCircle2, AlertCircle, Loader2, CreditCard, User, Mail, Phone, ShieldCheck, Zap, FileText, ChevronDown } from 'lucide-react';
+import { uploadToCloudinary } from "../../utils/cloudinary";
 import { reportSystemError } from "../../utils/monitoring";
 
 const BookingModal = ({ isOpen, setIsOpen, event, themeConfig }) => {
@@ -23,8 +24,10 @@ const BookingModal = ({ isOpen, setIsOpen, event, themeConfig }) => {
   });
   
   const [customData, setCustomData] = useState({});
+  const [registrationType, setRegistrationType] = useState(null); // 'attendee' or 'startup'
   
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
 
   // Pre-fill user data
@@ -36,8 +39,9 @@ const BookingModal = ({ isOpen, setIsOpen, event, themeConfig }) => {
         phone: ""
       });
       setCustomData({});
+      setRegistrationType(event.startupFormEnabled ? null : 'attendee');
     }
-  }, [user, isOpen]);
+  }, [user, isOpen, event.startupFormEnabled]);
 
   const closeModal = () => {
     if (!loading) setIsOpen(false);
@@ -59,11 +63,19 @@ const BookingModal = ({ isOpen, setIsOpen, event, themeConfig }) => {
     if (reqFields.email && (!formData.email.trim() || !/^\S+@\S+\.\S+$/.test(formData.email))) return setError("Valid email is required");
     if (reqFields.phone && (!formData.phone || formData.phone.length < 10)) return setError("Valid 10-digit phone number is required");
 
-    // Custom Fields Validation
-    if (event.customForms && event.customForms.length > 0) {
+    if (uploading) return setError("Please wait for the file upload to complete.");
+    
+    // Custom Fields Validation (Only if Startup or Legacy)
+    const shouldShowCustomFields = !event.startupFormEnabled || registrationType === 'startup';
+    
+    if (shouldShowCustomFields && event.customForms && event.customForms.length > 0) {
       for (const field of event.customForms) {
-        if (field.required && !customData[field.id]?.trim()) {
+        if (field.required && !customData[field.id]) {
           return setError(`${field.label} is required`);
+        }
+        // Ensure no error strings are saved as values
+        if (customData[field.id] && String(customData[field.id]).toLowerCase().includes('upload failed')) {
+           return setError(`Please re-upload a valid file for ${field.label}`);
         }
       }
     }
@@ -78,8 +90,11 @@ const BookingModal = ({ isOpen, setIsOpen, event, themeConfig }) => {
         amount: event.selectedTier ? event.selectedTier.price : (event.displayPrice || 0),
         userId: user ? (user.uid || user.id) : (formData.name || "Guest"),
         eventId: event.id || event._id,
-        tierName: event.selectedTier?.name || "Standard",
-        customData: customData
+        tierName: event.selectedTier?.name || (registrationType === 'startup' ? 'Startup Founder' : 'Standard'),
+        customData: {
+          ...customData,
+          registrationType: registrationType
+        }
       });
 
       if (response.data?.success && response.data?.orderId) {
@@ -174,6 +189,7 @@ const BookingModal = ({ isOpen, setIsOpen, event, themeConfig }) => {
   const bgCardClass = displayMode === 'dark' ? 'bg-black/80 backdrop-blur-3xl border border-white/10 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)]' : 'glass-card-light shadow-[0_50px_100px_-20px_rgba(255,154,158,0.3)]';
   const inputBgClass = displayMode === 'dark' ? 'bg-white/5 border border-white/10 text-white placeholder:text-slate-600 focus:bg-white/10 focus:border-white/30' : 'bg-white/60 border border-white/80 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-pink-500';
   const labelClass = displayMode === 'dark' ? 'text-slate-400' : 'text-slate-500';
+  const textBodyClass = displayMode === 'dark' ? 'text-slate-300' : 'text-slate-600';
   const closeBtnClass = displayMode === 'dark' ? 'bg-white/10 text-slate-300 hover:text-white border-white/10' : 'bg-white/60 text-slate-500 hover:text-pink-600 border-white/80';
 
   return (
@@ -221,68 +237,178 @@ const BookingModal = ({ isOpen, setIsOpen, event, themeConfig }) => {
 
                 <form onSubmit={handleBooking} className="space-y-8 md:space-y-10 relative z-10">
                   <div className="grid grid-cols-1 gap-6 md:gap-10">
-                    {reqFields.name && (
-                      <div className="space-y-3">
-                        <label className={`block text-[10px] font-black uppercase tracking-[0.4em] ml-1 ${labelClass}`}>Full Name</label>
-                        <div className="relative group">
-                          <User className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 transition-colors" style={{ color: displayMode === 'dark' ? '#94a3b8' : '#94a3b8' }} size={18} />
-                          <input 
-                            type="text" name="name" value={formData.name} onChange={handleInputChange}
-                            placeholder="Full Legal Name"
-                            className={`w-full rounded-2xl pl-16 pr-6 py-5 text-sm outline-none transition-all font-medium shadow-sm ${inputBgClass}`}
-                          />
+                    {event.startupFormEnabled && !registrationType ? (
+                      <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <p className={`text-[10px] font-black uppercase tracking-[0.4em] text-center mb-8 ${labelClass}`}>Select Registration Protocol</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                           <button
+                             type="button"
+                             onClick={() => setRegistrationType('attendee')}
+                             className={`group p-6 md:p-8 rounded-[2rem] border-2 transition-all text-left relative overflow-hidden flex flex-col gap-5 md:gap-6 ${displayMode === 'dark' ? 'bg-zinc-900/50 border-white/5 hover:border-sky-500/30' : 'bg-white/60 border-white/80 hover:border-sky-500'}`}
+                           >
+                             <div className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-sky-500/5 flex items-center justify-center text-sky-500 group-hover:scale-110 transition-transform">
+                               <User size={20} className="md:w-6 md:h-6" strokeWidth={1.5} />
+                             </div>
+                             <div>
+                               <h4 className={`text-base md:text-lg font-black uppercase tracking-tight ${textTitleClass}`}>Attendee</h4>
+                               <p className={`text-[8px] md:text-[9px] font-bold uppercase tracking-widest mt-1.5 ${textSubtitleClass}`}>General Entry Access</p>
+                             </div>
+                             <div className="absolute top-0 right-0 w-32 h-32 bg-sky-500/5 blur-[60px] rounded-full -mr-16 -mt-16 group-hover:bg-sky-500/10 transition-all" />
+                           </button>
+
+                           <button
+                             type="button"
+                             onClick={() => setRegistrationType('startup')}
+                             className={`group p-6 md:p-8 rounded-[2rem] border-2 transition-all text-left relative overflow-hidden flex flex-col gap-5 md:gap-6 ${displayMode === 'dark' ? 'bg-zinc-900/50 border-white/5 hover:border-emerald-500/30' : 'bg-white/60 border-white/80 hover:border-emerald-500'}`}
+                           >
+                             <div className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-emerald-500/5 flex items-center justify-center text-emerald-500 group-hover:scale-110 transition-transform">
+                               <Zap size={20} className="md:w-6 md:h-6" strokeWidth={1.5} />
+                             </div>
+                             <div>
+                               <h4 className={`text-base md:text-lg font-black uppercase tracking-tight ${textTitleClass}`}>Founder</h4>
+                               <p className={`text-[8px] md:text-[9px] font-bold uppercase tracking-widest mt-1.5 ${textSubtitleClass}`}>Pitching & Stall Access</p>
+                             </div>
+                             <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 blur-[60px] rounded-full -mr-16 -mt-16 group-hover:bg-emerald-500/10 transition-all" />
+                           </button>
                         </div>
                       </div>
-                    )}
-
-                    {reqFields.email && (
-                      <div className="space-y-3">
-                        <label className={`block text-[10px] font-black uppercase tracking-[0.4em] ml-1 ${labelClass}`}>Email Address</label>
-                        <div className="relative group">
-                          <Mail className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 transition-colors" size={18} />
-                          <input 
-                            type="email" name="email" value={formData.email} onChange={handleInputChange}
-                            placeholder="your@email.com"
-                            className={`w-full rounded-2xl pl-16 pr-6 py-5 text-sm outline-none transition-all font-medium shadow-sm ${inputBgClass}`}
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {reqFields.phone && (
-                      <div className="space-y-3">
-                        <label className={`block text-[10px] font-black uppercase tracking-[0.4em] ml-1 ${labelClass}`}>Phone Number</label>
-                        <div className="relative group">
-                          <Phone className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 transition-colors" size={18} />
-                          <input 
-                            type="tel" name="phone" value={formData.phone} onChange={handleInputChange}
-                            placeholder="10 Digit Contact" maxLength={10}
-                            className={`w-full rounded-2xl pl-16 pr-6 py-5 text-sm outline-none transition-all font-medium shadow-sm ${inputBgClass}`}
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {event.customForms && event.customForms.length > 0 && event.customForms.map(field => (
-                      <div key={field.id} className="space-y-3">
-                        <label className={`block text-[10px] font-black uppercase tracking-[0.4em] ml-1 ${labelClass}`}>
-                          {field.label} {field.required && <span style={{ color: primaryColor }}>*</span>}
-                        </label>
-                        <div className="relative group">
-                          <div className={`absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 rounded-sm border-2 transition-colors flex items-center justify-center ${displayMode === 'dark' ? 'border-slate-600' : 'border-slate-400'}`}>
-                            <div className="w-1.5 h-1.5 rounded-[1px] transition-colors" style={{ backgroundColor: primaryColor, opacity: customData[field.id] ? 1 : 0 }} />
+                    ) : (
+                      <>
+                        {reqFields.name && (
+                          <div className="space-y-3">
+                            <label className={`block text-[10px] font-black uppercase tracking-[0.4em] ml-1 ${labelClass}`}>Full Name</label>
+                            <div className="relative group">
+                              <User className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 transition-colors" style={{ color: displayMode === 'dark' ? '#94a3b8' : '#94a3b8' }} size={18} />
+                              <input 
+                                type="text" name="name" value={formData.name} onChange={handleInputChange}
+                                placeholder="Full Legal Name"
+                                className={`w-full rounded-2xl pl-16 pr-6 py-5 text-sm outline-none transition-all font-medium shadow-sm ${inputBgClass}`}
+                              />
+                            </div>
                           </div>
-                          <input 
-                            type="text" 
-                            name={field.id} 
-                            value={customData[field.id] || ''} 
-                            onChange={(e) => setCustomData(prev => ({ ...prev, [field.id]: e.target.value }))}
-                            placeholder={`Your ${field.label}`}
-                            className={`w-full rounded-2xl pl-16 pr-6 py-5 text-sm outline-none transition-all font-medium shadow-sm ${inputBgClass}`}
-                          />
-                        </div>
-                      </div>
-                    ))}
+                        )}
+
+                        {reqFields.email && (
+                          <div className="space-y-3">
+                            <label className={`block text-[10px] font-black uppercase tracking-[0.4em] ml-1 ${labelClass}`}>Email Address</label>
+                            <div className="relative group">
+                              <Mail className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 transition-colors" size={18} />
+                              <input 
+                                type="email" name="email" value={formData.email} onChange={handleInputChange}
+                                placeholder="your@email.com"
+                                className={`w-full rounded-2xl pl-16 pr-6 py-5 text-sm outline-none transition-all font-medium shadow-sm ${inputBgClass}`}
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {reqFields.phone && (
+                          <div className="space-y-3">
+                            <label className={`block text-[10px] font-black uppercase tracking-[0.4em] ml-1 ${labelClass}`}>Phone Number</label>
+                            <div className="relative group">
+                              <Phone className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 transition-colors" size={18} />
+                              <input 
+                                type="tel" name="phone" value={formData.phone} onChange={handleInputChange}
+                                placeholder="10 Digit Contact" maxLength={10}
+                                className={`w-full rounded-2xl pl-16 pr-6 py-5 text-sm outline-none transition-all font-medium shadow-sm ${inputBgClass}`}
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Dynamic Fields Renderer */}
+                        {(!event.startupFormEnabled || registrationType === 'startup') && event.customForms && event.customForms.length > 0 && event.customForms.map(field => (
+                          <div key={field.id} className="space-y-3">
+                            <label className={`block text-[10px] font-black uppercase tracking-[0.4em] ml-1 ${labelClass}`}>
+                              {field.label} {field.required && <span className="text-rose-500">*</span>}
+                            </label>
+                            
+                            {field.type === 'textarea' ? (
+                              <textarea
+                                value={customData[field.id] || ''} 
+                                onChange={(e) => setCustomData(prev => ({ ...prev, [field.id]: e.target.value }))}
+                                placeholder={`Your ${field.label}`}
+                                rows={4}
+                                className={`w-full rounded-2xl px-6 py-5 text-sm outline-none transition-all font-medium shadow-sm resize-none ${inputBgClass}`}
+                              />
+                            ) : field.type === 'select' ? (
+                              <div className="relative">
+                                <select
+                                  value={customData[field.id] || ''} 
+                                  onChange={(e) => setCustomData(prev => ({ ...prev, [field.id]: e.target.value }))}
+                                  className={`w-full rounded-2xl px-6 py-5 text-sm outline-none transition-all font-medium shadow-sm appearance-none ${inputBgClass}`}
+                                >
+                                  <option value="">Select Option...</option>
+                                  {field.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                </select>
+                                <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" size={18} />
+                              </div>
+                            ) : field.type === 'file' ? (
+                               <div className="relative">
+                                  <label className={`w-full rounded-2xl px-6 py-5 flex items-center justify-between cursor-pointer border-2 border-dashed transition-all ${customData[field.id] ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-white/20 hover:border-sky-500/50'} ${inputBgClass}`}>
+                                    <div className="flex items-center gap-4">
+                                      {uploading ? <Loader2 size={18} className="animate-spin text-sky-500" /> : <FileText size={18} className={customData[field.id] ? 'text-emerald-500' : 'text-slate-400'} />}
+                                      <span className={`text-sm ${customData[field.id] ? 'text-emerald-500 font-bold' : 'text-slate-500'}`}>
+                                        {uploading ? 'Transmitting Data...' : customData[field.id] ? 'File Attached Successfully' : 'Upload Pitch Deck (PDF/PPT)'}
+                                      </span>
+                                    </div>
+                                    <input 
+                                      type="file" className="hidden" accept=".pdf,.ppt,.pptx"
+                                      onChange={async (e) => {
+                                        const file = e.target.files[0];
+                                        if (!file) return;
+                                        setUploading(true);
+                                        try {
+                                          const url = await uploadToCloudinary(file);
+                                          setCustomData(prev => ({ ...prev, [field.id]: url }));
+                                          setError(""); // Clear previous errors on success
+                                        } catch (err) {
+                                          setError(`Upload Failed: ${err.message}`);
+                                          setCustomData(prev => {
+                                            const copy = { ...prev };
+                                            delete copy[field.id]; // Don't save the error message as data
+                                            return copy;
+                                          });
+                                        } finally {
+                                          setUploading(false);
+                                        }
+                                      }}
+                                    />
+                                    {!uploading && !customData[field.id] && <span className="text-[9px] font-black uppercase tracking-widest text-sky-500">Attach File</span>}
+                                    {customData[field.id] && <CheckCircle2 size={18} className="text-emerald-500" />}
+                                  </label>
+                               </div>
+                            ) : field.type === 'checkbox' ? (
+                               <label className={`flex items-center gap-4 p-5 rounded-2xl cursor-pointer transition-all border ${customData[field.id] ? 'border-sky-500/50 bg-sky-500/5' : 'border-white/20 hover:bg-white/5'} ${inputBgClass}`}>
+                                  <input 
+                                    type="checkbox" className="sr-only peer"
+                                    checked={!!customData[field.id]}
+                                    onChange={(e) => setCustomData(prev => ({ ...prev, [field.id]: e.target.checked }))}
+                                  />
+                                  <div className="w-6 h-6 rounded-lg border-2 border-slate-400 flex items-center justify-center peer-checked:bg-sky-500 peer-checked:border-sky-500 transition-all">
+                                    <CheckCircle2 size={16} className="text-white" />
+                                  </div>
+                                  <span className={`text-xs font-medium ${textBodyClass}`}>{field.label}</span>
+                               </label>
+                            ) : (
+                              <div className="relative group">
+                                <div className={`absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 rounded-sm border-2 transition-colors flex items-center justify-center ${displayMode === 'dark' ? 'border-slate-600' : 'border-slate-400'}`}>
+                                  <div className="w-1.5 h-1.5 rounded-[1px] transition-colors" style={{ backgroundColor: primaryColor, opacity: customData[field.id] ? 1 : 0 }} />
+                                </div>
+                                <input 
+                                  type="text" 
+                                  name={field.id} 
+                                  value={customData[field.id] || ''} 
+                                  onChange={(e) => setCustomData(prev => ({ ...prev, [field.id]: e.target.value }))}
+                                  placeholder={`Your ${field.label}`}
+                                  className={`w-full rounded-2xl pl-16 pr-6 py-5 text-sm outline-none transition-all font-medium shadow-sm ${inputBgClass}`}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </>
+                    )}
                   </div>
 
                   {error && (
@@ -293,7 +419,7 @@ const BookingModal = ({ isOpen, setIsOpen, event, themeConfig }) => {
 
                   <div className="pt-6 space-y-8">
                     <button 
-                      type="submit" disabled={loading}
+                      type="submit" disabled={loading || (event.startupFormEnabled && !registrationType) || uploading}
                       className="w-full text-white font-black py-6 rounded-full hover:scale-[1.02] transition-all shadow-xl active:scale-95 disabled:opacity-40 mt-4 uppercase tracking-[0.3em] text-[11px] flex items-center justify-center px-12"
                       style={{ backgroundColor: primaryColor }}
                     >
@@ -303,10 +429,16 @@ const BookingModal = ({ isOpen, setIsOpen, event, themeConfig }) => {
                           <span className="flex-1 text-center">Securing Ticket...</span>
                           <div className="w-5 shrink-0" />
                         </>
+                      ) : uploading ? (
+                        <>
+                          <Loader2 className="animate-spin shrink-0" size={20} />
+                          <span className="flex-1 text-center">Processing Media...</span>
+                          <div className="w-5 shrink-0" />
+                        </>
                       ) : (
                         <>
                           <CreditCard className="shrink-0" size={20} />
-                          <span className="flex-1 text-center">{(event.selectedTier?.price || event.displayPrice || 0) > 0 ? `Pay • ₹${event.selectedTier?.price || event.displayPrice}` : "Confirm Ticket Booking"}</span>
+                          <span className="flex-1 text-center">{(event.selectedTier?.price || event.displayPrice || 0) > 0 ? `Pay • ₹${event.selectedTier?.price || event.displayPrice}` : (event.startupFormEnabled && !registrationType) ? "Select Option Above" : "Confirm Ticket Booking"}</span>
                           <div className="w-5 shrink-0" />
                         </>
                       )}

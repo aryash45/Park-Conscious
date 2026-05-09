@@ -63,8 +63,11 @@ const eventSchema = new mongoose.Schema(
     customForms: [{
       id: { type: String, required: true },
       label: { type: String, required: true },
-      required: { type: Boolean, default: false }
+      type: { type: String, enum: ['text', 'textarea', 'select', 'file', 'checkbox'], default: 'text' },
+      required: { type: Boolean, default: false },
+      options: { type: [String], default: [] } // For 'select' types
     }],
+    startupFormEnabled: { type: Boolean, default: false },
     // Backward compatibility for old "Events" project fields
     name: String,
     venue: String,
@@ -174,7 +177,7 @@ const bookingSchema = new mongoose.Schema(
     locationName: String,
     vehicleType: String,
     vehicleNumber: String,
-    ticketId: { type: String, unique: true, sparse: true }, // Unique ID for QR code
+    ticketId: { type: String, sparse: true }, // Unique ID for QR code
     attended: { type: Boolean, default: false }, // Check-in status
     attendedAt: { type: Date, default: null },
     scannedBy: { type: String, default: null },
@@ -189,6 +192,8 @@ const bookingSchema = new mongoose.Schema(
     status: { type: String, default: "Confirmed" },
     tierName: { type: String, default: null },
     customData: { type: mongoose.Schema.Types.Mixed, default: {} },
+    ipAddress: { type: String, default: null },
+    userAgent: { type: String, default: null },
     date: { type: Date, default: Date.now },
   },
   { timestamps: true }
@@ -196,7 +201,6 @@ const bookingSchema = new mongoose.Schema(
 
 bookingSchema.index({ eventId: 1 });
 bookingSchema.index({ transactionId: 1 });
-bookingSchema.index({ ticketId: 1 });
 bookingSchema.index({ status: 1 });
 
 const eventRequestSchema = new mongoose.Schema(
