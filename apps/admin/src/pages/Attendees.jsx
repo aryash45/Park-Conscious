@@ -231,12 +231,12 @@ const Attendees = () => {
              <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
            </button>
            <button 
-             onClick={() => handleDispatchEmails(filteredData.map(a => a._id))}
-             disabled={toggleLoading === 'bulk-dispatch' || filteredData.length === 0}
+             onClick={() => handleDispatchEmails(filteredData.filter(a => !a.emailSent).map(a => a._id))}
+             disabled={toggleLoading === 'bulk-dispatch' || filteredData.filter(a => !a.emailSent).length === 0}
              className="bg-zinc-900/50 hover:bg-white/5 border border-white/5 text-white px-8 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.25em] transition-all flex items-center gap-3 disabled:opacity-50"
            >
              {toggleLoading === 'bulk-dispatch' ? <RefreshCw size={16} className="animate-spin" /> : <Mail size={16} />} 
-             Bulk Dispatch
+             Dispatch Pending
            </button>
            <button onClick={handleExportCSV} className="bg-sky-500 hover:bg-sky-400 text-zinc-950 px-8 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.25em] transition-all flex items-center gap-3 shadow-xl">
              <Download size={16} strokeWidth={3} /> Export Master List
