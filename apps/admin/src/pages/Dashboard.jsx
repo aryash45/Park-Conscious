@@ -5,7 +5,7 @@
  * Displays real-time sales trends, ticket tier distribution, 
  * device telemetry, and geo-insights using Recharts.
  */
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Calendar, Users, TrendingUp, Activity,
   IndianRupee, Ticket, QrCode, Maximize, CheckCircle,
@@ -17,8 +17,8 @@ import {
   Tooltip, ResponsiveContainer, PieChart, Pie, 
   Cell, BarChart, Bar, Legend 
 } from 'recharts';
-import { motion, AnimatePresence } from 'framer-motion';
-import { eventService, adminService } from '../services/api';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
+import { adminService } from '../services/api';
 import api from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 
@@ -34,7 +34,7 @@ const StatsCard = ({ title, value, icon, color = 'sky', trend, subtitle }) => {
   };
 
   return (
-    <motion.div 
+    <Motion.div 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className="glass-card rounded-[2.5rem] p-8 border border-white/5 hover:border-white/10 transition-all duration-500 group relative overflow-hidden"
@@ -60,7 +60,7 @@ const StatsCard = ({ title, value, icon, color = 'sky', trend, subtitle }) => {
           {subtitle && <p className="text-[9px] font-bold text-zinc-700 uppercase tracking-widest mt-2">{subtitle}</p>}
         </div>
       </div>
-    </motion.div>
+    </Motion.div>
   );
 };
 
@@ -131,7 +131,7 @@ const CheckInTool = () => {
 
       <AnimatePresence>
         {result && (
-          <motion.div 
+          <Motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
@@ -142,7 +142,7 @@ const CheckInTool = () => {
           }`}>
             {result.success ? <CheckCircle size={14} /> : <XCircle size={14} />}
             {result.message}
-          </motion.div>
+          </Motion.div>
         )}
       </AnimatePresence>
     </div>
@@ -166,14 +166,26 @@ const Dashboard = () => {
     }
   }, []);
 
-  useEffect(() => { 
-    fetchInsights();
-  }, [fetchInsights]);
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      try {
+        const { data } = await adminService.getInsights();
+        if (active) setInsights(data);
+      } catch (err) {
+        console.error('Insights fetch failed:', err);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    load();
+    return () => { active = false; };
+  }, []);
 
   if (loading && !insights) {
     return (
       <div className="h-[80vh] flex flex-col items-center justify-center gap-6">
-        <motion.div 
+        <Motion.div 
           animate={{ rotate: 360 }} 
           transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
           className="w-16 h-16 rounded-[2rem] border-4 border-sky-500/10 border-t-sky-500"
@@ -254,7 +266,7 @@ const Dashboard = () => {
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-10">
         {/* Sales Chart */}
-        <motion.div 
+        <Motion.div 
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           className="xl:col-span-2 glass-card rounded-[3rem] p-10 border border-white/5"
@@ -311,14 +323,14 @@ const Dashboard = () => {
               </AreaChart>
             </ResponsiveContainer>
           </div>
-        </motion.div>
+        </Motion.div>
 
         {/* Right Info Stack */}
         <div className="space-y-10">
            <CheckInTool />
 
            {/* Tier Distribution */}
-           <motion.div 
+           <Motion.div 
              initial={{ opacity: 0, x: 20 }}
              animate={{ opacity: 1, x: 0 }}
              className="glass-card rounded-[3rem] p-10 border border-white/5"
@@ -358,7 +370,7 @@ const Dashboard = () => {
                     </div>
                  ))}
               </div>
-           </motion.div>
+           </Motion.div>
         </div>
       </div>
 
@@ -382,7 +394,7 @@ const Dashboard = () => {
                         <span className="text-white">{item.count}</span>
                      </div>
                      <div className="h-1.5 w-full bg-white/[0.02] rounded-full overflow-hidden">
-                        <motion.div 
+                        <Motion.div 
                           initial={{ width: 0 }}
                           animate={{ width: `${(item.count / (geoData[0]?.count || 1)) * 100}%` }}
                           transition={{ duration: 1, delay: i * 0.1 }}
@@ -412,7 +424,7 @@ const Dashboard = () => {
                </div>
             </div>
             <div className="space-y-8">
-               {charts?.deviceBreakdown.map((device, i) => (
+               {charts?.deviceBreakdown.map((device) => (
                   <div key={device.name} className="flex items-center justify-between p-6 bg-white/[0.02] border border-white/[0.04] rounded-[2rem] hover:bg-white/[0.04] transition-all">
                      <div className="flex items-center gap-4">
                         <div className="text-zinc-500">
