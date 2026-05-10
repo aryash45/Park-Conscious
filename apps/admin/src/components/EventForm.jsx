@@ -130,7 +130,8 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
 
       // If turning off Startup Registration, automatically prune the st_ fields
       if (name === 'startupFormEnabled' && !newVal) {
-        nextData.customForms = (Array.isArray(prev.customForms) ? prev.customForms : []).filter(f => !f.id.startsWith('st_'));
+        nextData.customForms = (Array.isArray(prev.customForms) ? prev.customForms : [])
+          .filter(f => f && typeof f === 'object' && typeof f.id === 'string' && !f.id.startsWith('st_'));
       }
 
       return nextData;
@@ -592,7 +593,7 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                         startupFormEnabled: true,
                         customForms: [
                           ...(Array.isArray(prev.customForms) ? prev.customForms : []), 
-                          ...startupFields.filter(sf => !(Array.isArray(prev.customForms) ? prev.customForms : []).some(cf => cf.id === sf.id))
+                          ...startupFields.filter(sf => !(Array.isArray(prev.customForms) ? prev.customForms : []).some(cf => cf && typeof cf === 'object' && cf.id === sf.id))
                         ]
                       }));
                     }}
@@ -625,8 +626,10 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                             value={field.label}
                             onChange={(e) => {
                               const newForms = [...(Array.isArray(formData.customForms) ? formData.customForms : [])];
-                              newForms[index].label = e.target.value;
-                              setFormData(prev => ({ ...prev, customForms: newForms }));
+                              if (newForms[index] && typeof newForms[index] === 'object') {
+                                newForms[index] = { ...newForms[index], label: e.target.value || '' };
+                                setFormData(prev => ({ ...prev, customForms: newForms }));
+                              }
                             }}
                             className="w-full bg-transparent text-sm text-white focus:outline-none placeholder:text-slate-800 font-bold uppercase tracking-tight"
                           />
@@ -636,8 +639,10 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                           value={field.type || 'text'}
                           onChange={(e) => {
                             const newForms = [...(Array.isArray(formData.customForms) ? formData.customForms : [])];
-                            newForms[index].type = e.target.value;
-                            setFormData(prev => ({ ...prev, customForms: newForms }));
+                            if (newForms[index] && typeof newForms[index] === 'object') {
+                              newForms[index] = { ...newForms[index], type: e.target.value || 'text' };
+                              setFormData(prev => ({ ...prev, customForms: newForms }));
+                            }
                           }}
                           className="bg-slate-900 border border-slate-800 text-[10px] font-black text-slate-400 px-3 py-1.5 rounded-lg outline-none focus:border-sky-500/50 uppercase tracking-widest"
                         >
@@ -656,8 +661,10 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                               checked={field.required}
                               onChange={(e) => {
                                 const newForms = [...(Array.isArray(formData.customForms) ? formData.customForms : [])];
-                                newForms[index].required = e.target.checked;
-                                setFormData(prev => ({ ...prev, customForms: newForms }));
+                                if (newForms[index] && typeof newForms[index] === 'object') {
+                                  newForms[index] = { ...newForms[index], required: !!e.target.checked };
+                                  setFormData(prev => ({ ...prev, customForms: newForms }));
+                                }
                               }}
                               className="sr-only peer"
                             />
@@ -674,7 +681,7 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                           onClick={() => {
                             setFormData(prev => ({
                               ...prev,
-                              customForms: (Array.isArray(prev.customForms) ? prev.customForms : []).filter(f => f.id !== field.id)
+                              customForms: (Array.isArray(prev.customForms) ? prev.customForms : []).filter(f => f && typeof f === 'object' && f.id !== field.id)
                             }));
                           }}
                           className="p-2 text-slate-800 hover:text-rose-500 transition-all ml-2"
@@ -692,8 +699,13 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                             value={Array.isArray(field.options) ? field.options.join(', ') : ''}
                             onChange={(e) => {
                               const newForms = [...(Array.isArray(formData.customForms) ? formData.customForms : [])];
-                              newForms[index].options = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
-                              setFormData(prev => ({ ...prev, customForms: newForms }));
+                              if (newForms[index] && typeof newForms[index] === 'object') {
+                                newForms[index] = { 
+                                  ...newForms[index], 
+                                  options: (e.target.value || '').split(',').map(s => s.trim()).filter(Boolean) 
+                                };
+                                setFormData(prev => ({ ...prev, customForms: newForms }));
+                              }
                             }}
                             className="w-full bg-slate-950 border border-slate-900 rounded-xl px-4 py-3 text-xs text-slate-300 focus:outline-none focus:border-sky-500/30"
                           />
