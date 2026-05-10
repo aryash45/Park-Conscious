@@ -52,6 +52,7 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
       phone: true
     },
     mediaGallery: [],
+    customForms: [],
     hosts: [],
     ticketTiers: [],
     startupFormEnabled: false,
@@ -129,7 +130,8 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
 
       // If turning off Startup Registration, automatically prune the st_ fields
       if (name === 'startupFormEnabled' && !newVal) {
-        nextData.customForms = prev.customForms.filter(f => !f.id.startsWith('st_'));
+        nextData.customForms = (Array.isArray(prev.customForms) ? prev.customForms : [])
+          .filter(f => f && typeof f === 'object' && typeof f.id === 'string' && !f.id.startsWith('st_'));
       }
 
       return nextData;
@@ -589,7 +591,10 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                       setFormData(prev => ({
                         ...prev,
                         startupFormEnabled: true,
-                        customForms: [...prev.customForms, ...startupFields.filter(sf => !prev.customForms.some(cf => cf.id === sf.id))]
+                        customForms: [
+                          ...(Array.isArray(prev.customForms) ? prev.customForms : []), 
+                          ...startupFields.filter(sf => !(Array.isArray(prev.customForms) ? prev.customForms : []).some(cf => cf && typeof cf === 'object' && cf.id === sf.id))
+                        ]
                       }));
                     }}
                     className="flex items-center gap-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] transition-all border border-emerald-500/20"
@@ -600,7 +605,7 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                     type="button"
                     onClick={() => setFormData(prev => ({
                       ...prev,
-                      customForms: [...prev.customForms, { id: Date.now().toString(), label: '', type: 'text', required: false, options: [] }]
+                      customForms: [...(Array.isArray(prev.customForms) ? prev.customForms : []), { id: Date.now().toString(), label: '', type: 'text', required: false, options: [] }]
                     }))}
                     className="flex items-center gap-2 bg-sky-500/10 hover:bg-sky-500/20 text-sky-500 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] transition-all border border-sky-500/20"
                   >
@@ -620,9 +625,11 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                             placeholder="Field Label (e.g. University Name)"
                             value={field.label}
                             onChange={(e) => {
-                              const newForms = [...formData.customForms];
-                              newForms[index].label = e.target.value;
-                              setFormData(prev => ({ ...prev, customForms: newForms }));
+                              const newForms = [...(Array.isArray(formData.customForms) ? formData.customForms : [])];
+                              if (newForms[index] && typeof newForms[index] === 'object') {
+                                newForms[index] = { ...newForms[index], label: e.target.value || '' };
+                                setFormData(prev => ({ ...prev, customForms: newForms }));
+                              }
                             }}
                             className="w-full bg-transparent text-sm text-white focus:outline-none placeholder:text-slate-800 font-bold uppercase tracking-tight"
                           />
@@ -631,9 +638,11 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                         <select
                           value={field.type || 'text'}
                           onChange={(e) => {
-                            const newForms = [...formData.customForms];
-                            newForms[index].type = e.target.value;
-                            setFormData(prev => ({ ...prev, customForms: newForms }));
+                            const newForms = [...(Array.isArray(formData.customForms) ? formData.customForms : [])];
+                            if (newForms[index] && typeof newForms[index] === 'object') {
+                              newForms[index] = { ...newForms[index], type: e.target.value || 'text' };
+                              setFormData(prev => ({ ...prev, customForms: newForms }));
+                            }
                           }}
                           className="bg-slate-900 border border-slate-800 text-[10px] font-black text-slate-400 px-3 py-1.5 rounded-lg outline-none focus:border-sky-500/50 uppercase tracking-widest"
                         >
@@ -651,9 +660,11 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                               type="checkbox"
                               checked={field.required}
                               onChange={(e) => {
-                                const newForms = [...formData.customForms];
-                                newForms[index].required = e.target.checked;
-                                setFormData(prev => ({ ...prev, customForms: newForms }));
+                                const newForms = [...(Array.isArray(formData.customForms) ? formData.customForms : [])];
+                                if (newForms[index] && typeof newForms[index] === 'object') {
+                                  newForms[index] = { ...newForms[index], required: !!e.target.checked };
+                                  setFormData(prev => ({ ...prev, customForms: newForms }));
+                                }
                               }}
                               className="sr-only peer"
                             />
@@ -670,7 +681,7 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                           onClick={() => {
                             setFormData(prev => ({
                               ...prev,
-                              customForms: prev.customForms.filter(f => f.id !== field.id)
+                              customForms: (Array.isArray(prev.customForms) ? prev.customForms : []).filter(f => f && typeof f === 'object' && f.id !== field.id)
                             }));
                           }}
                           className="p-2 text-slate-800 hover:text-rose-500 transition-all ml-2"
@@ -687,9 +698,14 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                             placeholder="Option 1, Option 2, Option 3"
                             value={Array.isArray(field.options) ? field.options.join(', ') : ''}
                             onChange={(e) => {
-                              const newForms = [...formData.customForms];
-                              newForms[index].options = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
-                              setFormData(prev => ({ ...prev, customForms: newForms }));
+                              const newForms = [...(Array.isArray(formData.customForms) ? formData.customForms : [])];
+                              if (newForms[index] && typeof newForms[index] === 'object') {
+                                newForms[index] = { 
+                                  ...newForms[index], 
+                                  options: (e.target.value || '').split(',').map(s => s.trim()).filter(Boolean) 
+                                };
+                                setFormData(prev => ({ ...prev, customForms: newForms }));
+                              }
                             }}
                             className="w-full bg-slate-950 border border-slate-900 rounded-xl px-4 py-3 text-xs text-slate-300 focus:outline-none focus:border-sky-500/30"
                           />
