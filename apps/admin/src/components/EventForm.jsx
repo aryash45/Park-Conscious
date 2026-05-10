@@ -52,6 +52,7 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
       phone: true
     },
     mediaGallery: [],
+    customForms: [],
     hosts: [],
     ticketTiers: [],
     startupFormEnabled: false,
@@ -129,7 +130,7 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
 
       // If turning off Startup Registration, automatically prune the st_ fields
       if (name === 'startupFormEnabled' && !newVal) {
-        nextData.customForms = prev.customForms.filter(f => !f.id.startsWith('st_'));
+        nextData.customForms = (prev.customForms || []).filter(f => !f.id.startsWith('st_'));
       }
 
       return nextData;
@@ -589,7 +590,7 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                       setFormData(prev => ({
                         ...prev,
                         startupFormEnabled: true,
-                        customForms: [...prev.customForms, ...startupFields.filter(sf => !prev.customForms.some(cf => cf.id === sf.id))]
+                        customForms: [...(prev.customForms || []), ...startupFields.filter(sf => !(prev.customForms || []).some(cf => cf.id === sf.id))]
                       }));
                     }}
                     className="flex items-center gap-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] transition-all border border-emerald-500/20"
@@ -600,7 +601,7 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                     type="button"
                     onClick={() => setFormData(prev => ({
                       ...prev,
-                      customForms: [...prev.customForms, { id: Date.now().toString(), label: '', type: 'text', required: false, options: [] }]
+                      customForms: [...(prev.customForms || []), { id: Date.now().toString(), label: '', type: 'text', required: false, options: [] }]
                     }))}
                     className="flex items-center gap-2 bg-sky-500/10 hover:bg-sky-500/20 text-sky-500 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] transition-all border border-sky-500/20"
                   >
@@ -670,7 +671,7 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                           onClick={() => {
                             setFormData(prev => ({
                               ...prev,
-                              customForms: prev.customForms.filter(f => f.id !== field.id)
+                              customForms: (prev.customForms || []).filter(f => f.id !== field.id)
                             }));
                           }}
                           className="p-2 text-slate-800 hover:text-rose-500 transition-all ml-2"
