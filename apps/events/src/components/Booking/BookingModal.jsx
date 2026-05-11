@@ -39,9 +39,17 @@ const BookingModal = ({ isOpen, setIsOpen, event, themeConfig }) => {
         phone: ""
       });
       setCustomData({});
-      setRegistrationType(event.startupFormEnabled ? null : 'attendee');
+      
+      const reqFields = event.requiredFields || { name: true, email: true, phone: true };
+      const skipIdentity = !reqFields.name && !reqFields.email && !reqFields.phone;
+      
+      if (event.startupFormEnabled && skipIdentity) {
+        setRegistrationType('startup');
+      } else {
+        setRegistrationType(event.startupFormEnabled ? null : 'attendee');
+      }
     }
-  }, [user, isOpen, event.startupFormEnabled]);
+  }, [user, isOpen, event.id, event.startupFormEnabled, JSON.stringify(event.requiredFields)]);
 
   const closeModal = () => {
     if (!loading) setIsOpen(false);
