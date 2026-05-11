@@ -13,7 +13,7 @@ import BookingModal from "../components/Booking/BookingModal.jsx";
 import PremiumBackground from "../components/PremiumBackground";
 import { 
   MapPin, Ticket, X, 
-  Calendar, Clock, Users, ArrowUpRight, Share2, Instagram, Globe
+  Calendar, Clock, Users, ArrowUpRight, Share2, Instagram, Globe, Link2
 } from "lucide-react";
 import { Helmet } from "react-helmet";
 
@@ -239,11 +239,12 @@ const EventPage = () => {
                         
                         {host.socialLink && (
                           <a 
-                            href={host.socialLink} 
+                            href={host.socialLink.startsWith('http') ? host.socialLink : `https://${host.socialLink}`} 
                             target="_blank" rel="noreferrer"
-                            className="w-8 h-8 rounded-full bg-white/40 border border-white/60 flex items-center justify-center text-slate-400 hover:text-pink-500 hover:border-pink-300 transition-all shadow-sm"
+                            className="w-10 h-10 rounded-full bg-white/40 border border-white/60 flex items-center justify-center text-slate-400 hover:text-pink-500 hover:border-pink-300 transition-all shadow-sm group/social"
+                            title="Visit Host Profile"
                           >
-                            <Instagram size={14} />
+                            {host.socialLink.includes('instagram.com') ? <Instagram size={16} /> : <Link2 size={16} />}
                           </a>
                         )}
                       </div>

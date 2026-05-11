@@ -311,6 +311,13 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                     className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-6 py-4 text-white text-sm focus:outline-none focus:border-sky-500/50"
                   />
                 </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3 ml-1">End Time</label>
+                  <input 
+                    type="time" name="endTime" value={formData.endTime} onChange={handleChange}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-6 py-4 text-white text-sm focus:outline-none focus:border-sky-500/50"
+                  />
+                </div>
               </div>
             </section>
           )}

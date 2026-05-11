@@ -48,7 +48,10 @@ export function normalizeEvent(evt) {
     e.badge = e.badge || (e.status === 'published' ? 'LIVE' : '');
     
     // Ensure nested arrays exist
-    e.hosts = e.hosts || [];
+    e.hosts = (e.hosts || []).map(h => ({
+        ...h,
+        socialLink: h.socialLink || h.instagram || h.socials?.instagram || ""
+    }));
     e.ticketTiers = e.ticketTiers || [];
     
     // Admin Fix Defaults
