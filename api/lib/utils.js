@@ -47,13 +47,19 @@ export function normalizeEvent(evt) {
     
     e.badge = e.badge || (e.status === 'published' ? 'LIVE' : '');
     
-    // Visibility & Monetization
-    e.isPublic = e.isPublic ?? false;
-    e.listingPaid = e.listingPaid ?? false;
-    
     // Ensure nested arrays exist
     e.hosts = e.hosts || [];
     e.ticketTiers = e.ticketTiers || [];
+    
+    // Admin Fix Defaults
+    e.isTBA = e.isTBA ?? false;
+    e.isOnline = e.isOnline ?? false;
+    e.registrationProtocolConfig = e.registrationProtocolConfig || {
+      attendeeLabel: 'Attendee',
+      attendeeSubtitle: 'General Entry Access',
+      startupLabel: 'Founder',
+      startupSubtitle: 'Pitching & Stall Access'
+    };
     
     return e;
 }

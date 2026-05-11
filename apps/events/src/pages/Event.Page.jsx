@@ -226,18 +226,20 @@ const EventPage = () => {
                             {host.image ? (
                               <img src={clUrl(host.image)} className="w-full h-full object-cover" alt={host.name} />
                             ) : (
-                              <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-pink-500">{host.name?.[0]}</div>
+                              <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-pink-500 bg-white/50">
+                                {host.name ? host.name[0]?.toUpperCase() : 'H'}
+                              </div>
                             )}
                           </div>
                           <div>
-                            <p className={`text-sm font-bold ${textTitleClass}`}>{host.name}</p>
+                            <p className={`text-sm font-bold ${textTitleClass}`}>{host.name || "Anonymous Host"}</p>
                             <p className={`text-[10px] font-medium ${textSubtitleClass}`}>{host.role}</p>
                           </div>
                         </div>
                         
-                        {(host.instagram || host.socials?.instagram) && (
+                        {host.socialLink && (
                           <a 
-                            href={host.instagram || host.socials?.instagram} 
+                            href={host.socialLink} 
                             target="_blank" rel="noreferrer"
                             className="w-8 h-8 rounded-full bg-white/40 border border-white/60 flex items-center justify-center text-slate-400 hover:text-pink-500 hover:border-pink-300 transition-all shadow-sm"
                           >

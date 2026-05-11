@@ -15,7 +15,6 @@ import { json, setCors, getBody, normalizeEvent, verifyUser } from './lib/utils.
 
 const { Booking, Owner, User, Event } = models;
 const PLATFORM_FEE_PERCENT = 0.08; // 8% commission
-const LISTING_FEE_INR = 499; // Fixed listing fee to go public
 
 export default async function handler(req, res) {
     setCors(req, res);
@@ -169,35 +168,6 @@ export default async function handler(req, res) {
             });
         }
 
-        // -- Listing Fee Payment (New) --
-        if (url.includes('/pay/listing') && method === 'POST') {
-            const { eventId, userId } = body;
-            if (!eventId) return json(res, 400, { message: 'Event ID required for promotion.' });
-
-            const KEY_ID = process.env.RAZORPAY_KEY_ID;
-            const KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
-            const razorpay = new Razorpay({ key_id: KEY_ID, key_secret: KEY_SECRET });
-
-            const txId = "LST_" + crypto.randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase();
-            const numericAmount = LISTING_FEE_INR * 100;
-
-            const order = await razorpay.orders.create({
-                amount: numericAmount,
-                currency: "INR",
-                receipt: txId,
-                notes: { type: 'listing_fee', eventId }
-            });
-
-            // Update the event with the pending transaction ID
-            await Event.findByIdAndUpdate(eventId, { listingTransactionId: order.id });
-
-            return json(res, 200, { 
-                success: true, 
-                orderId: order.id, 
-                amount: numericAmount, 
-                key: KEY_ID 
-            });
-        }
 
         // -- Razorpay Payment Callback (Verification) --
         if (url.includes('/payment-callback')) {
@@ -219,17 +189,6 @@ export default async function handler(req, res) {
             const isAuthentic = expectedSignature === razorpay_signature;
 
             if (isAuthentic) {
-                // 1. Handle Listing Fee Callback
-                if (url.includes('/payment-callback/listing')) {
-                    const event = await Event.findOneAndUpdate(
-                        { listingTransactionId: razorpay_order_id },
-                        { $set: { isPublic: true, listingPaid: true } },
-                        { new: true }
-                    );
-                    return json(res, 200, { success: true, message: "Listing is now public", eventId: event?._id });
-                }
-
-                // 2. Handle Ticket Booking Callback
                 const booking = await Booking.findOne({ transactionId: razorpay_order_id });
                 if (!booking) return json(res, 404, { message: "Booking record not found" });
 

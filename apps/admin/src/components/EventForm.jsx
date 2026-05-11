@@ -362,12 +362,13 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                             onChange={async (e) => {
                               const file = e.target.files[0];
                               if (!file) return;
-                              try {
-                                const url = await uploadToCloudinary(file);
-                                const newHosts = [...formData.hosts];
-                                newHosts[idx].image = url;
-                                setFormData(prev => ({ ...prev, hosts: newHosts }));
-                              } catch (err) { console.error(err); }
+                                try {
+                                  const url = await uploadToCloudinary(file);
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    hosts: prev.hosts.map((h, i) => i === idx ? { ...h, image: url } : h)
+                                  }));
+                                } catch (err) { console.error(err); }
                             }}
                           />
                           <Upload size={18} className="text-white" />
@@ -381,9 +382,10 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                         <input
                           type="text" value={host.name}
                           onChange={(e) => {
-                            const newHosts = [...formData.hosts];
-                            newHosts[idx].name = e.target.value;
-                            setFormData(prev => ({ ...prev, hosts: newHosts }));
+                            setFormData(prev => ({
+                              ...prev,
+                              hosts: prev.hosts.map((h, i) => i === idx ? { ...h, name: e.target.value } : h)
+                            }));
                           }}
                           className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white text-xs focus:outline-none focus:border-[#6366f1]/50"
                           placeholder="Host Name"
@@ -394,9 +396,10 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                         <input
                           type="text" value={host.role}
                           onChange={(e) => {
-                            const newHosts = [...formData.hosts];
-                            newHosts[idx].role = e.target.value;
-                            setFormData(prev => ({ ...prev, hosts: newHosts }));
+                            setFormData(prev => ({
+                              ...prev,
+                              hosts: prev.hosts.map((h, i) => i === idx ? { ...h, role: e.target.value } : h)
+                            }));
                           }}
                           className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white text-xs focus:outline-none focus:border-[#6366f1]/50"
                           placeholder="e.g. Moderator, Organizer"
@@ -407,9 +410,10 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                         <input
                           type="text" value={host.socialLink}
                           onChange={(e) => {
-                            const newHosts = [...formData.hosts];
-                            newHosts[idx].socialLink = e.target.value;
-                            setFormData(prev => ({ ...prev, hosts: newHosts }));
+                            setFormData(prev => ({
+                              ...prev,
+                              hosts: prev.hosts.map((h, i) => i === idx ? { ...h, socialLink: e.target.value } : h)
+                            }));
                           }}
                           className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white text-xs focus:outline-none focus:border-[#6366f1]/50"
                           placeholder="https://instagram.com/..."
@@ -689,7 +693,7 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                             value={formData.registrationProtocolConfig?.attendeeLabel}
                             onChange={(e) => setFormData(prev => ({
                               ...prev,
-                              registrationProtocolConfig: { ...prev.registrationProtocolConfig, attendeeLabel: e.target.value }
+                              registrationProtocolConfig: { ...(prev.registrationProtocolConfig || {}), attendeeLabel: e.target.value }
                             }))}
                             className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-xs focus:outline-none focus:border-sky-500/50 transition-all"
                             placeholder="e.g. Attendee, Participant"
@@ -702,7 +706,7 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                             value={formData.registrationProtocolConfig?.attendeeSubtitle}
                             onChange={(e) => setFormData(prev => ({
                               ...prev,
-                              registrationProtocolConfig: { ...prev.registrationProtocolConfig, attendeeSubtitle: e.target.value }
+                              registrationProtocolConfig: { ...(prev.registrationProtocolConfig || {}), attendeeSubtitle: e.target.value }
                             }))}
                             className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-xs focus:outline-none focus:border-sky-500/50 transition-all"
                             placeholder="e.g. General Entry Access"
@@ -722,7 +726,7 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                             value={formData.registrationProtocolConfig?.startupLabel}
                             onChange={(e) => setFormData(prev => ({
                               ...prev,
-                              registrationProtocolConfig: { ...prev.registrationProtocolConfig, startupLabel: e.target.value }
+                              registrationProtocolConfig: { ...(prev.registrationProtocolConfig || {}), startupLabel: e.target.value }
                             }))}
                             className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-xs focus:outline-none focus:border-emerald-500/50 transition-all"
                             placeholder="e.g. Founder, VIP, Speaker"
@@ -735,7 +739,7 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                             value={formData.registrationProtocolConfig?.startupSubtitle}
                             onChange={(e) => setFormData(prev => ({
                               ...prev,
-                              registrationProtocolConfig: { ...prev.registrationProtocolConfig, startupSubtitle: e.target.value }
+                              registrationProtocolConfig: { ...(prev.registrationProtocolConfig || {}), startupSubtitle: e.target.value }
                             }))}
                             className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-xs focus:outline-none focus:border-emerald-500/50 transition-all"
                             placeholder="e.g. Pitching & Stall Access"
@@ -1067,40 +1071,6 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
             </div>
           </section>
 
-          {/* Timeline */}
-          <section className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-8 space-y-8 shadow-sm">
-            <h3 className="text-[12px] font-black text-white uppercase tracking-[0.3em] flex items-center gap-3">
-              <Calendar className="text-sky-500" size={20} /> DATE & TIME
-            </h3>
-            <div className="space-y-8 max-w-xl">
-              <div className="space-y-3">
-                  <label className="block text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Event Date</label>
-                  <div className="relative">
-                    <Calendar className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600" size={20} />
-                    <input 
-                      type="date" name="date" required value={formData.date} onChange={handleChange}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-3xl pl-16 pr-8 py-5 text-white text-lg focus:outline-none focus:border-sky-500/50 transition-all font-mono uppercase tracking-widest"
-                    />
-                  </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                <div className="space-y-3">
-                    <label className="block text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Start Time</label>
-                    <input 
-                      type="time" name="startTime" value={formData.startTime} onChange={handleChange}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-3xl px-8 py-5 text-white text-lg focus:outline-none focus:border-sky-500/50 transition-all font-mono"
-                    />
-                </div>
-                <div className="space-y-3">
-                    <label className="block text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">End Time</label>
-                    <input 
-                      type="time" name="endTime" value={formData.endTime} onChange={handleChange}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-3xl px-8 py-5 text-white text-lg focus:outline-none focus:border-sky-500/50 transition-all font-mono"
-                    />
-                </div>
-              </div>
-            </div>
-          </section>
           {/* Status */}
           <section className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-8 space-y-8 shadow-sm">
             <h3 className="text-[12px] font-black text-white uppercase tracking-[0.3em] flex items-center gap-3">
@@ -1383,49 +1353,6 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
         </section>
       </div>
 
-      {/* Visibility Protocol Section */}
-      <section className="bg-slate-900 border border-slate-800 rounded-[3rem] p-12 space-y-10 shadow-2xl shadow-slate-950/20 mb-12">
-          <div className="flex items-center justify-between">
-            <h3 className="text-[12px] font-black text-white uppercase tracking-[0.3em] flex items-center gap-3">
-              <Globe className="text-emerald-400" size={24} /> VISIBILITY PROTOCOLS
-            </h3>
-            <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest bg-slate-950 px-4 py-2 rounded-full border border-slate-800">Section 06</span>
-          </div>
-
-          <div className="p-10 bg-slate-950 border border-slate-800 rounded-[2.5rem] space-y-8">
-              <div className="flex items-start gap-6">
-                <div className={`w-16 h-16 rounded-[1.5rem] flex items-center justify-center shrink-0 border-2 ${formData.isPublic ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-slate-800/10 border-slate-800/20 text-slate-700'}`}>
-                    {formData.isPublic ? <Globe size={32} /> : <Lock size={32} />}
-                </div>
-                <div>
-                    <h4 className="text-white font-black text-2xl tracking-tight uppercase">Current Status: {formData.isPublic ? 'PUBLIC' : 'UNLISTED'}</h4>
-                    <p className="text-slate-500 text-sm font-medium leading-relaxed max-w-2xl mt-2">
-                      {formData.isPublic 
-                          ? "This asset is currently deployed to the public discovery feed and search engines. It is discoverable by all users on the Backstage platform."
-                          : "This asset is unlisted. It is only accessible via direct link sharing. Perfect for private experiences, private parties, or internal corporate events."
-                      }
-                    </p>
-                </div>
-              </div>
-
-              {!formData.isPublic && (
-                <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-[2rem] p-8 flex flex-col md:flex-row items-center justify-between gap-6">
-                    <div className="flex items-center gap-5">
-                      <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 flex items-center justify-center text-indigo-400">
-                          <Zap size={20} fill="currentColor" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-black text-white uppercase tracking-widest">Go Public on Backstage discovery Feed</p>
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Increase visibility and reach thousands of attendees</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest bg-indigo-500/10 px-4 py-2 rounded-full border border-indigo-500/20">₹499 Listing Fee</span>
-                    </div>
-                </div>
-              )}
-          </div>
-      </section>
 
       {/* Global Actions */}
       <div className="pt-12 flex items-center justify-between border-t border-slate-800/50 pb-20">

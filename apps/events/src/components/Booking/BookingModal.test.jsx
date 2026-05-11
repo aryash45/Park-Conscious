@@ -8,7 +8,8 @@ vi.mock('lucide-react', () => ({
   Loader2: () => null, CreditCard: () => null, User: () => null,
   Mail: () => null, Phone: () => null, ShieldCheck: () => null,
   Zap: () => null, FileText: () => null, ChevronDown: () => null,
-  Briefcase: () => null, // Ensure this specific icon is mocked too
+  Briefcase: () => null,
+  ExternalLink: () => null,
 }));
 
 vi.mock('@headlessui/react', () => ({

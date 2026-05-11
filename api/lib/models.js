@@ -109,10 +109,6 @@ const eventSchema = new mongoose.Schema(
       displayMode: { type: String, default: 'light' },
       backgroundVideoUrl: { type: String, default: '' }
     },
-    // Self-Service Listing Fields
-    isPublic: { type: Boolean, default: false }, // If false, unlisted (private link only)
-    listingPaid: { type: Boolean, default: false }, // If true, listing fee paid
-    listingTransactionId: { type: String, default: null }, // RP Order ID for listing fee
     registrationProtocolConfig: {
       attendeeLabel: { type: String, default: 'Attendee' },
       attendeeSubtitle: { type: String, default: 'General Entry Access' },
