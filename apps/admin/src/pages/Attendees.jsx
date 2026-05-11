@@ -122,13 +122,27 @@ const Attendees = () => {
     
     setToggleLoading('bulk-delete');
     try {
-      await Promise.all(selectedIds.map(id => bookingService.deleteBooking(id)));
-      setAttendees(prev => prev.filter(a => !selectedIds.includes(a._id)));
-      if (selectedAttendee && selectedIds.includes(selectedAttendee._id)) setSelectedAttendee(null);
-      setSelectedIds([]);
+      const results = await Promise.allSettled(
+        selectedIds.map(id => bookingService.deleteBooking(id).then(() => id))
+      );
+      
+      const successfulIds = results
+        .filter(result => result.status === 'fulfilled')
+        .map(result => result.value);
+
+      if (successfulIds.length > 0) {
+        setAttendees(prev => prev.filter(a => !successfulIds.includes(a._id)));
+        if (selectedAttendee && successfulIds.includes(selectedAttendee._id)) setSelectedAttendee(null);
+        setSelectedIds(prev => prev.filter(id => !successfulIds.includes(id)));
+      }
+
+      if (successfulIds.length < selectedIds.length) {
+        alert(`Deleted ${successfulIds.length} attendees. Some deletions failed. Please refresh.`);
+        fetchData();
+      }
     } catch (err) {
-      console.error("Bulk delete failed:", err);
-      alert("Some deletions failed. Please refresh and check.");
+      console.error("Bulk delete critical error:", err);
+      alert("A critical error occurred. Please refresh and check.");
       fetchData();
     } finally {
       setToggleLoading(null);
