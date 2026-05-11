@@ -34,7 +34,9 @@ const eventSchema = new mongoose.Schema(
   {
     title: { type: String, required: true },
     description: String,
-    date: { type: String, required: true },
+    date: { type: String, required: false },
+    isTBA: { type: Boolean, default: false },
+    isOnline: { type: Boolean, default: false },
     startTime: String,
     endTime: String,
     endDate: String,
@@ -63,9 +65,9 @@ const eventSchema = new mongoose.Schema(
     customForms: [{
       id: { type: String, required: true },
       label: { type: String, required: true },
-      type: { type: String, enum: ['text', 'textarea', 'select', 'file', 'checkbox'], default: 'text' },
+      type: { type: String, enum: ['text', 'textarea', 'select', 'file', 'checkbox', 'link'], default: 'text' },
       required: { type: Boolean, default: false },
-      options: { type: [String], default: [] } // For 'select' types
+      options: { type: [String], default: [] } // For 'select' types; for 'link' type, options[0] is the URL
     }],
     startupFormEnabled: { type: Boolean, default: false },
     // Backward compatibility for old "Events" project fields
@@ -106,6 +108,16 @@ const eventSchema = new mongoose.Schema(
       fontFamily: { type: String, default: 'Plus Jakarta Sans' },
       displayMode: { type: String, default: 'light' },
       backgroundVideoUrl: { type: String, default: '' }
+    },
+    // Self-Service Listing Fields
+    isPublic: { type: Boolean, default: false }, // If false, unlisted (private link only)
+    listingPaid: { type: Boolean, default: false }, // If true, listing fee paid
+    listingTransactionId: { type: String, default: null }, // RP Order ID for listing fee
+    registrationProtocolConfig: {
+      attendeeLabel: { type: String, default: 'Attendee' },
+      attendeeSubtitle: { type: String, default: 'General Entry Access' },
+      startupLabel: { type: String, default: 'Founder' },
+      startupSubtitle: { type: String, default: 'Pitching & Stall Access' }
     }
   },
   { timestamps: true, strict: false }
@@ -195,6 +207,9 @@ const bookingSchema = new mongoose.Schema(
     ipAddress: { type: String, default: null },
     userAgent: { type: String, default: null },
     date: { type: Date, default: Date.now },
+    // Platform Monetization Fields
+    platformFee: { type: Number, default: 0 }, // 5-8% commission
+    organizerPayout: { type: Number, default: 0 }, // Amount after fee
   },
   { timestamps: true }
 );

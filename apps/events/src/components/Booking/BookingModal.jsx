@@ -10,7 +10,7 @@ import { Dialog, Transition } from "@headlessui/react";
 import { Fragment } from "react";
 import { backendAxios } from "../../axios";
 import { useAuth } from "../../context/DiscussionAuth.context";
-import { X, CheckCircle2, AlertCircle, Loader2, CreditCard, User, Mail, Phone, ShieldCheck, Zap, FileText, ChevronDown } from 'lucide-react';
+import { X, CheckCircle2, AlertCircle, Loader2, CreditCard, User, Mail, Phone, ShieldCheck, Zap, FileText, ChevronDown, ExternalLink } from 'lucide-react';
 import { uploadToCloudinary } from "../../utils/cloudinary";
 import { reportSystemError } from "../../utils/monitoring";
 
@@ -250,8 +250,8 @@ const BookingModal = ({ isOpen, setIsOpen, event, themeConfig }) => {
                                <User size={20} className="md:w-6 md:h-6" strokeWidth={1.5} />
                              </div>
                              <div>
-                               <h4 className={`text-base md:text-lg font-black uppercase tracking-tight ${textTitleClass}`}>Attendee</h4>
-                               <p className={`text-[8px] md:text-[9px] font-bold uppercase tracking-widest mt-1.5 ${textSubtitleClass}`}>General Entry Access</p>
+                               <h4 className={`text-base md:text-lg font-black uppercase tracking-tight ${textTitleClass}`}>{event.registrationProtocolConfig?.attendeeLabel || 'Attendee'}</h4>
+                               <p className={`text-[8px] md:text-[9px] font-bold uppercase tracking-widest mt-1.5 ${textSubtitleClass}`}>{event.registrationProtocolConfig?.attendeeSubtitle || 'General Entry Access'}</p>
                              </div>
                              <div className="absolute top-0 right-0 w-32 h-32 bg-sky-500/5 blur-[60px] rounded-full -mr-16 -mt-16 group-hover:bg-sky-500/10 transition-all" />
                            </button>
@@ -265,8 +265,8 @@ const BookingModal = ({ isOpen, setIsOpen, event, themeConfig }) => {
                                <Zap size={20} className="md:w-6 md:h-6" strokeWidth={1.5} />
                              </div>
                              <div>
-                               <h4 className={`text-base md:text-lg font-black uppercase tracking-tight ${textTitleClass}`}>Founder</h4>
-                               <p className={`text-[8px] md:text-[9px] font-bold uppercase tracking-widest mt-1.5 ${textSubtitleClass}`}>Pitching & Stall Access</p>
+                               <h4 className={`text-base md:text-lg font-black uppercase tracking-tight ${textTitleClass}`}>{event.registrationProtocolConfig?.startupLabel || 'Founder'}</h4>
+                               <p className={`text-[8px] md:text-[9px] font-bold uppercase tracking-widest mt-1.5 ${textSubtitleClass}`}>{event.registrationProtocolConfig?.startupSubtitle || 'Pitching & Stall Access'}</p>
                              </div>
                              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 blur-[60px] rounded-full -mr-16 -mt-16 group-hover:bg-emerald-500/10 transition-all" />
                            </button>
@@ -378,6 +378,27 @@ const BookingModal = ({ isOpen, setIsOpen, event, themeConfig }) => {
                                     {customData[field.id] && <CheckCircle2 size={18} className="text-emerald-500" />}
                                   </label>
                                </div>
+                            ) : field.type === 'link' ? (
+                               <a
+                                 href={field.options?.[0] || '#'}
+                                 target="_blank"
+                                 rel="noopener noreferrer"
+                                 className="flex items-center justify-between w-full px-6 py-5 rounded-2xl border-2 transition-all group"
+                                 style={{ borderColor: `${primaryColor}40`, backgroundColor: `${primaryColor}08` }}
+                               >
+                                 <div className="flex items-center gap-4">
+                                   <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-110" style={{ backgroundColor: `${primaryColor}20` }}>
+                                     <ExternalLink size={16} style={{ color: primaryColor }} />
+                                   </div>
+                                   <div>
+                                     <p className="text-sm font-bold" style={{ color: primaryColor }}>{field.label}</p>
+                                     <p className={`text-[9px] font-black uppercase tracking-widest mt-0.5 truncate max-w-[220px] ${textSubtitleClass}`}>{field.options?.[0] || 'Link not configured'}</p>
+                                   </div>
+                                 </div>
+                                 <span className="text-[9px] font-black uppercase tracking-widest shrink-0 px-3 py-1.5 rounded-lg transition-all" style={{ backgroundColor: `${primaryColor}20`, color: primaryColor }}>
+                                   Open ↗
+                                 </span>
+                               </a>
                             ) : field.type === 'checkbox' ? (
                                <label className={`flex items-center gap-4 p-5 rounded-2xl cursor-pointer transition-all border ${customData[field.id] ? 'border-sky-500/50 bg-sky-500/5' : 'border-white/20 hover:bg-white/5'} ${inputBgClass}`}>
                                   <input 

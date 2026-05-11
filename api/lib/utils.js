@@ -47,6 +47,10 @@ export function normalizeEvent(evt) {
     
     e.badge = e.badge || (e.status === 'published' ? 'LIVE' : '');
     
+    // Visibility & Monetization
+    e.isPublic = e.isPublic ?? false;
+    e.listingPaid = e.listingPaid ?? false;
+    
     // Ensure nested arrays exist
     e.hosts = e.hosts || [];
     e.ticketTiers = e.ticketTiers || [];

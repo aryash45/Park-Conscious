@@ -169,6 +169,33 @@ export default async function handler(req, res) {
             return json(res, 200, { authenticated: true, user: decoded });
         }
 
+        // -- Organizer Registration (Self-Service) --
+        if (url.includes('/register/organizer') && method === 'POST') {
+            const { name, email, password } = body;
+            if (!name || !email || !password) return json(res, 400, { message: 'Missing required fields' });
+
+            const search = email.toLowerCase().trim();
+            const existing = await Owner.findOne({ email: search });
+            if (existing) return json(res, 400, { message: 'Account with this email already exists' });
+
+            const hashedPassword = await bcrypt.hash(password, 10);
+            const newOrganizer = await Owner.create({
+                name,
+                email: search,
+                password: hashedPassword,
+                role: 'organizer'
+            });
+
+            // Sync identity to Park Conscious database
+            await syncIdentity(newOrganizer, true);
+
+            return json(res, 201, { 
+                success: true, 
+                message: 'Organizer account created successfully',
+                user: { id: newOrganizer._id, name, email: search, role: 'organizer' }
+            });
+        }
+
         // -- Legacy owner check --
         if (url.includes('/owner/check-session')) {
             const params = new URLSearchParams(queryPart || '');

@@ -702,13 +702,24 @@ export default async function handler(req, res) {
             return json(res, 200, {
                 totalEvents: events.length,
                 totalRevenue: eventBookings.reduce((acc, b) => acc + (parseFloat(b.amount) || 0), 0),
+                totalPayout: eventBookings.reduce((acc, b) => acc + (b.organizerPayout || (parseFloat(b.amount) || 0)), 0),
                 totalSales: eventBookings.length,
                 totalAttended: eventBookings.filter(b => b.attended).length,
-                events: events.map(e => ({
-                    eventId: e._id,
-                    title: e.displayTitle || e.title,
-                    totalTickets: eventBookings.filter(b => String(b.eventId) === String(e._id)).length
-                }))
+                events: events.map(e => {
+                    const bookings = eventBookings.filter(b => String(b.eventId) === String(e._id));
+                    return {
+                        eventId: e._id,
+                        title: e.displayTitle || e.title,
+                        totalTickets: bookings.length,
+                        attended: bookings.filter(b => b.attended).length,
+                        revenue: bookings.reduce((acc, b) => acc + (parseFloat(b.amount) || 0), 0),
+                        payout: bookings.reduce((acc, b) => acc + (b.organizerPayout || (parseFloat(b.amount) || 0)), 0),
+                        capacity: e.capacity,
+                        isPublic: e.isPublic || false,
+                        listingPaid: e.listingPaid || false,
+                        status: e.status
+                    };
+                })
             });
         }
 

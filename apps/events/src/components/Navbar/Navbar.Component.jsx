@@ -70,7 +70,7 @@ function NavSm({ defaultLocation }) {
              
              <div className="flex flex-col gap-0">
                 <Link to="/" onClick={() => setIsOpen(false)} className="text-sm font-black uppercase tracking-[0.4em] text-white py-6 border-b border-white/5">Home</Link>
-                <Link to="/host" onClick={() => setIsOpen(false)} className="text-sm font-black uppercase tracking-[0.4em] text-slate-500 hover:text-white py-6 border-b border-white/5 transition-all">Host Event</Link>
+                <Link to="/list-your-event" onClick={() => setIsOpen(false)} className="text-sm font-black uppercase tracking-[0.4em] text-slate-500 hover:text-white py-6 border-b border-white/5 transition-all">Host Event</Link>
                 <a href="https://www.parkconscious.in" className="text-sm font-black uppercase tracking-[0.4em] text-slate-500 hover:text-white py-6 border-b border-white/5 transition-all">Parking Maps</a>
                 
                 {user && (
@@ -145,7 +145,7 @@ function NavLg({ defaultLocation, onRequestOpen }) {
 
         <div className="hidden xl:flex items-center gap-10 pl-16 border-l border-white/5">
           <Link to="/" className="text-[10px] font-black uppercase tracking-[0.4em] text-white hover:text-indigo-400 transition-all">Home</Link>
-          <Link to="/host" className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-600 hover:text-white transition-all">Host</Link>
+          <Link to="/list-your-event" className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-600 hover:text-white transition-all">Host</Link>
           <a href="https://www.parkconscious.in" className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-600 hover:text-white transition-all">Parking</a>
           {user && (
             <Link to="/my-bookings" className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.4em] text-indigo-400 hover:text-indigo-300 transition-all">
@@ -161,13 +161,13 @@ function NavLg({ defaultLocation, onRequestOpen }) {
           <span className="text-[9px] font-black uppercase tracking-[0.4em]">{location || defaultLocation || "Delhi NCR"}</span>
         </div>
 
-        <button
-          onClick={onRequestOpen}
+        <Link
+          to="/list-your-event"
           className="flex items-center gap-4 px-8 py-3.5 bg-white text-black rounded-full hover:bg-indigo-600 hover:text-white transition-all shadow-[0_20px_40px_-5px_rgba(255,255,255,0.05)] active:scale-95 group"
         >
           <Plus size={16} strokeWidth={4} className="group-hover:rotate-90 transition-transform" />
           <span className="text-[10px] font-black uppercase tracking-[0.3em] leading-none mt-0.5">List Event</span>
-        </button>
+        </Link>
 
         <Link to="/support" className="hidden xl:block text-[10px] font-black uppercase tracking-[0.4em] text-slate-600 hover:text-white transition-all">Support</Link>
 
