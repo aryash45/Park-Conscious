@@ -117,6 +117,24 @@ const Attendees = () => {
     }
   };
 
+  const handleBulkDelete = async () => {
+    if (!window.confirm(`CONFIRM BULK DELETION: You are about to permanently delete ${selectedIds.length} attendees. This action cannot be undone.`)) return;
+    
+    setToggleLoading('bulk-delete');
+    try {
+      await Promise.all(selectedIds.map(id => bookingService.deleteBooking(id)));
+      setAttendees(prev => prev.filter(a => !selectedIds.includes(a._id)));
+      if (selectedAttendee && selectedIds.includes(selectedAttendee._id)) setSelectedAttendee(null);
+      setSelectedIds([]);
+    } catch (err) {
+      console.error("Bulk delete failed:", err);
+      alert("Some deletions failed. Please refresh and check.");
+      fetchData();
+    } finally {
+      setToggleLoading(null);
+    }
+  };
+
   const handleDispatchEmails = async (bookingIds) => {
     if (!bookingIds || bookingIds.length === 0) return;
     const confirmMsg = bookingIds.length === 1 
@@ -257,13 +275,22 @@ const Attendees = () => {
            </button>
 
            {selectedIds.length > 0 && (
-             <button 
-               onClick={() => handleDispatchEmails(selectedIds)} 
-               disabled={toggleLoading === 'bulk-dispatch'}
-               className="bg-emerald-500 hover:bg-emerald-400 text-zinc-950 px-8 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.25em] transition-all flex items-center gap-3 shadow-lg shadow-emerald-500/20 animate-in zoom-in-95 duration-300"
-             >
-               <CheckCircle size={16} /> Dispatch Selection ({selectedIds.length})
-             </button>
+             <div className="flex items-center gap-3 animate-in zoom-in-95 duration-300">
+               <button 
+                 onClick={() => handleDispatchEmails(selectedIds)} 
+                 disabled={toggleLoading === 'bulk-dispatch' || toggleLoading === 'bulk-delete'}
+                 className="bg-emerald-500 hover:bg-emerald-400 text-zinc-950 px-8 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.25em] transition-all flex items-center gap-3 shadow-lg shadow-emerald-500/20"
+               >
+                 <CheckCircle size={16} /> Dispatch ({selectedIds.length})
+               </button>
+               <button 
+                 onClick={handleBulkDelete} 
+                 disabled={toggleLoading === 'bulk-dispatch' || toggleLoading === 'bulk-delete'}
+                 className="bg-rose-500 hover:bg-rose-400 text-zinc-950 px-8 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.25em] transition-all flex items-center gap-3 shadow-lg shadow-rose-500/20"
+               >
+                 {toggleLoading === 'bulk-delete' ? <RefreshCw size={16} className="animate-spin" /> : <Trash2 size={16} />} Delete ({selectedIds.length})
+               </button>
+             </div>
            )}
            <button onClick={handleExportCSV} className="bg-sky-500 hover:bg-sky-400 text-zinc-950 px-8 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.25em] transition-all flex items-center gap-3 shadow-xl">
              <Download size={16} strokeWidth={3} /> Export Master List
