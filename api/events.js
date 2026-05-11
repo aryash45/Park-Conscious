@@ -103,17 +103,15 @@ export default async function handler(req, res) {
                 if (params.get('featured') === 'true') {
                     const featuredList = await Event.find({ 
                         isFeatured: true, 
-                        status: { $in: ['published', 'Published'] },
-                        isPublic: true // Only show public events in featured carousel
+                        status: { $in: ['published', 'Published'] }
                     }).sort({ createdAt: -1 }).lean();
                     res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=86400');
                     return json(res, 200, featuredList.map(normalizeEvent));
                 }
 
-                // Public: fetch published AND public events
+                // Public: fetch published events
                 const evts = await Event.find({ 
-                    status: { $in: ['published', 'Published'] },
-                    isPublic: true // Filter out unlisted events from the main discovery page
+                    status: { $in: ['published', 'Published'] }
                 }).sort({ date: 1 }).lean();
                 res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=86400');
                 return json(res, 200, evts.map(normalizeEvent));
