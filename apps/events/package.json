@@ -7,6 +7,7 @@
     "@headlessui/react": "^1.7.17",
     "@react-oauth/google": "^0.12.1",
     "@vercel/analytics": "^1.4.1",
+    "@vercel/speed-insights": "^2.0.0",
     "axios": "^1.13.6",
     "busboy": "^1.6.0",
     "cloudinary": "^2.9.0",

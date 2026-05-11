@@ -12,6 +12,7 @@ import { Routes, Route } from "react-router-dom";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import AppErrorBoundary from "./components/AppErrorBoundary";
 
 // Lazy load components
@@ -69,6 +70,7 @@ function App() {
         </Routes>
       </Suspense>
       <Analytics />
+      <SpeedInsights />
     </AppErrorBoundary>
   );
 }
