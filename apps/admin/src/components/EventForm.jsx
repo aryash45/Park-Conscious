@@ -11,7 +11,7 @@ import {
   Upload, X, MapPin, Calendar, Tag, Shield, 
   Info, IndianRupee, Users, PlusCircle, 
   ChevronDown, ChevronUp, AlertCircle, Star,
-  Lock, Layout, Monitor, Globe, Trash2, RefreshCw, Ticket, Palette, PlayCircle
+  Lock, Layout, Monitor, Globe, Trash2, RefreshCw, Ticket, Palette, PlayCircle, Rocket, ShieldCheck, Zap, Link2
 } from 'lucide-react';
 import { uploadToCloudinary, uploadVideoToCloudinary } from '../utils/cloudinary';
 
@@ -62,6 +62,16 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
       fontFamily: 'Plus Jakarta Sans',
       displayMode: 'light',
       backgroundVideoUrl: ''
+    },
+    isPublic: false,
+    listingPaid: false,
+    isTBA: false,
+    isOnline: false,
+    registrationProtocolConfig: {
+      attendeeLabel: 'Attendee',
+      attendeeSubtitle: 'General Entry Access',
+      startupLabel: 'Founder',
+      startupSubtitle: 'Pitching & Stall Access'
     }
   });
 
@@ -107,14 +117,22 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
           hosts: initialData.hosts || [],
           ticketTiers: initialData.ticketTiers || [],
           startupFormEnabled: initialData.startupFormEnabled || false,
-          themeConfig: initialData.themeConfig || {
-            primaryColor: '#E33B76',
-            themeStyle: 'pastel-light',
-            fontFamily: 'Plus Jakarta Sans',
-            displayMode: 'light',
-            backgroundVideoUrl: ''
-          }
-        }));
+            themeConfig: initialData.themeConfig || {
+              primaryColor: '#E33B76',
+              themeStyle: 'pastel-light',
+              fontFamily: 'Plus Jakarta Sans',
+              displayMode: 'light',
+              backgroundVideoUrl: ''
+            },
+            registrationProtocolConfig: initialData.registrationProtocolConfig || {
+              attendeeLabel: 'Attendee',
+              attendeeSubtitle: 'General Entry Access',
+              startupLabel: 'Founder',
+              startupSubtitle: 'Pitching & Stall Access'
+            },
+            isTBA: initialData.isTBA || false,
+            isOnline: initialData.isOnline || false
+          }));
         if (initialData.location?.coordinates?.lat || initialData.location?.coordinates?.lng) {
           setShowAdvancedLocation(true);
         }
@@ -184,7 +202,12 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
         hosts: formData.hosts || [],
         ticketTiers: formData.ticketTiers || [],
         startupFormEnabled: formData.startupFormEnabled || false,
-        themeConfig: formData.themeConfig
+        themeConfig: formData.themeConfig,
+        isPublic: formData.isPublic,
+        listingPaid: formData.listingPaid,
+        isTBA: formData.isTBA,
+        isOnline: formData.isOnline,
+        registrationProtocolConfig: formData.registrationProtocolConfig
     };
     onSubmit(submissionData);
   };
@@ -239,8 +262,65 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                   ))}
                 </select>
               </div>
+
+              <div className="pt-4 border-t border-slate-800 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Calendar size={18} className="text-sky-500" />
+                  <div>
+                    <p className="text-[10px] font-black text-white uppercase tracking-widest">Date & Time Protocol</p>
+                    <p className="text-[8px] font-bold text-slate-600 uppercase tracking-widest mt-1">Is this event date finalized?</p>
+                  </div>
+                </div>
+                <label className="flex items-center gap-4 cursor-pointer">
+                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Date TBA</span>
+                  <div className="relative">
+                    <input 
+                      type="checkbox" name="isTBA" checked={formData.isTBA} onChange={handleChange}
+                      className="sr-only peer"
+                    />
+                    <div className="w-10 h-5 bg-slate-800 rounded-full peer-checked:bg-sky-500 transition-all relative">
+                      <div className="absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-all peer-checked:translate-x-5" style={{transform: formData.isTBA ? 'translateX(20px)' : 'translateX(0)'}} />
+                    </div>
+                  </div>
+                </label>
+              </div>
             </div>
           </section>
+
+          {/* Date Section (Optional based on isTBA) */}
+          {!formData.isTBA && (
+            <section className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-10 space-y-8 shadow-sm animate-in fade-in slide-in-from-top-4 duration-500">
+               <div className="flex items-center justify-between">
+                <h3 className="text-[12px] font-black text-white uppercase tracking-[0.3em] flex items-center gap-3">
+                  <Calendar className="text-sky-500" size={20} /> TEMPORAL COORDINATES
+                </h3>
+                <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest bg-slate-950 px-3 py-1 rounded-full border border-slate-800">Date Info</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3 ml-1">Event Date</label>
+                  <input 
+                    type="date" name="date" required={!formData.isTBA} value={formData.date} onChange={handleChange}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-6 py-4 text-white text-sm focus:outline-none focus:border-sky-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3 ml-1">Start Time</label>
+                  <input 
+                    type="time" name="startTime" value={formData.startTime} onChange={handleChange}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-6 py-4 text-white text-sm focus:outline-none focus:border-sky-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3 ml-1">End Time</label>
+                  <input 
+                    type="time" name="endTime" value={formData.endTime} onChange={handleChange}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-6 py-4 text-white text-sm focus:outline-none focus:border-sky-500/50"
+                  />
+                </div>
+              </div>
+            </section>
+          )}
           
           {/* Hosts Section */}
           <section className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-10 space-y-8 shadow-sm">
@@ -289,12 +369,13 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                             onChange={async (e) => {
                               const file = e.target.files[0];
                               if (!file) return;
-                              try {
-                                const url = await uploadToCloudinary(file);
-                                const newHosts = [...formData.hosts];
-                                newHosts[idx].image = url;
-                                setFormData(prev => ({ ...prev, hosts: newHosts }));
-                              } catch (err) { console.error(err); }
+                                try {
+                                  const url = await uploadToCloudinary(file);
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    hosts: prev.hosts.map((h, i) => i === idx ? { ...h, image: url } : h)
+                                  }));
+                                } catch (err) { console.error(err); }
                             }}
                           />
                           <Upload size={18} className="text-white" />
@@ -308,9 +389,10 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                         <input
                           type="text" value={host.name}
                           onChange={(e) => {
-                            const newHosts = [...formData.hosts];
-                            newHosts[idx].name = e.target.value;
-                            setFormData(prev => ({ ...prev, hosts: newHosts }));
+                            setFormData(prev => ({
+                              ...prev,
+                              hosts: prev.hosts.map((h, i) => i === idx ? { ...h, name: e.target.value } : h)
+                            }));
                           }}
                           className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white text-xs focus:outline-none focus:border-[#6366f1]/50"
                           placeholder="Host Name"
@@ -321,9 +403,10 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                         <input
                           type="text" value={host.role}
                           onChange={(e) => {
-                            const newHosts = [...formData.hosts];
-                            newHosts[idx].role = e.target.value;
-                            setFormData(prev => ({ ...prev, hosts: newHosts }));
+                            setFormData(prev => ({
+                              ...prev,
+                              hosts: prev.hosts.map((h, i) => i === idx ? { ...h, role: e.target.value } : h)
+                            }));
                           }}
                           className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white text-xs focus:outline-none focus:border-[#6366f1]/50"
                           placeholder="e.g. Moderator, Organizer"
@@ -334,9 +417,10 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                         <input
                           type="text" value={host.socialLink}
                           onChange={(e) => {
-                            const newHosts = [...formData.hosts];
-                            newHosts[idx].socialLink = e.target.value;
-                            setFormData(prev => ({ ...prev, hosts: newHosts }));
+                            setFormData(prev => ({
+                              ...prev,
+                              hosts: prev.hosts.map((h, i) => i === idx ? { ...h, socialLink: e.target.value } : h)
+                            }));
                           }}
                           className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white text-xs focus:outline-none focus:border-[#6366f1]/50"
                           placeholder="https://instagram.com/..."
@@ -364,57 +448,92 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
               <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest bg-slate-950 px-3 py-1 rounded-full border border-slate-800">Section 02</span>
             </div>
             
-            <div className="grid grid-cols-1 gap-8">
-              <div>
-                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3 ml-1">Venue Primary Identity</label>
-                <input 
-                  type="text" name="locationName" required value={formData.locationName} onChange={handleChange}
-                  placeholder="Global Convention Centre"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-6 py-4 text-white text-sm focus:outline-none focus:border-sky-500/50 transition-all font-medium"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3 ml-1">Physical Coordinates</label>
-                <input 
-                  type="text" name="locationAddress" value={formData.locationAddress} onChange={handleChange}
-                  placeholder="Block 4, Industrial Area, Noida, UP"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-6 py-4 text-white text-sm focus:outline-none focus:border-sky-500/50 transition-all font-medium"
-                />
-              </div>
-
-              <div className="pt-2">
-                <button 
-                  type="button" 
-                  onClick={() => setShowAdvancedLocation(!showAdvancedLocation)}
-                  className="flex items-center gap-3 text-[10px] font-black text-slate-600 hover:text-sky-500 uppercase tracking-[0.2em] transition-all group"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-center group-hover:border-sky-500/50">
-                    {showAdvancedLocation ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                  </div>
-                  Geospatial Telemetry
-                </button>
-              </div>
-
-              {showAdvancedLocation && (
-                <div className="grid grid-cols-2 gap-8 animate-in fade-in slide-in-from-top-4 duration-500">
-                  <div className="space-y-2">
-                    <label className="block text-[10px] font-black text-sky-500/60 uppercase tracking-[0.2em] ml-1">Latitude</label>
-                    <input 
-                      type="number" step="any" name="lat" value={formData.lat} onChange={handleChange}
-                      placeholder="0.00000"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-6 py-4 text-white text-xs font-mono focus:outline-none focus:border-sky-500/50"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="block text-[10px] font-black text-sky-500/60 uppercase tracking-[0.2em] ml-1">Longitude</label>
-                    <input 
-                      type="number" step="any" name="lng" value={formData.lng} onChange={handleChange}
-                      placeholder="0.00000"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-6 py-4 text-white text-xs font-mono focus:outline-none focus:border-sky-500/50"
-                    />
+            <div className="space-y-8">
+              <label className="flex items-center justify-between p-6 bg-slate-950 border border-slate-800 rounded-3xl cursor-pointer hover:border-sky-500/40 transition-all group">
+                <div className="flex items-center gap-4">
+                  <Monitor size={20} className="text-sky-500" />
+                  <div>
+                    <p className="text-[10px] font-black text-white uppercase tracking-widest">Online Experience</p>
+                    <p className="text-[8px] font-bold text-slate-600 uppercase tracking-widest mt-1">This event takes place in the digital realm</p>
                   </div>
                 </div>
+                <div className="relative">
+                  <input
+                    type="checkbox" name="isOnline" checked={formData.isOnline} onChange={handleChange}
+                    className="sr-only peer"
+                  />
+                  <div className="w-10 h-5 bg-slate-800 rounded-full peer-checked:bg-sky-500 transition-all relative">
+                    <div className="absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-all peer-checked:translate-x-5" style={{transform: formData.isOnline ? 'translateX(20px)' : 'translateX(0)'}} />
+                  </div>
+                </div>
+              </label>
+
+              {!formData.isOnline && (
+                <div className="grid grid-cols-1 gap-8 animate-in fade-in slide-in-from-top-4 duration-500">
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3 ml-1">Venue Primary Identity</label>
+                    <input 
+                      type="text" name="locationName" required={!formData.isOnline} value={formData.locationName} onChange={handleChange}
+                      placeholder="Global Convention Centre"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-6 py-4 text-white text-sm focus:outline-none focus:border-sky-500/50 transition-all font-medium"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3 ml-1">Physical Coordinates</label>
+                    <input 
+                      type="text" name="locationAddress" value={formData.locationAddress} onChange={handleChange}
+                      placeholder="Block 4, Industrial Area, Noida, UP"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-6 py-4 text-white text-sm focus:outline-none focus:border-sky-500/50 transition-all font-medium"
+                    />
+                  </div>
+
+                  <div className="pt-2">
+                    <button 
+                      type="button" 
+                      onClick={() => setShowAdvancedLocation(!showAdvancedLocation)}
+                      className="flex items-center gap-3 text-[10px] font-black text-slate-600 hover:text-sky-500 uppercase tracking-[0.2em] transition-all group"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-center group-hover:border-sky-500/50">
+                        {showAdvancedLocation ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                      </div>
+                      Geospatial Telemetry
+                    </button>
+                  </div>
+
+                  {showAdvancedLocation && (
+                    <div className="grid grid-cols-2 gap-8 animate-in fade-in slide-in-from-top-4 duration-500">
+                      <div className="space-y-2">
+                        <label className="block text-[10px] font-black text-sky-500/60 uppercase tracking-[0.2em] ml-1">Latitude</label>
+                        <input 
+                          type="number" step="any" name="lat" value={formData.lat} onChange={handleChange}
+                          placeholder="0.00000"
+                          className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-6 py-4 text-white text-xs font-mono focus:outline-none focus:border-sky-500/50"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="block text-[10px] font-black text-sky-500/60 uppercase tracking-[0.2em] ml-1">Longitude</label>
+                        <input 
+                          type="number" step="any" name="lng" value={formData.lng} onChange={handleChange}
+                          placeholder="0.00000"
+                          className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-6 py-4 text-white text-xs font-mono focus:outline-none focus:border-sky-500/50"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {formData.isOnline && (
+                 <div className="p-8 bg-slate-950 border border-slate-800 rounded-3xl animate-in fade-in zoom-in duration-500 text-center space-y-4">
+                    <div className="w-16 h-16 rounded-full bg-sky-500/10 flex items-center justify-center text-sky-500 mx-auto">
+                      <Globe size={32} className="animate-pulse" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-black text-white uppercase tracking-widest">Digital Realm Activated</p>
+                      <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-1">This event will be hosted via a virtual platform link provided later.</p>
+                    </div>
+                 </div>
               )}
             </div>
           </section>
@@ -561,6 +680,83 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                   </div>
                 </div>
               </label>
+
+              {formData.startupFormEnabled && (
+                <div className="mt-8 p-8 bg-slate-950/50 border border-slate-800 rounded-3xl space-y-8 animate-in fade-in slide-in-from-top-4 duration-500">
+                  <div className="flex items-center gap-3 mb-2">
+                    <Zap className="text-emerald-500" size={18} />
+                    <h4 className="text-[10px] font-black text-white uppercase tracking-[0.2em]">Protocol Customization</h4>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {/* Attendee Protocol Config */}
+                    <div className="space-y-6 p-6 bg-slate-900/50 border border-slate-800 rounded-2xl">
+                      <p className="text-[9px] font-black text-sky-500 uppercase tracking-widest">Protocol A (Standard)</p>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Main Label</label>
+                          <input 
+                            type="text" 
+                            value={formData.registrationProtocolConfig?.attendeeLabel}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              registrationProtocolConfig: { ...(prev.registrationProtocolConfig || {}), attendeeLabel: e.target.value }
+                            }))}
+                            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-xs focus:outline-none focus:border-sky-500/50 transition-all"
+                            placeholder="e.g. Attendee, Participant"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Subtitle / Description</label>
+                          <input 
+                            type="text" 
+                            value={formData.registrationProtocolConfig?.attendeeSubtitle}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              registrationProtocolConfig: { ...(prev.registrationProtocolConfig || {}), attendeeSubtitle: e.target.value }
+                            }))}
+                            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-xs focus:outline-none focus:border-sky-500/50 transition-all"
+                            placeholder="e.g. General Entry Access"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Startup Protocol Config */}
+                    <div className="space-y-6 p-6 bg-slate-900/50 border border-slate-800 rounded-2xl">
+                      <p className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">Protocol B (Premium/Custom)</p>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Main Label</label>
+                          <input 
+                            type="text" 
+                            value={formData.registrationProtocolConfig?.startupLabel}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              registrationProtocolConfig: { ...(prev.registrationProtocolConfig || {}), startupLabel: e.target.value }
+                            }))}
+                            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-xs focus:outline-none focus:border-emerald-500/50 transition-all"
+                            placeholder="e.g. Founder, VIP, Speaker"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Subtitle / Description</label>
+                          <input 
+                            type="text" 
+                            value={formData.registrationProtocolConfig?.startupSubtitle}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              registrationProtocolConfig: { ...(prev.registrationProtocolConfig || {}), startupSubtitle: e.target.value }
+                            }))}
+                            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-xs focus:outline-none focus:border-emerald-500/50 transition-all"
+                            placeholder="e.g. Pitching & Stall Access"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="pt-8 border-t border-slate-800">
@@ -651,6 +847,7 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                           <option value="select">Dropdown</option>
                           <option value="file">File Upload</option>
                           <option value="checkbox">Checkbox</option>
+                          <option value="link">Redirect Link</option>
                         </select>
                         
                         <label className="flex items-center gap-2 cursor-pointer border-l border-slate-800 pl-4 py-1">
@@ -709,6 +906,32 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                             }}
                             className="w-full bg-slate-950 border border-slate-900 rounded-xl px-4 py-3 text-xs text-slate-300 focus:outline-none focus:border-sky-500/30"
                           />
+                        </div>
+                      )}
+
+                      {field.type === 'link' && (
+                        <div className="pl-4 border-l-2 border-violet-500/30 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                          <div className="flex items-center gap-2">
+                            <Link2 size={12} className="text-violet-400" />
+                            <p className="text-[9px] font-black text-violet-400/70 uppercase tracking-widest">Redirect URL</p>
+                          </div>
+                          <input
+                            type="url"
+                            placeholder="https://..."
+                            value={Array.isArray(field.options) && field.options[0] ? field.options[0] : ''}
+                            onChange={(e) => {
+                              const newForms = [...(Array.isArray(formData.customForms) ? formData.customForms : [])];
+                              if (newForms[index] && typeof newForms[index] === 'object') {
+                                newForms[index] = { 
+                                  ...newForms[index], 
+                                  options: [e.target.value || ''] 
+                                };
+                                setFormData(prev => ({ ...prev, customForms: newForms }));
+                              }
+                            }}
+                            className="w-full bg-slate-950 border border-violet-500/20 rounded-xl px-4 py-3 text-xs text-slate-300 focus:outline-none focus:border-violet-500/50 font-mono"
+                          />
+                          <p className="text-[8px] font-bold text-slate-700 uppercase tracking-widest">Users will see a button that redirects to this URL when clicked.</p>
                         </div>
                       )}
                     </div>
@@ -800,6 +1023,25 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                         />
                       </div>
                     </div>
+                    
+                    {/* Fee Calculator */}
+                    {tier.price > 0 && (
+                      <div className="bg-indigo-500/5 border border-indigo-500/10 rounded-2xl p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400">
+                             <IndianRupee size={14} />
+                          </div>
+                          <div>
+                            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Platform Fee (8%)</p>
+                            <p className="text-xs font-black text-white">₹{Math.round(tier.price * 0.08)}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">Your Payout</p>
+                          <p className="text-lg font-black text-emerald-400">₹{tier.price - Math.round(tier.price * 0.08)}</p>
+                        </div>
+                      </div>
+                    )}
 
                     <div className="pt-2">
                       <label className="inline-flex items-center gap-4 cursor-pointer group/verify bg-slate-900 border border-slate-800 rounded-2xl px-6 py-4 hover:border-[#6366f1]/30 transition-all">
@@ -836,40 +1078,6 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
             </div>
           </section>
 
-          {/* Timeline */}
-          <section className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-8 space-y-8 shadow-sm">
-            <h3 className="text-[12px] font-black text-white uppercase tracking-[0.3em] flex items-center gap-3">
-              <Calendar className="text-sky-500" size={20} /> DATE & TIME
-            </h3>
-            <div className="space-y-8 max-w-xl">
-              <div className="space-y-3">
-                  <label className="block text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Event Date</label>
-                  <div className="relative">
-                    <Calendar className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600" size={20} />
-                    <input 
-                      type="date" name="date" required value={formData.date} onChange={handleChange}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-3xl pl-16 pr-8 py-5 text-white text-lg focus:outline-none focus:border-sky-500/50 transition-all font-mono uppercase tracking-widest"
-                    />
-                  </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                <div className="space-y-3">
-                    <label className="block text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Start Time</label>
-                    <input 
-                      type="time" name="startTime" value={formData.startTime} onChange={handleChange}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-3xl px-8 py-5 text-white text-lg focus:outline-none focus:border-sky-500/50 transition-all font-mono"
-                    />
-                </div>
-                <div className="space-y-3">
-                    <label className="block text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">End Time</label>
-                    <input 
-                      type="time" name="endTime" value={formData.endTime} onChange={handleChange}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-3xl px-8 py-5 text-white text-lg focus:outline-none focus:border-sky-500/50 transition-all font-mono"
-                    />
-                </div>
-              </div>
-            </div>
-          </section>
           {/* Status */}
           <section className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-8 space-y-8 shadow-sm">
             <h3 className="text-[12px] font-black text-white uppercase tracking-[0.3em] flex items-center gap-3">
@@ -1151,6 +1359,7 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
           </div>
         </section>
       </div>
+
 
       {/* Global Actions */}
       <div className="pt-12 flex items-center justify-between border-t border-slate-800/50 pb-20">

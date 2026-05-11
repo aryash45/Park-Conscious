@@ -13,7 +13,7 @@ import BookingModal from "../components/Booking/BookingModal.jsx";
 import PremiumBackground from "../components/PremiumBackground";
 import { 
   MapPin, Ticket, X, 
-  Calendar, Clock, Users, ArrowUpRight, Share2, Instagram
+  Calendar, Clock, Users, ArrowUpRight, Share2, Instagram, Globe, Link2
 } from "lucide-react";
 import { Helmet } from "react-helmet";
 
@@ -226,22 +226,25 @@ const EventPage = () => {
                             {host.image ? (
                               <img src={clUrl(host.image)} className="w-full h-full object-cover" alt={host.name} />
                             ) : (
-                              <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-pink-500">{host.name?.[0]}</div>
+                              <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-pink-500 bg-white/50">
+                                {host.name ? host.name[0]?.toUpperCase() : 'H'}
+                              </div>
                             )}
                           </div>
                           <div>
-                            <p className={`text-sm font-bold ${textTitleClass}`}>{host.name}</p>
+                            <p className={`text-sm font-bold ${textTitleClass}`}>{host.name || "Anonymous Host"}</p>
                             <p className={`text-[10px] font-medium ${textSubtitleClass}`}>{host.role}</p>
                           </div>
                         </div>
                         
-                        {(host.instagram || host.socials?.instagram) && (
+                        {host.socialLink && (
                           <a 
-                            href={host.instagram || host.socials?.instagram} 
+                            href={host.socialLink.startsWith('http') ? host.socialLink : `https://${host.socialLink}`} 
                             target="_blank" rel="noreferrer"
-                            className="w-8 h-8 rounded-full bg-white/40 border border-white/60 flex items-center justify-center text-slate-400 hover:text-pink-500 hover:border-pink-300 transition-all shadow-sm"
+                            className="w-10 h-10 rounded-full bg-white/40 border border-white/60 flex items-center justify-center text-slate-400 hover:text-pink-500 hover:border-pink-300 transition-all shadow-sm group/social"
+                            title="Visit Host Profile"
                           >
-                            <Instagram size={14} />
+                            {host.socialLink.includes('instagram.com') ? <Instagram size={16} /> : <Link2 size={16} />}
                           </a>
                         )}
                       </div>
@@ -270,32 +273,48 @@ const EventPage = () => {
                   <div className="flex items-start gap-6">
                     <div className={`flex-shrink-0 w-16 h-16 ${cardBgClass} rounded-[1.5rem] flex flex-col items-center justify-center overflow-hidden p-0`}>
                       <div className="w-full py-1 text-center" style={{ backgroundColor: primaryColor }}>
-                        <span className="text-[8px] font-black uppercase tracking-widest text-white">{monthName}</span>
+                        <span className="text-[8px] font-black uppercase tracking-widest text-white">{event.isTBA ? 'TBA' : monthName}</span>
                       </div>
                       <div className={`flex-1 flex items-center justify-center w-full ${displayMode === 'dark' ? 'bg-white/5' : 'bg-white/40'} backdrop-blur-md`}>
-                        <span className={`text-xl font-bold ${displayMode === 'dark' ? 'text-white' : 'text-slate-900'}`}>{dayNum}</span>
+                        {event.isTBA ? (
+                          <Clock size={20} className={displayMode === 'dark' ? 'text-white' : 'text-slate-900'} />
+                        ) : (
+                          <span className={`text-xl font-bold ${displayMode === 'dark' ? 'text-white' : 'text-slate-900'}`}>{dayNum}</span>
+                        )}
                       </div>
                     </div>
                     <div className="space-y-1 pt-2">
-                      <h4 className={`text-xl font-bold tracking-tight ${textTitleClass}`}>{dayName}, {monthName} {dayNum}</h4>
-                      <p className={`text-sm font-medium flex items-center gap-2 ${textSubtitleClass}`}><Clock size={14} /> {timeStr} GMT+5:30</p>
+                      <h4 className={`text-xl font-bold tracking-tight ${textTitleClass}`}>
+                        {event.isTBA ? 'Date to be Announced' : `${dayName}, ${monthName} ${dayNum}`}
+                      </h4>
+                      <p className={`text-sm font-medium flex items-center gap-2 ${textSubtitleClass}`}>
+                        <Clock size={14} /> {event.isTBA ? 'Time TBA' : `${timeStr} GMT+5:30`}
+                      </p>
                     </div>
                   </div>
 
                   <div className="flex items-start gap-6">
                     <div className={`flex-shrink-0 w-16 h-16 ${cardBgClass} rounded-[1.5rem] flex items-center justify-center`}>
-                      <MapPin size={24} color={primaryColor} />
+                      {event.isOnline ? <Globe size={24} color={primaryColor} /> : <MapPin size={24} color={primaryColor} />}
                     </div>
                     <div className="space-y-1 pt-2">
-                      <a 
-                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.displayLocation)}`}
-                        target="_blank" rel="noreferrer"
-                        className={`flex items-center gap-2 text-xl font-bold transition-all group ${textTitleClass}`}
-                      >
-                          {event.location?.name || event.venue || "NCR"}
-                          <ArrowUpRight size={18} color={primaryColor} className="opacity-50 group-hover:opacity-100 transition-opacity" />
-                      </a>
-                      <p className={`text-sm font-medium ${textSubtitleClass}`}>{event.displayLocation}</p>
+                      {event.isOnline ? (
+                        <div className={`flex items-center gap-2 text-xl font-bold ${textTitleClass}`}>
+                          Digital Experience
+                        </div>
+                      ) : (
+                        <a 
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.displayLocation)}`}
+                          target="_blank" rel="noreferrer"
+                          className={`flex items-center gap-2 text-xl font-bold transition-all group ${textTitleClass}`}
+                        >
+                            {event.location?.name || event.venue || "NCR"}
+                            <ArrowUpRight size={18} color={primaryColor} className="opacity-50 group-hover:opacity-100 transition-opacity" />
+                        </a>
+                      )}
+                      <p className={`text-sm font-medium ${textSubtitleClass}`}>
+                        {event.isOnline ? 'Access link shared after booking' : event.displayLocation}
+                      </p>
                     </div>
                   </div>
                 </div>

@@ -17,6 +17,8 @@ import {
   XCircle,
   Loader2,
   ScanLine,
+  ArrowRight,
+  Zap,
 } from "lucide-react";
 import DefaultlayoutHoc from "../layout/Default.layout";
 
@@ -154,9 +156,15 @@ const OrganizerDashboardPage = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             icon={IndianRupee}
-            label="Total Revenue"
+            label="Gross Revenue"
             value={`₹${(stats?.totalRevenue || 0).toLocaleString("en-IN")}`}
             color="emerald"
+          />
+          <StatCard
+            icon={TrendingUp}
+            label="Your Payout (Net)"
+            value={`₹${(stats?.totalPayout || 0).toLocaleString("en-IN")}`}
+            color="indigo"
           />
           <StatCard
             icon={Ticket}
@@ -169,12 +177,6 @@ const OrganizerDashboardPage = () => {
             label="Attended"
             value={stats?.totalAttended || 0}
             color="violet"
-          />
-          <StatCard
-            icon={TrendingUp}
-            label="Attendance Rate"
-            value={`${attendanceRate}%`}
-            color="amber"
           />
         </div>
 
@@ -194,31 +196,54 @@ const OrganizerDashboardPage = () => {
                 <thead>
                   <tr className="border-b border-white/5">
                     <th className="text-left text-[10px] text-slate-500 font-black uppercase tracking-widest px-6 py-4">Event</th>
-                    <th className="text-right text-[10px] text-slate-500 font-black uppercase tracking-widest px-6 py-4">Tickets Sold</th>
-                    <th className="text-right text-[10px] text-slate-500 font-black uppercase tracking-widest px-6 py-4">Attended</th>
-                    <th className="text-right text-[10px] text-slate-500 font-black uppercase tracking-widest px-6 py-4">Revenue</th>
-                    <th className="text-right text-[10px] text-slate-500 font-black uppercase tracking-widest px-6 py-4">Capacity Left</th>
+                    <th className="text-center text-[10px] text-slate-500 font-black uppercase tracking-widest px-6 py-4">Visibility</th>
+                    <th className="text-right text-[10px] text-slate-500 font-black uppercase tracking-widest px-6 py-4">Sales</th>
+                    <th className="text-right text-[10px] text-slate-500 font-black uppercase tracking-widest px-6 py-4">Payout</th>
+                    <th className="text-right text-[10px] text-slate-500 font-black uppercase tracking-widest px-6 py-4">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {stats.events.map((ev, i) => (
-                    <tr key={ev.eventId || i} className="border-b border-white/5 hover:bg-white/3 transition-colors">
-                      <td className="px-6 py-4 text-white font-bold">{ev.title || "Untitled Event"}</td>
-                      <td className="px-6 py-4 text-right text-slate-300 font-mono">{ev.totalTickets}</td>
-                      <td className="px-6 py-4 text-right">
-                        <span className="text-emerald-400 font-mono font-bold">{ev.attended}</span>
-                        <span className="text-slate-600 text-xs ml-1">
-                          ({ev.totalTickets > 0 ? Math.round((ev.attended / ev.totalTickets) * 100) : 0}%)
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right text-emerald-400 font-mono font-bold">
-                        ₹{ev.revenue.toLocaleString("en-IN")}
-                      </td>
-                      <td className="px-6 py-4 text-right text-slate-400 font-mono">
-                        {ev.capacity ?? "—"}
-                      </td>
-                    </tr>
-                  ))}
+                    {stats.events.map((ev, i) => (
+                      <tr key={ev.eventId || i} className="border-b border-white/5 hover:bg-white/3 transition-colors">
+                        <td className="px-6 py-4">
+                          <p className="text-white font-bold">{ev.title || "Untitled Event"}</p>
+                          <p className="text-[10px] text-slate-500 uppercase tracking-widest font-black mt-0.5">{ev.status}</p>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          {ev.isPublic ? (
+                            <span className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-widest">Public</span>
+                          ) : (
+                            <span className="px-3 py-1 rounded-full bg-slate-500/10 border border-slate-500/20 text-slate-500 text-[10px] font-black uppercase tracking-widest">Unlisted</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <p className="text-white font-mono font-bold">{ev.totalTickets}</p>
+                          <p className="text-[10px] text-slate-600 font-black uppercase tracking-widest mt-0.5">{ev.attended} Attended</p>
+                        </td>
+                        <td className="px-6 py-4 text-right text-emerald-400 font-mono font-bold">
+                          ₹{ev.payout.toLocaleString("en-IN")}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex justify-end gap-2">
+                             <button 
+                               onClick={() => window.open(`/event/${ev.eventId}`, '_blank')}
+                               className="p-2 bg-white/5 hover:bg-white/10 text-white rounded-lg transition-all"
+                               title="View Event"
+                             >
+                               <ArrowRight size={14} />
+                             </button>
+                             {!ev.isPublic && (
+                               <button 
+                                 onClick={() => window.location.href = `/promote/${ev.eventId}`}
+                                 className="px-3 py-2 bg-indigo-500 hover:bg-indigo-400 text-white text-[9px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center gap-2 shadow-lg shadow-indigo-500/20"
+                               >
+                                 <Zap size={10} fill="currentColor" /> Promote
+                               </button>
+                             )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             </div>

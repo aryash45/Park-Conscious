@@ -31,6 +31,10 @@ const AdminPage = lazy(() => import("./pages/Admin.Page"));
 const HostPage = lazy(() => import("./pages/Host.Page"));
 const SupportPage = lazy(() => import("./pages/Support.Page"));
 const LegalPage = lazy(() => import("./pages/Legal.Page"));
+const ListYourEventPage = lazy(() => import("./pages/ListYourEvent.Page"));
+const PromoteEventPage = lazy(() => import("./pages/PromoteEvent.Page"));
+const OrganizerDashboardPage = lazy(() => import("./pages/OrganizerDashboard.Page"));
+const OrganizerSignupPage = lazy(() => import("./pages/OrganizerSignup.Page"));
 
 // Minimalist Loading Fallback
 const LoadingFallback = () => (
@@ -47,7 +51,7 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/support" element={<SupportPage />} />
           <Route path="/legal" element={<LegalPage />} />
-          <Route path="/host" element={<HostPage />} />
+          <Route path="/host" element={<ListYourEventPage />} />
           <Route path="/my-bookings" element={<MyBookingsPage />} />
           <Route path="/category/:id" element={<CategoryPage />} />
           <Route path="/discussion" element={<DiscussionListPage />} />
@@ -58,6 +62,10 @@ function App() {
           <Route path="/payment-success" element={<SuccessPage />} />
           <Route path="/payment-failure" element={<FailurePage />} />
           <Route path="/admin" element={<AdminPage />} />
+          <Route path="/list-your-event" element={<ListYourEventPage />} />
+          <Route path="/promote/:id" element={<PromoteEventPage />} />
+          <Route path="/organizer/dashboard" element={<OrganizerDashboardPage />} />
+          <Route path="/organizer/signup" element={<OrganizerSignupPage />} />
           <Route path="*" element={<ErrorPage />} />
         </Routes>
       </Suspense>

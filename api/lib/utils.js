@@ -48,8 +48,21 @@ export function normalizeEvent(evt) {
     e.badge = e.badge || (e.status === 'published' ? 'LIVE' : '');
     
     // Ensure nested arrays exist
-    e.hosts = e.hosts || [];
+    e.hosts = (e.hosts || []).map(h => ({
+        ...h,
+        socialLink: h.socialLink || h.instagram || h.socials?.instagram || ""
+    }));
     e.ticketTiers = e.ticketTiers || [];
+    
+    // Admin Fix Defaults
+    e.isTBA = e.isTBA ?? false;
+    e.isOnline = e.isOnline ?? false;
+    e.registrationProtocolConfig = e.registrationProtocolConfig || {
+      attendeeLabel: 'Attendee',
+      attendeeSubtitle: 'General Entry Access',
+      startupLabel: 'Founder',
+      startupSubtitle: 'Pitching & Stall Access'
+    };
     
     return e;
 }
