@@ -63,7 +63,7 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
       displayMode: 'light',
       backgroundVideoUrl: ''
     },
-    isPublic: false,
+    isPublic: true,
     listingPaid: false,
     isTBA: false,
     isOnline: false,
