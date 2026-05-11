@@ -665,8 +665,8 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                      <Star size={24} />
                   </div>
                   <div>
-                    <p className="text-[11px] font-black text-white uppercase tracking-widest">Enable Startup Registration</p>
-                    <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-1">Activate the internal \"Google Form\" for founders & pitch-decks</p>
+                    <p className="text-[11px] font-black text-white uppercase tracking-widest">Enable Dual-Track Registration</p>
+                    <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-1">Only activate if you need users to choose between two paths (e.g. Attendee vs Founder). Leave OFF for a single form.</p>
                   </div>
                 </div>
                 <div className="relative">
@@ -686,7 +686,7 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                 <div className="mt-8 p-8 bg-slate-950/50 border border-slate-800 rounded-3xl space-y-8 animate-in fade-in slide-in-from-top-4 duration-500">
                   <div className="flex items-center gap-3 mb-2">
                     <Zap className="text-emerald-500" size={18} />
-                    <h4 className="text-[10px] font-black text-white uppercase tracking-[0.2em]">Protocol Customization</h4>
+                    <h4 className="text-[10px] font-black text-white uppercase tracking-[0.2em]">Dual-Track Customization</h4>
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -796,7 +796,7 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                     }}
                     className="flex items-center gap-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] transition-all border border-emerald-500/20"
                   >
-                    <RefreshCw size={12} /> Load Startup Template
+                    <RefreshCw size={12} /> Load Dual-Track Startup Template
                   </button>
                   <button
                     type="button"
