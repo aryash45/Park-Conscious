@@ -49,7 +49,7 @@ const BookingModal = ({ isOpen, setIsOpen, event, themeConfig }) => {
         setRegistrationType(event.startupFormEnabled ? null : 'attendee');
       }
     }
-  }, [user, isOpen, event.startupFormEnabled, event.requiredFields]);
+  }, [user, isOpen, event.id, event.startupFormEnabled, JSON.stringify(event.requiredFields)]);
 
   const closeModal = () => {
     if (!loading) setIsOpen(false);
