@@ -524,6 +524,7 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                     </div>
                  </div>
               )}
+            </div>
           </section>
 
           {/* Handpicked Experiences Section */}
