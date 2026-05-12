@@ -97,7 +97,7 @@ const sendViaMSG91 = async ({ to, subject, html, fromName, variables, template_i
             timeout: parseInt(process.env.MSG91_TIMEOUT) || 8000
         });
         
-        return { success: true, provider: 'msg91', id: response.data?.request_id };
+        return { success: true, provider: 'msg91', id: response.data?.request_id || response.data?.data?.unique_id };
     } catch (err) {
         console.error('[EMAIL] MSG91 Failure:', err.response?.data || err.message);
         return null;
@@ -178,7 +178,7 @@ export const sendOTPEmail = async (to, code) => {
         subject: `${code} is your code`, 
         html: `Your code is ${code}`, // Fallback for other providers
         preferredProvider: 'msg91',
-        template_id: 'global_otp',
+        template_id: process.env.MSG91_OTP_TEMPLATE_ID || 'global_otp',
         variables: {
             otp: code,
             company_name: 'Backstage'
