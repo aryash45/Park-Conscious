@@ -8,6 +8,8 @@
 import connectDB from './lib/mongodb.js';
 import * as models from './lib/models.js';
 import { json, setCors, getBody, verifyUser, normalizeEvent } from './lib/utils.js';
+import Razorpay from 'razorpay';
+import crypto from 'crypto';
 
 const { Event, Discussion, Comment, Contact } = models;
 
@@ -29,6 +31,76 @@ export default async function handler(req, res) {
         // -- Health Check --
         if (url.includes('/health')) {
             return json(res, 200, { status: 'ONLINE', timestamp: new Date().toISOString() });
+        }
+
+        // -- Event Promotion Payment --
+        if (url.includes('/events/promote')) {
+            if (!user) return json(res, 401, { message: 'Auth required' });
+            
+            const KEY_ID = process.env.RAZORPAY_KEY_ID;
+            const KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
+            
+            if (!KEY_ID || !KEY_SECRET) {
+                console.error("[PROMOTION_ERROR]: Razorpay Keys missing");
+                return json(res, 500, { message: 'Razorpay configuration error' });
+            }
+
+            const razorpay = new Razorpay({
+                key_id: KEY_ID,
+                key_secret: KEY_SECRET,
+            });
+
+            // Create Order for ₹499
+            if (url.endsWith('/order') && method === 'POST') {
+                try {
+                    const { eventId } = body;
+                    if (!eventId) return json(res, 400, { message: 'Event ID required' });
+
+                    const options = {
+                        amount: 49900, // ₹499 in paise
+                        currency: "INR",
+                        receipt: `PROMO_${eventId.slice(-8)}`,
+                        notes: { eventId, userId: user.id }
+                    };
+
+                    const order = await razorpay.orders.create(options);
+                    return json(res, 200, { 
+                        success: true, 
+                        orderId: order.id, 
+                        amount: options.amount, 
+                        key: KEY_ID 
+                    });
+                } catch (err) {
+                    console.error("[PROMOTION_ORDER_FATAL]:", err);
+                    return json(res, 500, { message: 'Failed to create Razorpay order: ' + err.message });
+                }
+            }
+
+            // Verify Payment & Promote
+            if (url.endsWith('/verify') && method === 'POST') {
+                try {
+                    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, eventId } = body;
+                    
+                    const bodyString = razorpay_order_id + "|" + razorpay_payment_id;
+                    const expectedSignature = crypto
+                        .createHmac("sha256", KEY_SECRET)
+                        .update(bodyString.toString())
+                        .digest("hex");
+
+                    if (expectedSignature === razorpay_signature) {
+                        await Event.findByIdAndUpdate(eventId, { 
+                            isPublic: true, 
+                            listingPaid: true 
+                        });
+                        return json(res, 200, { success: true, message: 'Event promoted successfully!' });
+                    } else {
+                        return json(res, 400, { success: false, message: 'Invalid signature' });
+                    }
+                } catch (err) {
+                    console.error("[PROMOTION_VERIFY_FATAL]:", err);
+                    return json(res, 500, { message: 'Verification process failed' });
+                }
+            }
         }
 
         // -- Event Submission / Proposals --
@@ -103,15 +175,17 @@ export default async function handler(req, res) {
                 if (params.get('featured') === 'true') {
                     const featuredList = await Event.find({ 
                         isFeatured: true, 
+                        isPublic: true, 
                         status: { $in: ['published', 'Published'] }
                     }).sort({ createdAt: -1 }).lean();
                     res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=86400');
                     return json(res, 200, featuredList.map(normalizeEvent));
                 }
 
-                // Public: fetch published events
+                // Public: fetch promoted events
                 const evts = await Event.find({ 
-                    status: { $in: ['published', 'Published'] }
+                    status: { $in: ['published', 'Published'] },
+                    isPublic: true // Must be explicitly true
                 }).sort({ date: 1 }).lean();
                 res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=86400');
                 return json(res, 200, evts.map(normalizeEvent));
@@ -261,10 +335,10 @@ export default async function handler(req, res) {
         return json(res, 404, { message: 'Events endpoint not matched: ' + url });
     } catch (err) {
         if (err.missingConfig) {
-            console.warn('[EVENT API Warn]: Database configuration missing. Returning graceful fallback.');
-            return json(res, 200, { missingConfig: true, message: 'Database Connection Missing', data: [] });
+             return json(res, 200, { success: false, missingConfig: true, message: 'Missing database configuration.' });
         }
-        console.error('[EVENT ERROR]:', err);
-        return json(res, 500, { message: 'Internal Server Error', error: err.message });
+        
+        console.error('[EVENTS_ERROR]:', err);
+        return json(res, 500, { message: 'Server Error: ' + err.message });
     }
 }

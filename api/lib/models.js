@@ -114,7 +114,8 @@ const eventSchema = new mongoose.Schema(
       attendeeSubtitle: { type: String, default: 'General Entry Access' },
       startupLabel: { type: String, default: 'Founder' },
       startupSubtitle: { type: String, default: 'Pitching & Stall Access' }
-    }
+    },
+    isPublic: { type: Boolean, default: false } // Only paid or superadmin events are public
   },
   { timestamps: true, strict: false }
 );
@@ -277,7 +278,17 @@ const discussionSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+const verificationCodeSchema = new mongoose.Schema(
+  {
+    email: { type: String, required: true, lowercase: true },
+    code: { type: String, required: true },
+    expiresAt: { type: Date, required: true, index: { expires: 0 } },
+  },
+  { timestamps: true }
+);
+
 export const User = mongoose.models.User || mongoose.model("User", userSchema);
+export const VerificationCode = mongoose.models.VerificationCode || mongoose.model("VerificationCode", verificationCodeSchema);
 export const Owner = mongoose.models.Owner || mongoose.model("Owner", ownerSchema);
 export const Event = mongoose.models.Event || mongoose.model("Event", eventSchema);
 export const AccessLog = mongoose.models.AccessLog || mongoose.model("AccessLog", accessLogSchema);

@@ -12,8 +12,9 @@ import bcrypt from 'bcryptjs';
 import { serialize } from 'cookie';
 import { json, setCors, getBody, verifyUser, issueCookie } from './lib/utils.js';
 import { syncIdentity } from './lib/sync.js';
+import { sendOTPEmail } from './lib/email.js';
 
-const { User, Owner } = models;
+const { User, Owner, VerificationCode } = models;
 
 export default async function handler(req, res) {
     setCors(req, res);
@@ -169,12 +170,41 @@ export default async function handler(req, res) {
             return json(res, 200, { authenticated: true, user: decoded });
         }
 
-        // -- Organizer Registration (Self-Service) --
-        if (url.includes('/register/organizer') && method === 'POST') {
-            const { name, email, password } = body;
-            if (!name || !email || !password) return json(res, 400, { message: 'Missing required fields' });
+        // -- Organizer Registration (Self-Service with OTP) --
+        if (url.includes('/register/send-otp') && method === 'POST') {
+            const { email } = body;
+            if (!email) return json(res, 400, { message: 'Email required' });
 
             const search = email.toLowerCase().trim();
+            const existing = await Owner.findOne({ email: search });
+            if (existing) return json(res, 400, { message: 'Account with this email already exists' });
+
+            // Generate 6-digit OTP
+            const code = Math.floor(100000 + Math.random() * 900000).toString();
+            const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+            await VerificationCode.findOneAndUpdate(
+                { email: search },
+                { code, expiresAt },
+                { upsert: true, new: true }
+            );
+
+            // SEND OTP EMAIL (Multi-Provider)
+            await sendOTPEmail(search, code);
+            
+            return json(res, 200, { success: true, message: 'Verification code sent.' });
+        }
+
+        if (url.includes('/register/organizer') && method === 'POST') {
+            const { name, email, password, code } = body;
+            if (!name || !email || !password || !code) return json(res, 400, { message: 'Missing required fields' });
+
+            const search = email.toLowerCase().trim();
+            
+            // Validate OTP
+            const verification = await VerificationCode.findOne({ email: search, code });
+            if (!verification) return json(res, 400, { message: 'Invalid or expired verification code' });
+
             const existing = await Owner.findOne({ email: search });
             if (existing) return json(res, 400, { message: 'Account with this email already exists' });
 
@@ -185,6 +215,9 @@ export default async function handler(req, res) {
                 password: hashedPassword,
                 role: 'organizer'
             });
+
+            // Cleanup OTP
+            await VerificationCode.deleteOne({ _id: verification._id });
 
             // Sync identity to Park Conscious database
             await syncIdentity(newOrganizer, true);
