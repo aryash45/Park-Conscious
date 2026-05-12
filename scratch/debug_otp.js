@@ -9,7 +9,7 @@ async function debugOTP() {
     console.log(`-------------------------------------------`);
     console.log(`📡 MSG91 Domain: ${process.env.MSG91_DOMAIN}`);
     console.log(`🔑 MSG91 Auth Key: ${process.env.MSG91_AUTH_KEY ? 'Present (Hidden)' : 'MISSING'}`);
-    console.log(`📑 MSG91 Template ID: global_otp (Hardcoded in helper)`);
+    console.log(`📑 MSG91 Template ID: ${process.env.MSG91_OTP_TEMPLATE_ID || 'global_otp'} (Resolved at runtime)`);
     console.log(`-------------------------------------------\n`);
 
     try {
