@@ -105,7 +105,6 @@ export default async function handler(req, res) {
                 metadata: metadata || {}
             });
             
-            console.log(`[SYSTEM LOG] [${source}] ${message}`);
             return json(res, 201, { success: true, logId: log._id });
         }
 
@@ -195,7 +194,6 @@ export default async function handler(req, res) {
                            { $set: { organizerId: String(newUser._id) } }
                        );
                    }
-                   console.log(`[USER MGMT] Assigned ${assignedEventIds.length} events to new user ${newUser._id} as ${role}`);
                 }
 
                 // Mirror new admin/organizer to Park Conscious database
@@ -224,8 +222,20 @@ export default async function handler(req, res) {
             const userId = url.split('/').pop();
             if (String(user.id) === userId) return json(res, 400, { message: 'Cannot delete your own account' });
 
+            // Cascading delete: Find and purge associated events and their bookings
+            const myEvents = await Event.find({ organizerId: userId }).select('_id').lean();
+            const myEventIds = myEvents.map(e => String(e._id));
+
+            if (myEventIds.length > 0) {
+                // Remove bookings for these events
+                const deletedBookings = await Booking.deleteMany({ eventId: { $in: myEventIds } });
+                
+                // Remove the events themselves
+                const deletedEvents = await Event.deleteMany({ _id: { $in: myEventIds } });
+            }
+
             await Owner.findByIdAndDelete(userId);
-            return json(res, 200, { success: true, message: 'User removed' });
+            return json(res, 200, { success: true, message: 'User and all associated data removed successfully' });
         }
 
         // -- Admin Attendees/Bookings List --
@@ -243,7 +253,6 @@ export default async function handler(req, res) {
             }
 
             const bookings = await Booking.find(query).sort({ createdAt: -1 }).limit(200).lean();
-            console.log(`[ADMIN API] Bookings fetched for role ${user.role}: ${bookings.length}`);
             
             // Gather unique IDs to fetch in bulk
             const eventIds = new Set();
@@ -817,7 +826,6 @@ export default async function handler(req, res) {
                     { $set: { attended: true, attendedAt: now, scannedBy: scannerName } }
                 );
 
-                console.log(`[SCANNER SYNC] ${scannerName} synced ${result.modifiedCount + result2.modifiedCount} check-ins for event ${eventId}`);
 
                 return json(res, 200, { 
                     success: true, 

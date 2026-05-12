@@ -195,6 +195,19 @@ export default async function handler(req, res) {
             return json(res, 200, { success: true, message: 'Verification code sent.' });
         }
 
+        if (url.includes('/register/verify-otp') && method === 'POST') {
+            const { email, code } = body;
+            if (!email || !code) return json(res, 400, { message: 'Missing email or code' });
+
+            const search = email.toLowerCase().trim();
+            const verification = await VerificationCode.findOne({ email: search, code });
+            
+            if (!verification) return json(res, 400, { message: 'Invalid or expired verification code' });
+            if (verification.expiresAt < new Date()) return json(res, 400, { message: 'Verification code expired' });
+
+            return json(res, 200, { success: true, message: 'OTP verified successfully.' });
+        }
+
         if (url.includes('/register/organizer') && method === 'POST') {
             const { name, email, password, code } = body;
             if (!name || !email || !password || !code) return json(res, 400, { message: 'Missing required fields' });

@@ -82,7 +82,6 @@ const sendViaMSG91 = async ({ to, subject, html, fromName, variables, template_i
             }
         });
         
-        console.log(`[EMAIL] Sent via MSG91: ${response.data?.request_id}`);
         return { success: true, provider: 'msg91', id: response.data?.request_id };
     } catch (err) {
         console.error('[EMAIL] MSG91 Failure:', err.response?.data || err.message);
@@ -119,7 +118,6 @@ export const sendEmail = async ({ to, subject, html, fromName = 'Backstage', pre
                         html,
                     });
                     if (!error) {
-                        console.log(`[EMAIL] Sent via Resend: ${data.id}`);
                         return { success: true, provider: 'resend', id: data.id };
                     }
                 } catch (err) {
@@ -176,27 +174,65 @@ export const sendOTPEmail = async (to, code) => {
 /**
  * Helper for Ticket Emails (Resend Preferred)
  */
-export const sendTicketEmail = async (to, userName, eventName, qrCodeUrl) => {
+export const sendTicketEmail = async (to, userName, eventName, qrCodeUrl, preferredProvider = 'resend') => {
+    const ticketHash = `#TK-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
     const html = `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; background-color: #050507; color: white; padding: 40px; border-radius: 20px;">
-            <h1 style="font-size: 24px; font-weight: 900; letter-spacing: -1px; margin-bottom: 20px; color: white;">BACK<span style="color: #6366f1;">STAGE</span></h1>
-            <p style="color: #94a3b8; font-size: 16px;">Hi ${userName}, your ticket for <b>${eventName}</b> is confirmed.</p>
-            <div style="text-align: center; margin: 30px 0; background: white; padding: 20px; border-radius: 15px;">
-                <img src="${qrCodeUrl}" alt="QR Ticket" style="width: 200px; height: 200px;">
+        <div style="background-color: #000000; padding: 40px 20px; font-family: 'Inter', 'Helvetica', sans-serif;">
+            <div style="max-width: 450px; margin: 0 auto; background-color: #050507; border: 1px solid rgba(255,255,255,0.05); border-radius: 40px; overflow: hidden; color: white; text-align: center; padding: 60px 40px;">
+                <!-- Header Pill -->
+                <div style="display: inline-block; padding: 6px 16px; background-color: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.2); rounded-radius: 100px; border-radius: 100px; margin-bottom: 40px;">
+                    <span style="font-size: 8px; font-weight: 900; color: #818cf8; text-transform: uppercase; letter-spacing: 0.3em;">Official Entry Pass</span>
+                </div>
+
+                <!-- Title Section -->
+                <h1 style="font-size: 32px; font-weight: 900; text-transform: uppercase; letter-spacing: -0.02em; margin: 0 0 10px 0; color: white;">Your Ticket is Ready</h1>
+                <p style="font-size: 10px; font-weight: 800; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 40px;">
+                    Hi ${userName}, see you at ${eventName}!
+                </p>
+
+                <!-- QR Container -->
+                <div style="background-color: white; padding: 30px; border-radius: 30px; display: inline-block; margin-bottom: 40px; box-shadow: 0 20px 40px rgba(0,0,0,0.4);">
+                    <img src="${qrCodeUrl}" alt="QR Ticket" style="width: 220px; height: 220px; display: block;">
+                    <p style="font-size: 8px; font-weight: 900; color: #000000; text-transform: uppercase; letter-spacing: 0.3em; margin: 15px 0 0 0;">Scan to Enter</p>
+                </div>
+
+                <!-- Info Section -->
+                <div style="background-color: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 24px; padding: 30px; text-align: left; margin-bottom: 40px;">
+                    <div style="margin-bottom: 20px;">
+                        <p style="font-size: 7px; font-weight: 900; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.2em; margin: 0 0 8px 0;">Guest Identification</p>
+                        <p style="font-size: 14px; font-weight: 800; color: white; text-transform: uppercase; margin: 0;">${userName}</p>
+                    </div>
+                    <div style="margin-bottom: 20px;">
+                        <p style="font-size: 7px; font-weight: 900; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.2em; margin: 0 0 8px 0;">Experience</p>
+                        <p style="font-size: 14px; font-weight: 800; color: #6366f1; text-transform: uppercase; margin: 0;">${eventName}</p>
+                    </div>
+                    <div>
+                        <p style="font-size: 7px; font-weight: 900; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.2em; margin: 0 0 8px 0;">Credential Hash</p>
+                        <p style="font-size: 14px; font-weight: 800; color: white; text-transform: uppercase; margin: 0; font-family: monospace;">${ticketHash}</p>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <p style="font-size: 7px; font-weight: 800; color: rgba(255,255,255,0.2); text-transform: uppercase; letter-spacing: 0.2em; margin-bottom: 30px;">
+                    Non-Transferable &bull; Valid ID Required for Entry
+                </p>
+                <div style="font-size: 10px; font-weight: 900; color: white; text-transform: uppercase; letter-spacing: 0.5em; opacity: 0.8;">
+                    Backstage
+                </div>
             </div>
-            <p style="color: #64748b; font-size: 12px; text-align: center;">Scan this at the entry gate.</p>
         </div>
     `;
     return sendEmail({ 
         to, 
-        subject: `Your Ticket: ${eventName}`, 
+        subject: `Your Admittance Pass for ${eventName}`, 
         html, 
-        preferredProvider: 'resend',
-        template_id: 'qr_ticket', 
+        preferredProvider,
+        template_id: 'ticket_2', 
         variables: {
             user_name: userName,
             event_name: eventName,
-            qr_code_url: qrCodeUrl
+            qr_code_url: qrCodeUrl,
+            ticket_hash: ticketHash
         }
     });
 };

@@ -88,7 +88,7 @@ const OrganizerSignupPage = () => {
     switch(step) {
       case 1:
         return (
-          <form onSubmit={sendOTP} className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
+          <form onSubmit={sendOTP} className="w-full space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
             <div className="space-y-6">
               <div className="space-y-2">
                 <label className="text-[10px] font-['Plus_Jakarta_Sans'] font-['Plus_Jakarta_Sans'] font-extrabold tracking-tighter text-slate-500 uppercase tracking-widest ml-1">Professional Email</label>
@@ -118,7 +118,7 @@ const OrganizerSignupPage = () => {
         );
       case 2:
         return (
-          <form onSubmit={handleVerifyOTP} className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
+          <form onSubmit={handleVerifyOTP} className="w-full space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
              <button 
               type="button"
               onClick={() => setStep(1)}
@@ -159,7 +159,7 @@ const OrganizerSignupPage = () => {
         );
       case 3:
         return (
-          <form onSubmit={handleFinalSubmit} className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
+          <form onSubmit={handleFinalSubmit} className="w-full space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
             <div className="space-y-6">
               <div className="space-y-2 text-center pb-4">
                 <p className="text-emerald-400 text-[10px] font-['Plus_Jakarta_Sans'] font-['Plus_Jakarta_Sans'] font-extrabold tracking-tighter uppercase tracking-[0.2em] flex items-center justify-center gap-2">
@@ -217,7 +217,7 @@ const OrganizerSignupPage = () => {
       <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-indigo-400/5 blur-[120px] rounded-full pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-white/[0.02] blur-[120px] rounded-full pointer-events-none" />
 
-      <div className="w-full max-w-4xl space-y-16 relative z-10">
+      <div className="w-full max-w-5xl space-y-16 relative z-10">
           <div className="flex flex-col items-center gap-6">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/[0.03] border border-white/10 text-[9px] font-black text-indigo-400 uppercase tracking-[0.4em]">
               Organizer Access
@@ -234,8 +234,8 @@ const OrganizerSignupPage = () => {
           </div>
         </div>
 
-        <div className="relative">
-           <div className="relative bg-zinc-950/20 border border-white/[0.03] rounded-[3rem] p-10 md:p-16 backdrop-blur-3xl shadow-2xl">
+        <div className="w-full flex justify-center">
+           <div className="w-full max-w-2xl relative bg-zinc-950/20 border border-white/[0.03] rounded-[3.5rem] p-10 md:p-16 backdrop-blur-3xl shadow-2xl">
               {success ? (
                 <div className="rounded-3xl p-10 text-center space-y-8 animate-in zoom-in duration-700">
                   <div className="w-20 h-20 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto text-emerald-400 shadow-[0_0_30px_rgba(16,185,129,0.1)]">

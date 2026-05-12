@@ -70,6 +70,7 @@ const Events = () => {
   };
 
   const [copiedId, setCopiedId] = useState(null);
+  const handleCopyLink = (id) => {
     const EVENTS_BASE = import.meta.env.VITE_EVENTS_APP_URL || "https://events.parkconscious.in";
     const url = `${EVENTS_BASE}/event/${id}`;
     navigator.clipboard.writeText(url);
