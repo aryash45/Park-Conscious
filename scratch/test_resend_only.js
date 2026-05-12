@@ -4,8 +4,13 @@ dotenv.config({ path: '.env.local' });
 
 import { Resend } from 'resend';
 
+if (!process.env.RESEND_API_KEY || !process.env.TEST_EMAIL) {
+    console.error('❌ ERROR: Missing RESEND_API_KEY or TEST_EMAIL environment variables.');
+    process.exit(1);
+}
+
 const resend = new Resend(process.env.RESEND_API_KEY);
-const TEST_EMAIL = 'kumarpiyush2k6@gmail.com';
+const TEST_EMAIL = process.env.TEST_EMAIL;
 
 async function testResend() {
     console.log(`\n📧 TESTING RESEND API CONNECTION...`);

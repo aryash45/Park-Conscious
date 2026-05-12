@@ -7,6 +7,19 @@ let resendClient;
 let smtpClient;
 
 /**
+ * Basic HTML escaping to prevent injection
+ */
+const escapeHtml = (text) => {
+    if (!text) return "";
+    return String(text)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+};
+
+/**
  * Initialize Resend if API key is present
  */
 const getResend = () => {
@@ -24,10 +37,11 @@ const getResend = () => {
 const getSMTP = () => {
     if (smtpClient) return smtpClient;
     if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+        const port = parseInt(process.env.SMTP_PORT) || 587;
         smtpClient = nodemailer.createTransport({
             host: process.env.SMTP_HOST,
-            port: process.env.SMTP_PORT || 587,
-            secure: process.env.SMTP_PORT === 465,
+            port: port,
+            secure: port === 465,
             auth: {
                 user: process.env.SMTP_USER,
                 pass: process.env.SMTP_PASS,
@@ -79,7 +93,8 @@ const sendViaMSG91 = async ({ to, subject, html, fromName, variables, template_i
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
                 'authkey': process.env.MSG91_AUTH_KEY
-            }
+            },
+            timeout: parseInt(process.env.MSG91_TIMEOUT) || 8000
         });
         
         return { success: true, provider: 'msg91', id: response.data?.request_id };
@@ -176,6 +191,23 @@ export const sendOTPEmail = async (to, code) => {
  */
 export const sendTicketEmail = async (to, userName, eventName, qrCodeUrl, preferredProvider = 'resend') => {
     const ticketHash = `#TK-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    
+    // Escape all user-controlled data to prevent injection
+    const safeUserName = escapeHtml(userName);
+    const safeEventName = escapeHtml(eventName);
+    const safeTicketHash = escapeHtml(ticketHash);
+    
+    // Validate QR URL to ensure it's a legitimate URL before embedding
+    let safeQrUrl = 'https://api.qrserver.com/v1/create-qr-code/?data=INVALID';
+    try {
+        const urlObj = new URL(qrCodeUrl);
+        if (urlObj.protocol === 'https:' || urlObj.protocol === 'http:') {
+            safeQrUrl = qrCodeUrl;
+        }
+    } catch (e) {
+        console.warn('[EMAIL] Invalid QR URL provided:', qrCodeUrl);
+    }
+
     const html = `
         <div style="background-color: #000000; padding: 40px 20px; font-family: 'Inter', 'Helvetica', sans-serif;">
             <div style="max-width: 450px; margin: 0 auto; background-color: #050507; border: 1px solid rgba(255,255,255,0.05); border-radius: 40px; overflow: hidden; color: white; text-align: center; padding: 60px 40px;">
@@ -187,12 +219,12 @@ export const sendTicketEmail = async (to, userName, eventName, qrCodeUrl, prefer
                 <!-- Title Section -->
                 <h1 style="font-size: 32px; font-weight: 900; text-transform: uppercase; letter-spacing: -0.02em; margin: 0 0 10px 0; color: white;">Your Ticket is Ready</h1>
                 <p style="font-size: 10px; font-weight: 800; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 40px;">
-                    Hi ${userName}, see you at ${eventName}!
+                    Hi ${safeUserName}, see you at ${safeEventName}!
                 </p>
 
                 <!-- QR Container -->
                 <div style="background-color: white; padding: 30px; border-radius: 30px; display: inline-block; margin-bottom: 40px; box-shadow: 0 20px 40px rgba(0,0,0,0.4);">
-                    <img src="${qrCodeUrl}" alt="QR Ticket" style="width: 220px; height: 220px; display: block;">
+                    <img src="${safeQrUrl}" alt="QR Ticket" style="width: 220px; height: 220px; display: block;">
                     <p style="font-size: 8px; font-weight: 900; color: #000000; text-transform: uppercase; letter-spacing: 0.3em; margin: 15px 0 0 0;">Scan to Enter</p>
                 </div>
 
@@ -200,15 +232,15 @@ export const sendTicketEmail = async (to, userName, eventName, qrCodeUrl, prefer
                 <div style="background-color: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 24px; padding: 30px; text-align: left; margin-bottom: 40px;">
                     <div style="margin-bottom: 20px;">
                         <p style="font-size: 7px; font-weight: 900; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.2em; margin: 0 0 8px 0;">Guest Identification</p>
-                        <p style="font-size: 14px; font-weight: 800; color: white; text-transform: uppercase; margin: 0;">${userName}</p>
+                        <p style="font-size: 14px; font-weight: 800; color: white; text-transform: uppercase; margin: 0;">${safeUserName}</p>
                     </div>
                     <div style="margin-bottom: 20px;">
                         <p style="font-size: 7px; font-weight: 900; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.2em; margin: 0 0 8px 0;">Experience</p>
-                        <p style="font-size: 14px; font-weight: 800; color: #6366f1; text-transform: uppercase; margin: 0;">${eventName}</p>
+                        <p style="font-size: 14px; font-weight: 800; color: #6366f1; text-transform: uppercase; margin: 0;">${safeEventName}</p>
                     </div>
                     <div>
                         <p style="font-size: 7px; font-weight: 900; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.2em; margin: 0 0 8px 0;">Credential Hash</p>
-                        <p style="font-size: 14px; font-weight: 800; color: white; text-transform: uppercase; margin: 0; font-family: monospace;">${ticketHash}</p>
+                        <p style="font-size: 14px; font-weight: 800; color: white; text-transform: uppercase; margin: 0; font-family: monospace;">${safeTicketHash}</p>
                     </div>
                 </div>
 
@@ -224,15 +256,15 @@ export const sendTicketEmail = async (to, userName, eventName, qrCodeUrl, prefer
     `;
     return sendEmail({ 
         to, 
-        subject: `Your Admittance Pass for ${eventName}`, 
+        subject: `Your Admittance Pass for ${safeEventName}`, 
         html, 
         preferredProvider,
         template_id: 'ticket_2', 
         variables: {
-            user_name: userName,
-            event_name: eventName,
-            qr_code_url: qrCodeUrl,
-            ticket_hash: ticketHash
+            user_name: safeUserName,
+            event_name: safeEventName,
+            qr_code_url: safeQrUrl,
+            ticket_hash: safeTicketHash
         }
     });
 };

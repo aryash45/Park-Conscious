@@ -74,7 +74,7 @@ const OrganizerSignupPage = () => {
     try {
       await backendAxios.post("/api/auth/register/verify-otp", { 
         email: formData.email, 
-        code: formData.code 
+        code: formData.code.replace(/\D/g, '') 
       });
       setStep(3);
     } catch (err) {
@@ -139,7 +139,7 @@ const OrganizerSignupPage = () => {
                     required
                     maxLength="6"
                     value={formData.code}
-                    onChange={(e) => setFormData({...formData, code: e.target.value})}
+                    onChange={(e) => setFormData({...formData, code: e.target.value.replace(/\D/g, '')})}
                     placeholder="0 0 0 0 0 0"
                     className="w-full bg-white/[0.03] border border-white/10 rounded-2xl pl-14 pr-6 py-5 text-white text-2xl text-center focus:outline-none focus:border-indigo-400 transition-all font-mono tracking-[0.5em] backdrop-blur-xl"
                   />

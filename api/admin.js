@@ -10,6 +10,7 @@
 import bcrypt from 'bcryptjs';
 import connectDB from './lib/mongodb.js';
 import * as models from './lib/models.js';
+import mongoose from 'mongoose';
 import crypto from 'crypto';
 import axios from 'axios';
 import { json, setCors, getBody, verifyUser, normalizeEvent } from './lib/utils.js';
@@ -222,20 +223,29 @@ export default async function handler(req, res) {
             const userId = url.split('/').pop();
             if (String(user.id) === userId) return json(res, 400, { message: 'Cannot delete your own account' });
 
-            // Cascading delete: Find and purge associated events and their bookings
-            const myEvents = await Event.find({ organizerId: userId }).select('_id').lean();
-            const myEventIds = myEvents.map(e => String(e._id));
+            const session = await mongoose.startSession();
+            session.startTransaction();
 
-            if (myEventIds.length > 0) {
-                // Remove bookings for these events
-                const deletedBookings = await Booking.deleteMany({ eventId: { $in: myEventIds } });
+            try {
+                // Cascading delete: Find and purge associated events and their bookings
+                const myEvents = await Event.find({ organizerId: userId }).session(session).select('_id').lean();
+                const myEventIds = myEvents.map(e => String(e._id));
+
+                if (myEventIds.length > 0) {
+                    await Booking.deleteMany({ eventId: { $in: myEventIds } }, { session });
+                    await Event.deleteMany({ _id: { $in: myEventIds } }, { session });
+                }
+
+                await Owner.findByIdAndDelete(userId, { session });
                 
-                // Remove the events themselves
-                const deletedEvents = await Event.deleteMany({ _id: { $in: myEventIds } });
+                await session.commitTransaction();
+                return json(res, 200, { success: true, message: 'User and all associated data removed successfully' });
+            } catch (error) {
+                await session.abortTransaction();
+                throw error;
+            } finally {
+                session.endSession();
             }
-
-            await Owner.findByIdAndDelete(userId);
-            return json(res, 200, { success: true, message: 'User and all associated data removed successfully' });
         }
 
         // -- Admin Attendees/Bookings List --

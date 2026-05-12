@@ -56,6 +56,12 @@ export default async function handler(req, res) {
                     const { eventId } = body;
                     if (!eventId) return json(res, 400, { message: 'Event ID required' });
 
+                    const event = await Event.findById(eventId);
+                    if (!event) return json(res, 404, { message: 'Event not found' });
+                    if (String(event.organizerId) !== String(user.id)) {
+                        return json(res, 403, { message: 'Access Denied: You do not own this event' });
+                    }
+
                     const options = {
                         amount: 49900, // ₹499 in paise
                         currency: "INR",
@@ -80,6 +86,13 @@ export default async function handler(req, res) {
             if (url.endsWith('/verify') && method === 'POST') {
                 try {
                     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, eventId } = body;
+                    if (!eventId) return json(res, 400, { message: 'Event ID required' });
+
+                    const event = await Event.findById(eventId);
+                    if (!event) return json(res, 404, { message: 'Event not found' });
+                    if (String(event.organizerId) !== String(user.id)) {
+                        return json(res, 403, { message: 'Access Denied: Ownership verification failed' });
+                    }
                     
                     const bodyString = razorpay_order_id + "|" + razorpay_payment_id;
                     const expectedSignature = crypto

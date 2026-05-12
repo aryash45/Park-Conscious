@@ -177,7 +177,10 @@ export default async function handler(req, res) {
 
             const search = email.toLowerCase().trim();
             const existing = await Owner.findOne({ email: search });
-            if (existing) return json(res, 400, { message: 'Account with this email already exists' });
+            if (existing) {
+                // Prevent email enumeration by returning a generic success message
+                return json(res, 200, { success: true, message: 'If the email is valid, an OTP has been sent.' });
+            }
 
             // Generate 6-digit OTP
             const code = Math.floor(100000 + Math.random() * 900000).toString();
@@ -216,7 +219,9 @@ export default async function handler(req, res) {
             
             // Validate OTP
             const verification = await VerificationCode.findOne({ email: search, code });
-            if (!verification) return json(res, 400, { message: 'Invalid or expired verification code' });
+            if (!verification || verification.expiresAt < new Date()) {
+                return json(res, 400, { message: 'Invalid or expired verification code' });
+            }
 
             const existing = await Owner.findOne({ email: search });
             if (existing) return json(res, 400, { message: 'Account with this email already exists' });

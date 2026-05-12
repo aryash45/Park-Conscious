@@ -25,6 +25,16 @@ const SessionIdDisplay = () => {
   );
 };
 
+const safeParseAdminUser = () => {
+  try {
+    const raw = localStorage.getItem('adminUser');
+    return raw ? JSON.parse(raw) : {};
+  } catch (e) {
+    return {};
+  }
+};
+
+
 const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => {
   const [formData, setFormData] = useState({
     title: '',
@@ -241,8 +251,8 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
           }
         },
         prefill: {
-          email: JSON.parse(localStorage.getItem('adminUser'))?.email || "",
-          contact: JSON.parse(localStorage.getItem('adminUser'))?.phone || ""
+          email: safeParseAdminUser()?.email || "",
+          contact: safeParseAdminUser()?.phone || ""
         },
         theme: { color: "#6366f1" }
       };
@@ -638,7 +648,7 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                   </div>
                   
                   {/* SuperAdmin or Paid User can toggle */}
-                  {(JSON.parse(localStorage.getItem('adminUser'))?.role === 'superadmin' || formData.listingPaid) ? (
+                  {(safeParseAdminUser()?.role === 'superadmin' || formData.listingPaid) ? (
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input 
                         type="checkbox" name="isPublic" checked={formData.isPublic} onChange={handleChange}

@@ -4,7 +4,11 @@ dotenv.config({ path: '.env.local' });
 
 import { sendTicketEmail } from '../api/lib/email.js';
 
-const TEST_EMAIL = 'kumarpiyush2k6@gmail.com';
+const TEST_EMAIL = process.env.TEST_EMAIL;
+if (!TEST_EMAIL) {
+    console.error('❌ ERROR: TEST_EMAIL environment variable is missing in .env.local');
+    process.exit(1);
+}
 
 async function testMSG91QR() {
     console.log(`\n🚀 TESTING MSG91 QR TICKET TEMPLATE FOR ${TEST_EMAIL}...\n`);

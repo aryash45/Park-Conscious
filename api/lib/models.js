@@ -280,7 +280,7 @@ const discussionSchema = new mongoose.Schema(
 
 const verificationCodeSchema = new mongoose.Schema(
   {
-    email: { type: String, required: true, lowercase: true },
+    email: { type: String, required: true, lowercase: true, unique: true },
     code: { type: String, required: true },
     expiresAt: { type: Date, required: true, index: { expires: 0 } },
   },
