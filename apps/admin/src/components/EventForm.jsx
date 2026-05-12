@@ -77,6 +77,8 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
     }
   });
 
+  const [localLoading, setLocalLoading] = useState(false);
+
   useEffect(() => {
     if (onThemeChange && formData.themeConfig) {
       onThemeChange(formData.themeConfig);
@@ -204,7 +206,7 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
       return;
     }
 
-    setLoading(true);
+    setLocalLoading(true);
     try {
       // 1. Create Order
       const { data: orderData } = await axios.post(`${API_BASE}/api/events/promote/order`, {
@@ -255,7 +257,7 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
       console.error("[PAYMENT_FATAL_ERROR]", err);
       alert("Payment Initialization Failed: " + (err.response?.data?.message || err.message));
     } finally {
-      setLoading(false);
+      setLocalLoading(false);
     }
   };
 
@@ -645,12 +647,18 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                       <div className="w-11 h-6 bg-slate-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-500"></div>
                     </label>
                   ) : (
-                    <button
+                    <button 
                       type="button"
                       onClick={handlePromotePayment}
-                      className="bg-sky-500 hover:bg-sky-400 text-white px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-sky-500/20 flex items-center gap-2"
+                      disabled={localLoading}
+                      className="flex items-center gap-2 px-6 py-3 bg-[#6366f1] hover:bg-[#4f46e5] text-white rounded-full text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <IndianRupee size={14} /> Promote to Homepage (₹499)
+                      {localLoading ? (
+                        <RefreshCw size={14} className="animate-spin" />
+                      ) : (
+                        <IndianRupee size={14} />
+                      )}
+                      {localLoading ? 'Processing...' : 'Promote to Homepage (₹499)'}
                     </button>
                   )}
                 </div>

@@ -135,7 +135,7 @@ const Events = () => {
     try {
       await eventService.update(event._id, { isPublic: !event.isPublic });
       fetchEvents(true);
-    } catch (err) {
+    } catch (_) {
       alert("Failed to update visibility");
     }
   };
