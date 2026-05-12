@@ -27,9 +27,18 @@ const DiscussionBoard = lazy(() => import("../components/Discussion/DiscussionBo
 const HomePage = () => {
     const navigate = useNavigate();
     
+    const PLATFORM_VERSION = "v2.1-visibility";
+    
     // State Management
     const [premierMovies, setpremierMovies] = useState(() => {
         try {
+            const cachedVersion = localStorage.getItem('__cached_version__');
+            if (cachedVersion !== PLATFORM_VERSION) {
+                localStorage.removeItem('__cached_events__');
+                localStorage.removeItem('__cached_featured_events__');
+                localStorage.setItem('__cached_version__', PLATFORM_VERSION);
+                return [];
+            }
             const cached = localStorage.getItem('__cached_events__');
             if (!cached) return [];
             const parsed = JSON.parse(cached);

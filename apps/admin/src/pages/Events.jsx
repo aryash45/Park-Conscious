@@ -14,6 +14,8 @@ import {
 import { eventService } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import axios from 'axios';
+import { Globe, Link2, IndianRupee } from 'lucide-react';
 
 const EventStatusBadge = ({ status }) => {
   const styles = {
@@ -64,6 +66,77 @@ const Events = () => {
       } catch (error) {
         console.error('Delete failed', error);
       }
+    }
+  };
+
+  const [copiedId, setCopiedId] = useState(null);
+  const handleCopyLink = (id) => {
+    const EVENTS_BASE = import.meta.env.VITE_EVENTS_APP_URL || "https://events.parkconscious.in";
+    const url = `${EVENTS_BASE}/event/${id}`;
+    navigator.clipboard.writeText(url);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handlePromotePayment = async (event) => {
+    const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5050";
+    setLoading(true);
+    try {
+      const { data: orderData } = await axios.post(`${API_BASE}/api/events/promote/order`, {
+        eventId: event._id
+      }, { withCredentials: true });
+
+      if (!orderData.success) throw new Error(orderData.message);
+
+      const options = {
+        key: orderData.key,
+        amount: orderData.amount,
+        currency: "INR",
+        name: "Backstage Promotion",
+        description: `Promote "${event.title}" to Homepage`,
+        order_id: orderData.orderId,
+        handler: async (response) => {
+          try {
+            const { data: verifyData } = await axios.post(`${API_BASE}/api/events/promote/verify`, {
+              ...response,
+              eventId: event._id
+            }, { withCredentials: true });
+
+            if (verifyData.success) {
+              alert("Payment Successful! Event promoted to homepage.");
+              fetchEvents(true);
+            }
+          } catch (err) {
+            alert("Verification Failed: " + (err.response?.data?.message || err.message));
+          }
+        },
+        prefill: { 
+          email: admin?.email || "",
+          contact: admin?.phone || admin?.contact || ""
+        },
+        theme: { color: "#6366f1" }
+      };
+
+      if (!window.Razorpay) {
+        alert("Razorpay SDK not loaded. Please refresh the page.");
+        return;
+      }
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    } catch (err) {
+      alert("Payment Initialization Failed: " + (err.response?.data?.message || err.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleVisibility = async (event) => {
+    try {
+      await eventService.update(event._id, { isPublic: !event.isPublic });
+      fetchEvents(true);
+    } catch (_) {
+      alert("Failed to update visibility");
     }
   };
 
@@ -148,8 +221,8 @@ const Events = () => {
                 <tr className="text-[9px] text-zinc-700 font-bold uppercase tracking-[0.2em] border-b border-white/[0.02]">
                   <th className="px-8 py-5">Event Details</th>
                   <th className="px-8 py-5">Date & Location</th>
-                  <th className="px-8 py-5">Team</th>
-                  <th className="px-8 py-5 text-right w-32 px-12"></th>
+                  <th className="px-8 py-5">Visibility</th>
+                  <th className="px-8 py-5 text-right w-32 px-12">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/[0.02]">
@@ -186,14 +259,42 @@ const Events = () => {
                       </div>
                     </td>
                     <td className="px-8 py-6">
-                       <div className="flex -space-x-1">
-                         {[1, 2].map(i => (
-                           <div key={i} className="w-5 h-5 rounded-full bg-zinc-900 border border-white/5 text-[7px] font-bold text-zinc-600 flex items-center justify-center">
-                             {i}
-                           </div>
-                         ))}
-                         <div className="w-5 h-5 rounded-full bg-zinc-900 border border-white/5 text-[7px] font-bold text-sky-500/50 flex items-center justify-center">+</div>
-                       </div>
+                      <div className="flex items-center gap-4">
+                        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${event.isPublic ? 'bg-sky-500/5 border-sky-500/20 text-sky-500' : 'bg-slate-900 border-slate-800 text-slate-500'}`}>
+                           <Globe size={12} />
+                           <span className="text-[9px] font-black uppercase tracking-widest">{event.isPublic ? 'Public' : 'Unlisted'}</span>
+                        </div>
+                        
+                        {/* Copy Link Button */}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleCopyLink(event._id); }}
+                          className={`p-2 rounded-xl border transition-all flex items-center gap-2 ${copiedId === event._id ? 'bg-emerald-500 border-emerald-500 text-white' : 'bg-white/5 border-white/10 text-slate-500 hover:bg-white/10 hover:text-white'}`}
+                        >
+                          <Link2 size={12} />
+                          {copiedId === event._id && <span className="text-[8px] font-black uppercase tracking-widest">Copied</span>}
+                        </button>
+
+                        {/* Promote Button (Non-SuperAdmin or Non-Paid) */}
+                        {!event.isPublic && !event.listingPaid && !isSuperAdmin && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handlePromotePayment(event); }}
+                            className="bg-sky-500 hover:bg-sky-400 text-zinc-950 px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2"
+                          >
+                            <IndianRupee size={10} /> Promote
+                          </button>
+                        )}
+
+                        {/* SuperAdmin Toggle */}
+                        {isSuperAdmin && (
+                           <button
+                             onClick={(e) => { e.stopPropagation(); handleToggleVisibility(event); }}
+                             className="p-2 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-sky-400 hover:border-sky-500/30 transition-all"
+                             title="Toggle Public Visibility"
+                           >
+                             <RefreshCw size={12} className={event.isPublic ? 'text-sky-500' : ''} />
+                           </button>
+                        )}
+                      </div>
                     </td>
                     <td className="px-8 py-6 text-right px-12">
                       <div className="flex items-center justify-end gap-1">

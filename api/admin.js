@@ -10,6 +10,7 @@
 import bcrypt from 'bcryptjs';
 import connectDB from './lib/mongodb.js';
 import * as models from './lib/models.js';
+import mongoose from 'mongoose';
 import crypto from 'crypto';
 import axios from 'axios';
 import { json, setCors, getBody, verifyUser, normalizeEvent } from './lib/utils.js';
@@ -105,7 +106,6 @@ export default async function handler(req, res) {
                 metadata: metadata || {}
             });
             
-            console.log(`[SYSTEM LOG] [${source}] ${message}`);
             return json(res, 201, { success: true, logId: log._id });
         }
 
@@ -195,7 +195,6 @@ export default async function handler(req, res) {
                            { $set: { organizerId: String(newUser._id) } }
                        );
                    }
-                   console.log(`[USER MGMT] Assigned ${assignedEventIds.length} events to new user ${newUser._id} as ${role}`);
                 }
 
                 // Mirror new admin/organizer to Park Conscious database
@@ -224,8 +223,29 @@ export default async function handler(req, res) {
             const userId = url.split('/').pop();
             if (String(user.id) === userId) return json(res, 400, { message: 'Cannot delete your own account' });
 
-            await Owner.findByIdAndDelete(userId);
-            return json(res, 200, { success: true, message: 'User removed' });
+            const session = await mongoose.startSession();
+            session.startTransaction();
+
+            try {
+                // Cascading delete: Find and purge associated events and their bookings
+                const myEvents = await Event.find({ organizerId: userId }).session(session).select('_id').lean();
+                const myEventIds = myEvents.map(e => String(e._id));
+
+                if (myEventIds.length > 0) {
+                    await Booking.deleteMany({ eventId: { $in: myEventIds } }, { session });
+                    await Event.deleteMany({ _id: { $in: myEventIds } }, { session });
+                }
+
+                await Owner.findByIdAndDelete(userId, { session });
+                
+                await session.commitTransaction();
+                return json(res, 200, { success: true, message: 'User and all associated data removed successfully' });
+            } catch (error) {
+                await session.abortTransaction();
+                throw error;
+            } finally {
+                session.endSession();
+            }
         }
 
         // -- Admin Attendees/Bookings List --
@@ -243,7 +263,6 @@ export default async function handler(req, res) {
             }
 
             const bookings = await Booking.find(query).sort({ createdAt: -1 }).limit(200).lean();
-            console.log(`[ADMIN API] Bookings fetched for role ${user.role}: ${bookings.length}`);
             
             // Gather unique IDs to fetch in bulk
             const eventIds = new Set();
@@ -817,7 +836,6 @@ export default async function handler(req, res) {
                     { $set: { attended: true, attendedAt: now, scannedBy: scannerName } }
                 );
 
-                console.log(`[SCANNER SYNC] ${scannerName} synced ${result.modifiedCount + result2.modifiedCount} check-ins for event ${eventId}`);
 
                 return json(res, 200, { 
                     success: true, 
