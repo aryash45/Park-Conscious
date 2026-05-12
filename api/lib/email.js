@@ -121,6 +121,8 @@ export const sendEmail = async ({ to, subject, html, fromName = 'Backstage', pre
     }
 
     for (const provider of sequence) {
+        console.log(`[EMAIL] Attempting delivery via: ${provider.toUpperCase()}`);
+
         // 1. Try Resend
         if (provider === 'resend') {
             const resend = getResend();
@@ -133,18 +135,26 @@ export const sendEmail = async ({ to, subject, html, fromName = 'Backstage', pre
                         html,
                     });
                     if (!error) {
+                        console.log(`[EMAIL] Resend Success: ${data.id}`);
                         return { success: true, provider: 'resend', id: data.id };
                     }
+                    console.error(`[EMAIL] Resend Rejected:`, error);
                 } catch (err) {
-                    console.error('[EMAIL] Resend Crash:', err);
+                    console.error('[EMAIL] Resend Crash:', err.message);
                 }
+            } else {
+                console.log(`[EMAIL] Resend skipped (No API Key)`);
             }
         }
 
         // 2. Try MSG91
         if (provider === 'msg91') {
             const msg91Result = await sendViaMSG91({ to, subject, html, fromName, variables, template_id });
-            if (msg91Result && msg91Result.success) return msg91Result;
+            if (msg91Result && msg91Result.success) {
+                console.log(`[EMAIL] MSG91 Success: ${msg91Result.id}`);
+                return msg91Result;
+            }
+            console.log(`[EMAIL] MSG91 skipped or failed`);
         }
 
         // 3. Try SMTP
@@ -158,14 +168,18 @@ export const sendEmail = async ({ to, subject, html, fromName = 'Backstage', pre
                         subject,
                         html,
                     });
+                    console.log(`[EMAIL] SMTP Success: ${info.messageId}`);
                     return { success: true, provider: 'smtp', id: info.messageId };
                 } catch (err) {
-                    console.error('[EMAIL] SMTP Failure:', err);
+                    console.error('[EMAIL] SMTP Failure:', err.message);
                 }
+            } else {
+                console.log(`[EMAIL] SMTP skipped (No Config)`);
             }
         }
     }
 
+    console.error(`[EMAIL] FATAL: All providers exhausted for ${to}`);
     return { success: false, provider: 'none', message: 'All email providers failed.' };
 };
 
@@ -177,7 +191,7 @@ export const sendOTPEmail = async (to, code) => {
         to, 
         subject: `${code} is your code`, 
         html: `Your code is ${code}`, // Fallback for other providers
-        preferredProvider: 'msg91',
+        preferredProvider: 'resend',
         template_id: process.env.MSG91_OTP_TEMPLATE_ID || 'global_otp',
         variables: {
             otp: code,
