@@ -29,7 +29,7 @@ const safeParseAdminUser = () => {
   try {
     const raw = localStorage.getItem('adminUser');
     return raw ? JSON.parse(raw) : {};
-  } catch (e) {
+  } catch {
     return {};
   }
 };
