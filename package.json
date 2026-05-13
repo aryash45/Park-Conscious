@@ -22,8 +22,11 @@
     "turbo": "^2.9.12"
   },
   "dependencies": {
+    "@bull-board/api": "^7.0.0",
+    "@bull-board/express": "^7.0.0",
     "axios": "^1.14.0",
     "bcryptjs": "^2.4.3",
+    "bullmq": "^5.76.8",
     "busboy": "^1.6.0",
     "cloudinary": "^2.9.0",
     "cookie": "^1.1.1",

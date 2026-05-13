@@ -152,18 +152,26 @@ export const verifyUser = (req) => {
     }
 
     if (!token) return null;
+    if (!JWT_SECRET) {
+        console.error("[AUTH_FAILURE]: JWT_SECRET is missing. Authentication verification failed.");
+        return null;
+    }
     try { return jwt.verify(token, JWT_SECRET); } catch(e) { return null; }
 };
 
 export const issueCookie = (req, res, u) => {
     const host = req.headers.host || '';
     
-    // Core payload stabilization: Ensure both id and uid exist
     const payload = { 
         ...u, 
         id: u.id || u._id, 
         uid: u.uid || u.id || u._id 
     };
+
+    if (!JWT_SECRET) {
+        console.error("[AUTH_FAILURE]: JWT_SECRET is missing. Cannot issue cookie.");
+        return null;
+    }
 
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
     

@@ -28,7 +28,11 @@ createBullBoard({
 });
 
 // Start Background Worker
-initWorker();
+try {
+    initWorker();
+} catch (error) {
+    console.error(`[WORKER_INIT_ERROR]: Failed to initialize background worker.`, error);
+}
 
 const app = express();
 
@@ -43,8 +47,26 @@ app.use(cors({
     credentials: true
 }));
 
+// Access Control for Admin Tools
+const isLocalOrAuth = (req, res, next) => {
+    const remoteAddress = req.socket.remoteAddress;
+    const isLocal = remoteAddress === '127.0.0.1' || remoteAddress === '::1' || remoteAddress === '::ffff:127.0.0.1';
+    
+    // Also check for a secret header if provided via env
+    const adminSecret = process.env.ADMIN_DASHBOARD_SECRET;
+    const providedSecret = req.headers['x-admin-secret'];
+    const isAuthorized = adminSecret && providedSecret === adminSecret;
+
+    if (isLocal || isAuthorized) {
+        return next();
+    }
+    
+    console.warn(`[UNAUTHORIZED_ACCESS]: Blocked request to admin tools from ${remoteAddress}`);
+    res.status(403).send('Forbidden: Admin access restricted to local or authorized clients.');
+};
+
 // Monitoring Dashboard (Mounted BEFORE raw body parser to avoid issues)
-app.use('/api/admin/queues', serverAdapter.getRouter());
+app.use('/api/admin/queues', isLocalOrAuth, serverAdapter.getRouter());
 
 // Use express.raw so getBody() inside our serverless handlers works properly (it expects a stream/buffer)
 app.use(express.raw({ type: '*/*', limit: '50mb' }));

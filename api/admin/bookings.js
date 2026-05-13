@@ -112,48 +112,27 @@ export async function handleBookings(url, method, body, user, res) {
 
         const esc = (s) => String(s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 
-        const emailsToSend = [];
-        for (let b of bookings) {
-            if (!b.email) continue;
-            let bName = userMap[String(b.userId)] || "Attendee";
-            const ticketNumber = b.ticketId || b.transactionId || String(b._id).slice(-8);
-            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(ticketNumber)}&ecc=L&margin=0`;
-            
-            let eventName = "BACKSTAGE Experience";
-            if (b.eventId === "tedx_ggsipu_2026") eventName = "TEDx GGSIPU SANGAM";
-            else if (b.eventId === "farewell_2024" || b.eventId === "afsana_2026") eventName = "AFSANA '26 Farewell";
-            else if (eventMap[String(b.eventId)]) eventName = eventMap[String(b.eventId)];
-
-            emailsToSend.push({
-               from: process.env.EMAIL_FROM || 'BACKSTAGE <tickets@parkconscious.in>',
-               to: b.email,
-               subject: `Your Admittance Pass for ${eventName}`,
-               html: `
-                  <div style="font-family: 'Outfit', sans-serif; max-width: 600px; margin: 0 auto; background-color: #050507; color: #ffffff; padding: 60px 40px; border-radius: 40px; text-align: center; border: 1px solid rgba(255,255,255,0.05);">
-                     <h1 style="color: #ffffff; margin: 0 0 12px 0; font-size: 32px; font-weight: 900; text-transform: uppercase;">YOUR TICKET IS READY</h1>
-                     <p style="color: #64748b; margin-bottom: 40px;">Hi ${esc(bName)}, see you at ${esc(eventName)}!</p>
-                     <div style="background-color: #ffffff; padding: 30px; border-radius: 30px; display: inline-block; margin-bottom: 40px;">
-                        <img src="${qrUrl}" alt="QR" width="220" height="220" style="display: block; border-radius: 12px;" />
-                     </div>
-                     <div style="background-color: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 30px; border-radius: 24px; text-align: left;">
-                        <p style="color: #ffffff; font-size: 18px; font-weight: 800; margin: 0;">${esc(bName)}</p>
-                        <p style="color: #6366f1; font-size: 18px; font-weight: 800; margin: 0;">${esc(eventName)}</p>
-                        <p style="color: #ffffff; font-family: monospace; font-size: 20px; font-weight: 900; margin: 0;">#${esc(ticketNumber)}</p>
-                     </div>
-                  </div>
-               `
-            });
-        }
-
-        if (emailsToSend.length === 0) return json(res, 200, { success: true, sent: 0 });
-
+        // Refactored: Instead of sending emails here, we push them to the BullMQ queue
         try {
-           const { data, error } = await resend.batch.send(emailsToSend);
-           if (error) return json(res, 500, { success: false, message: error.message });
-           await Booking.updateMany({ _id: { $in: bookings.map(b => b._id) } }, { $set: { emailSent: true } });
-           return json(res, 200, { success: true, sent: emailsToSend.length });
+           const { ticketQueue } = await import('../lib/queue.js');
+           if (!ticketQueue) return json(res, 500, { success: false, message: 'Queue system is not available (Check Redis connection).' });
+
+           // Push each booking as a separate job for better granularity and retries
+           const jobs = bookings.map(b => ({
+               name: 'send-ticket',
+               data: { bookingId: String(b._id) },
+               opts: { jobId: `ticket-${b._id}` } // Prevent duplicate jobs for the same booking
+           }));
+
+           await ticketQueue.addBulk(jobs);
+
+           return json(res, 200, { 
+               success: true, 
+               queued: jobs.length, 
+               message: `${jobs.length} ticket(s) added to background queue for delivery.` 
+           });
         } catch (err) {
-           return json(res, 500, { success: false, message: 'Error processing batch', error: String(err) });
+           return json(res, 500, { success: false, message: 'Error queuing batch', error: String(err) });
         }
     }
 

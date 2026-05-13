@@ -3,7 +3,7 @@
  * 
  * Purpose: MongoDB connection management using Mongoose.
  * Implements connection caching for serverless environments and 
- * ensures connection to the primary 'backstage_events' database.
+ * ensures connection to the primary 'park-conscious' database.
  */
 import mongoose from "mongoose";
 import dotenv from "dotenv";
