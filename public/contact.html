@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="scroll-smooth">
 
 <head>
     <meta charset="UTF-8">
@@ -16,267 +16,337 @@
     <meta property="og:image" content="/assets/logo.jpg">
     <meta property="og:type" content="website">
 
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap"
-        rel="stylesheet">
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+    <!-- AOS Animation Library -->
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-        }
+      :root {
+        --primary: #00C39A;
+        --primary-dark: #00A683;
+        --slate-900: #0F172A;
+        --slate-800: #1E293B;
+        --slate-600: #475569;
+        --slate-500: #64748B;
+        --slate-400: #94A3B8;
+        --slate-100: #F1F5F9;
+        --slate-50: #F8FAFC;
+      }
 
-        .main-gradient {
-            background: radial-gradient(circle at top right, #1e40af 0%, transparent 40%),
-                radial-gradient(circle at bottom left, #0f766e 0%, transparent 40%),
-                radial-gradient(circle at center, #111827 0%, #000000 100%);
-            background-attachment: fixed;
-        }
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: #ffffff;
+        color: var(--slate-900);
+        overflow-x: hidden;
+      }
 
-        .glass {
-            background: rgba(255, 255, 255, 0.03);
-            backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-        }
+      h1, h2, h3, h4, h5, h6 {
+        font-family: 'Outfit', sans-serif;
+        color: var(--slate-900);
+      }
+
+      .glass-header {
+        background: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+      }
+
+      .btn-primary {
+        background-color: var(--primary);
+        color: white;
+        transition: all 0.3s ease;
+      }
+
+      .btn-primary:hover {
+        background-color: var(--primary-dark);
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px rgba(0, 195, 154, 0.2);
+      }
+
+      /* Custom Scrollbar */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: var(--slate-50);
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--slate-300);
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: var(--slate-400);
+      }
     </style>
 </head>
 
-<body class="bg-gray-950 text-gray-200 main-gradient min-h-screen flex flex-col">
-    <nav class="w-full z-50 py-6">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-            <div class="flex items-center cursor-pointer" onclick="window.location.href='index.html'">
-                <div
-                    class="relative w-10 h-10 mr-3 flex items-center justify-center bg-gradient-to-br from-blue-600 to-teal-600 rounded-lg shadow-lg overflow-hidden">
-                    <img src="./assets/logo.jpg" alt="Logo"
-                        class="w-full h-full object-cover opacity-90 hover:opacity-100 transition-opacity">
-                </div>
-                <span class="text-xl font-bold text-white tracking-tight">Park <span
-                        class="text-teal-400">Conscious</span></span>
-            </div>
-            <div class="hidden md:flex items-center space-x-8">
-                <a href="about.html"
-                    class="text-gray-300 hover:text-white text-sm font-medium transition-colors">About</a>
-                <a href="technology.html"
-                    class="text-gray-300 hover:text-white text-sm font-medium transition-colors">Technology</a>
-                <div class="h-6 w-px bg-white/10 mx-2"></div>
-                <button onclick="window.location.href='owner/login.html'"
-                    class="text-gray-300 hover:text-white text-sm font-medium transition-colors">Login</button>
-                <button onclick="window.location.href='contact.html'"
-                    class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-5 py-2 rounded-full text-sm font-medium transition-all backdrop-blur-sm">Contact
-                    Sales</button>
-            </div>
-            <!-- Mobile menu button -->
-            <div class="md:hidden">
-                <button class="text-gray-300 hover:text-white p-2" id="mobile-menu-button">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M4 6h16M4 12h16M4 18h16"></path>
-                    </svg>
-                </button>
-            </div>
+<body class="bg-white text-slate-900 selection:bg-teal-100 selection:text-teal-900 flex flex-col min-h-screen">
+
+  <!-- Navigation -->
+  <nav class="fixed w-full top-0 z-50 glass-header transition-all duration-300" id="navbar">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center h-20">
+        <div class="flex items-center gap-3 cursor-pointer" onclick="window.location.href='index.html'">
+          <img src="./assets/logo.jpg" alt="Park Conscious Logo" class="h-10 w-auto rounded-lg shadow-sm">
+          <span class="text-xl font-bold text-slate-900 tracking-tight">Park <span class="text-[#00C39A]">Conscious</span></span>
         </div>
 
-        <!-- Mobile Menu Drawer -->
-        <div class="fixed inset-0 z-[60] hidden" id="mobile-menu">
-            <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" id="mobile-menu-overlay"></div>
-            <div class="absolute right-0 top-0 h-full w-64 bg-gray-900 border-l border-white/10 p-6 transform translate-x-full transition-transform duration-300 ease-in-out shadow-2xl"
-                id="mobile-menu-drawer">
-                <div class="flex justify-end mb-8">
-                    <button class="text-gray-400 hover:text-white" id="mobile-menu-close">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M6 18L18 6M6 6l12 12"></path>
-                        </svg>
-                    </button>
-                </div>
-                <div class="flex flex-col space-y-6">
-                    <a href="index.html"
-                        class="text-lg font-medium text-white hover:text-teal-400 transition-colors">Home</a>
-                    <a href="about.html"
-                        class="text-lg font-medium text-white hover:text-teal-400 transition-colors">About</a>
-                    <a href="technology.html"
-                        class="text-lg font-medium text-white hover:text-teal-400 transition-colors">Technology</a>
-                    <div class="h-px bg-white/10 w-full"></div>
-                    <button onclick="window.location.href='owner/login.html'"
-                        class="w-full bg-white/5 hover:bg-white/10 text-white border border-white/20 py-3 rounded-xl text-sm font-medium transition-colors">
-                        Login
-                    </button>
-                    <button onclick="window.location.href='contact.html'"
-                        class="w-full bg-gradient-to-r from-blue-600 to-teal-500 text-white py-3 rounded-xl text-sm font-semibold shadow-lg shadow-blue-500/30 transition-colors">
-                        Contact Sales
-                    </button>
-                </div>
-            </div>
+        <!-- Desktop Menu -->
+        <div class="hidden md:flex items-center space-x-10">
+          <a href="https://events.parkconscious.in" class="text-slate-600 hover:text-[#00C39A] font-medium transition-colors">Events</a>
+          <a href="index.html#solution" class="text-slate-600 hover:text-[#00C39A] font-medium transition-colors">Solutions</a>
+          <a href="technology.html" class="text-slate-600 hover:text-[#00C39A] font-medium transition-colors">Technology</a>
+          <a href="about.html" class="text-slate-600 hover:text-[#00C39A] font-medium transition-colors">About</a>
+          <div class="h-6 w-px bg-slate-200 mx-2"></div>
+          <button onclick="window.location.href='owner/login.html'" class="text-slate-600 hover:text-slate-900 text-sm font-medium px-4 py-2 transition-colors">Sign In</button>
+          <button onclick="window.location.href='contact.html'" class="bg-slate-900 text-white px-6 py-2.5 rounded-full text-sm font-semibold hover:bg-slate-800 transition-all">Join Waitlist</button>
         </div>
-    </nav>
 
-    <div class="flex-1 flex items-center justify-center p-4">
-        <div class="glass w-full max-w-lg p-8 rounded-2xl shadow-2xl">
-            <h1 class="text-3xl font-bold text-white mb-2">Join the Revolution</h1>
-            <p class="text-gray-400 mb-8">We are currently in pilot phase. Sign up to get invited.</p>
-
-            <form class="space-y-6" id="contactForm">
-                <div>
-                    <label class="block text-sm font-medium text-gray-400 mb-2">Full Name</label>
-                    <input type="text" name="name" required
-                        class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-teal-500 transition-colors">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-400 mb-2">Email Address</label>
-                    <input type="email" name="email" required
-                        class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-teal-500 transition-colors">
-                </div>
-
-                <div class="flex flex-col sm:flex-row gap-4">
-                    <label
-                        class="flex items-center p-4 border border-white/10 rounded-xl cursor-pointer hover:bg-white/5 transition-colors flex-1">
-                        <input type="radio" name="role" value="User" checked
-                            class="text-teal-500 focus:ring-teal-500 h-4 w-4 bg-gray-800 border-gray-600">
-                        <span class="ml-3 text-sm font-medium text-white">I'm a User</span>
-                    </label>
-                    <label
-                        class="flex items-center p-4 border border-white/10 rounded-xl cursor-pointer hover:bg-white/5 transition-colors flex-1">
-                        <input type="radio" name="role" value="Parking Owner"
-                            class="text-teal-500 focus:ring-teal-500 h-4 w-4 bg-gray-800 border-gray-600">
-                        <span class="ml-3 text-sm font-medium text-white">I'm a Parking Owner</span>
-                    </label>
-                </div>
-
-                <button type="submit" id="submitBtn"
-                    class="w-full bg-gradient-to-r from-blue-600 to-teal-500 text-white font-bold py-4 rounded-xl hover:shadow-lg hover:shadow-blue-500/20 transition-all transform hover:-translate-y-0.5">
-                    Join Waitlist
-                </button>
-            </form>
-
-            <script>
-                document.getElementById('contactForm').addEventListener('submit', async (e) => {
-                    e.preventDefault();
-
-                    const btn = document.getElementById('submitBtn');
-                    const originalText = btn.innerText;
-                    btn.innerText = 'Sending...';
-                    btn.disabled = true;
-
-                    const formData = new FormData(e.target);
-                    const data = {
-                        name: formData.get('name'),
-                        email: formData.get('email'),
-                        role: formData.get('role')
-                    };
-
-                    try {
-                        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-                        const API_URL = isLocal ? (window.location.port === '3000' ? '' : 'http://localhost:5050') : '';
-
-                        const response = await fetch(`${API_URL}/api/contact`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify(data)
-                        });
-
-                        if (response.ok) {
-                            alert('Thanks for joining! We will be in touch.');
-                            window.location.href = 'index.html';
-                        } else {
-                            const err = await response.json();
-                            alert('Error: ' + (err.message || 'Something went wrong'));
-                            btn.innerText = originalText;
-                            btn.disabled = false;
-                        }
-                    } catch (error) {
-                        console.error('Error:', error);
-                        alert('Failed to connect to server.');
-                        btn.innerText = originalText;
-                        btn.disabled = false;
-                    }
-                });
-
-                // Mobile Menu Logic
-                const mobileMenuButton = document.getElementById('mobile-menu-button');
-                const mobileMenuClose = document.getElementById('mobile-menu-close');
-                const mobileMenu = document.getElementById('mobile-menu');
-                const mobileMenuDrawer = document.getElementById('mobile-menu-drawer');
-                const mobileMenuOverlay = document.getElementById('mobile-menu-overlay');
-
-                function openMobileMenu() {
-                    mobileMenu.classList.remove('hidden');
-                    setTimeout(() => {
-                        mobileMenuDrawer.classList.remove('translate-x-full');
-                    }, 10);
-                    document.body.style.overflow = 'hidden';
-                }
-
-                function closeMobileMenu() {
-                    mobileMenuDrawer.classList.add('translate-x-full');
-                    setTimeout(() => {
-                        mobileMenu.classList.add('hidden');
-                    }, 300);
-                    document.body.style.overflow = '';
-                }
-
-                mobileMenuButton?.addEventListener('click', openMobileMenu);
-                mobileMenuClose?.addEventListener('click', closeMobileMenu);
-                mobileMenuOverlay?.addEventListener('click', closeMobileMenu);
-            </script>
+        <!-- Mobile menu button -->
+        <div class="md:hidden">
+          <button class="text-slate-600 hover:text-slate-900 p-2" id="mobile-menu-button">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+            </svg>
+          </button>
         </div>
+      </div>
     </div>
-    <!-- Footer -->
-    <footer class="bg-gray-950 py-20 border-t border-white/5 mt-auto">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex flex-col md:flex-row justify-between items-start gap-16 mb-16">
-                <div class="max-w-xs">
-                    <div class="flex items-center gap-3 mb-6">
-                        <div class="relative w-10 h-10 flex items-center justify-center bg-gradient-to-br from-blue-600 to-teal-600 rounded-lg shadow-lg overflow-hidden">
-                            <img src="./assets/logo.jpg" alt="Logo" class="w-full h-full object-cover">
-                        </div>
-                        <div class="text-2xl font-bold text-white tracking-tight">Park Conscious</div>
-                    </div>
-                    <p class="text-gray-500 text-sm leading-relaxed">
-                        Building the next generation of urban infrastructure through AI and intelligent automation.
-                    </p>
-                </div>
-                <div class="grid grid-cols-2 sm:grid-cols-3 gap-16 flex-1">
-                    <div>
-                        <h4 class="text-white font-bold mb-6">Product</h4>
-                        <ul class="space-y-4 text-gray-500 text-sm">
-                            <li><a href="find-parking.html" class="hover:text-teal-400 transition-colors">Find Parking</a></li>
-                            <li><a href="index.html#solution" class="hover:text-teal-400 transition-colors">Solutions</a></li>
-                            <li><a href="about.html" class="hover:text-teal-400 transition-colors">Infrastructure</a></li>
-                        </ul>
-                    </div>
-                    <div>
-                        <h4 class="text-white font-bold mb-6">Company</h4>
-                        <ul class="space-y-4 text-gray-500 text-sm">
-                            <li><a href="about.html" class="hover:text-teal-400 transition-colors">About Us</a></li>
-                            <li><a href="contact.html" class="hover:text-teal-400 transition-colors">Contact</a></li>
-                        </ul>
-                    </div>
-                    <div>
-                        <h4 class="text-white font-bold mb-6">Legal</h4>
-                        <ul class="space-y-4 text-gray-500 text-sm">
-                            <li><a href="javascript:void(0)" onclick="showLegal('privacy')" class="hover:text-teal-400 transition-colors">Privacy Policy</a></li>
-                            <li><a href="javascript:void(0)" onclick="showLegal('terms')" class="hover:text-teal-400 transition-colors">Terms of Service</a></li>
-                            <li><a href="javascript:void(0)" onclick="showLegal('refunds')" class="hover:text-teal-400 transition-colors">Refund Policy</a></li>
-                        </ul>
-                    </div>
-                </div>
+  </nav>
+
+  <!-- Mobile Menu Drawer -->
+  <div class="fixed inset-0 z-[60] hidden" id="mobile-menu">
+      <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" id="mobile-menu-overlay"></div>
+      <div class="absolute right-0 top-0 h-full w-64 bg-white border-l border-slate-100 p-6 transform translate-x-full transition-transform duration-300 ease-in-out shadow-2xl" id="mobile-menu-drawer">
+          <div class="flex justify-end mb-8">
+              <button class="text-slate-400 hover:text-slate-900" id="mobile-menu-close">
+                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                  </svg>
+              </button>
+          </div>
+          <div class="flex flex-col space-y-6">
+              <a href="index.html" class="text-lg font-medium text-slate-600 hover:text-[#00C39A] transition-colors">Home</a>
+              <a href="https://events.parkconscious.in" class="text-lg font-medium text-slate-600 hover:text-[#00C39A] transition-colors">Events</a>
+              <a href="technology.html" class="text-lg font-medium text-slate-600 hover:text-[#00C39A] transition-colors">Technology</a>
+              <a href="about.html" class="text-lg font-medium text-slate-600 hover:text-[#00C39A] transition-colors">About</a>
+              <div class="h-px bg-slate-100 w-full"></div>
+              <button onclick="window.location.href='owner/login.html'" class="text-left text-lg font-medium text-slate-600 hover:text-slate-900 transition-colors">Sign In</button>
+              <button onclick="window.location.href='contact.html'" class="w-full btn-primary text-white py-3 rounded-xl text-sm font-semibold shadow-lg shadow-emerald-500/30 transition-all hover:shadow-xl">
+                  Join Waitlist
+              </button>
+          </div>
+      </div>
+  </div>
+
+  <main class="flex-grow flex items-center justify-center p-4 pt-32 lg:pt-48 pb-20 bg-slate-50 relative overflow-hidden">
+    <!-- Ambient Background Glows -->
+    <div class="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+      <div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-400/10 blur-[130px] rounded-full"></div>
+      <div class="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-blue-400/5 blur-[100px] rounded-full"></div>
+    </div>
+
+    <div class="bg-white border border-slate-100 shadow-xl shadow-slate-200/50 w-full max-w-lg p-10 rounded-3xl relative z-10" data-aos="zoom-in">
+        <h1 class="text-4xl font-black text-slate-900 mb-3">Join the Revolution</h1>
+        <p class="text-slate-500 mb-8 text-lg">We are currently in pilot phase. Sign up to get invited.</p>
+
+        <form class="space-y-6" id="contactForm">
+            <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-2">Full Name</label>
+                <input type="text" name="name" required
+                    class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 focus:outline-none focus:border-[#00C39A] focus:ring-1 focus:ring-[#00C39A] transition-colors">
             </div>
-            <div class="pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6">
-                <p class="text-gray-600 text-xs">© 2026 Park Conscious. All rights reserved.</p>
+            <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-2">Email Address</label>
+                <input type="email" name="email" required
+                    class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 focus:outline-none focus:border-[#00C39A] focus:ring-1 focus:ring-[#00C39A] transition-colors">
             </div>
+
+            <div class="flex flex-col sm:flex-row gap-4">
+                <label class="flex items-center p-4 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 transition-colors flex-1">
+                    <input type="radio" name="role" value="User" checked
+                        class="text-[#00C39A] focus:ring-[#00C39A] h-4 w-4 bg-white border-slate-300">
+                    <span class="ml-3 text-sm font-semibold text-slate-900">I'm a User</span>
+                </label>
+                <label class="flex items-center p-4 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 transition-colors flex-1">
+                    <input type="radio" name="role" value="Parking Owner"
+                        class="text-[#00C39A] focus:ring-[#00C39A] h-4 w-4 bg-white border-slate-300">
+                    <span class="ml-3 text-sm font-semibold text-slate-900">I'm a Parking Owner</span>
+                </label>
+            </div>
+
+            <button type="submit" id="submitBtn"
+                class="w-full btn-primary px-6 py-4 rounded-xl font-bold text-lg shadow-xl shadow-[#00C39A]/20 transition-all">
+                Join Waitlist
+            </button>
+        </form>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-slate-900 py-20 border-t border-slate-800 mt-auto w-full relative z-20">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex flex-col md:flex-row justify-between items-start gap-16 mb-16 text-left">
+        <div class="max-w-xs">
+          <div class="flex items-center gap-3 mb-6">
+            <img src="./assets/logo.jpg" alt="Park Conscious Logo" class="h-12 w-auto rounded-lg shadow-md opacity-90">
+            <div class="text-2xl font-black text-white">Park Conscious</div>
+          </div>
+          <p class="text-slate-400 text-sm leading-relaxed mb-8">
+            Building the next generation of urban infrastructure through AI and intelligent automation.
+          </p>
+          <div class="flex flex-wrap gap-4 mt-8">
+            <!-- Instagram -->
+            <a href="https://www.instagram.com/parkconscious.in/" target="_blank" rel="noopener noreferrer" class="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-white hover:bg-[#00C39A] hover:-translate-y-1 transition-all shadow-lg hover:shadow-[#00C39A]/20">
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+            </a>
+            <!-- LinkedIn -->
+            <a href="https://www.linkedin.com/company/park-conscious/" target="_blank" rel="noopener noreferrer" class="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-white hover:bg-[#00C39A] hover:-translate-y-1 transition-all shadow-lg hover:shadow-[#00C39A]/20">
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
+            </a>
+            <!-- X (Twitter) -->
+            <a href="https://x.com/PConscious77050" target="_blank" rel="noopener noreferrer" class="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-white hover:bg-[#00C39A] hover:-translate-y-1 transition-all shadow-lg hover:shadow-[#00C39A]/20">
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.179 0-5.515 2.966-4.797 6.045-4.091-.205-7.719-2.165-10.148-5.144-1.29 2.213-.669 5.108 1.523 6.574-.806-.026-1.566-.247-2.229-.616-.054 2.281 1.581 4.415 3.949 4.89-.693.188-1.452.232-2.224.084.626 1.956 2.444 3.379 4.6 3.419-2.07 1.623-4.678 2.348-7.29 2.04 2.179 1.397 4.768 2.212 7.548 2.212 9.142 0 14.307-7.721 13.995-14.646.962-.695 1.797-1.562 2.457-2.549z"/></svg>
+            </a>
+            <!-- Email -->
+            <a href="mailto:parkconscious3@gmail.com" class="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-white hover:bg-[#00C39A] hover:-translate-y-1 transition-all shadow-lg hover:shadow-[#00C39A]/20">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+            </a>
+          </div>
         </div>
-    </footer>
 
-    <!-- Legal Modal Script -->
-    <script src="./scripts/legal-modal.js"></script>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-16 flex-1">
+          <div>
+            <h4 class="text-white font-bold mb-6">Product</h4>
+            <ul class="space-y-4 text-slate-400 text-sm">
+              <li><a href="find-parking.html" class="hover:text-[#00C39A] transition-colors">Find Parking</a></li>
+              <li><a href="index.html#solution" class="hover:text-[#00C39A] transition-colors">Solutions</a></li>
+              <li><a href="#" class="hover:text-[#00C39A] transition-colors">Pricing</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4 class="text-white font-bold mb-6">Company</h4>
+            <ul class="space-y-4 text-slate-400 text-sm">
+              <li><a href="about.html" class="hover:text-[#00C39A] transition-colors">About Us</a></li>
+              <li><a href="contact.html" class="hover:text-[#00C39A] transition-colors">Contact</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4 class="text-white font-bold mb-6">Legal</h4>
+            <ul class="space-y-4 text-slate-400 text-sm">
+              <li><a href="javascript:void(0)" onclick="showLegal('privacy')" class="hover:text-[#00C39A] transition-colors">Privacy Policy</a></li>
+              <li><a href="javascript:void(0)" onclick="showLegal('terms')" class="hover:text-[#00C39A] transition-colors">Terms of Service</a></li>
+              <li><a href="javascript:void(0)" onclick="showLegal('refunds')" class="hover:text-[#00C39A] transition-colors">Refund Policy</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
 
-    <!-- Vercel Speed Insights & Analytics -->
-    <script>
-        window.si = window.si || function () { (window.siq = window.siq || []).push(arguments); };
-    </script>
-    <script defer src="/_vercel/speed-insights/script.js"></script>
-    <script defer src="/_vercel/insights/script.js"></script>
+      <div class="pt-8 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-6">
+        <p class="text-slate-500 text-xs text-center md:text-left">© 2024 Park Conscious Infrastructure Group. All rights reserved.</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script>
+      document.getElementById('contactForm').addEventListener('submit', async (e) => {
+          e.preventDefault();
+
+          const btn = document.getElementById('submitBtn');
+          const originalText = btn.innerText;
+          btn.innerText = 'Sending...';
+          btn.disabled = true;
+
+          const formData = new FormData(e.target);
+          const data = {
+              name: formData.get('name'),
+              email: formData.get('email'),
+              role: formData.get('role')
+          };
+
+          try {
+              const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+              const API_URL = isLocal ? (window.location.port === '3000' ? '' : 'http://localhost:5050') : '';
+
+              const response = await fetch(`${API_URL}/api/contact`, {
+                  method: 'POST',
+                  headers: {
+                      'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify(data)
+              });
+
+              if (response.ok) {
+                  alert('Thanks for joining! We will be in touch.');
+                  window.location.href = 'index.html';
+              } else {
+                  const err = await response.json();
+                  alert('Error: ' + (err.message || 'Something went wrong'));
+                  btn.innerText = originalText;
+                  btn.disabled = false;
+              }
+          } catch (error) {
+              console.error('Error:', error);
+              alert('Failed to connect to server.');
+              btn.innerText = originalText;
+              btn.disabled = false;
+          }
+      });
+
+      // Mobile Menu Logic
+      const mobileMenuButton = document.getElementById('mobile-menu-button');
+      const mobileMenuClose = document.getElementById('mobile-menu-close');
+      const mobileMenu = document.getElementById('mobile-menu');
+      const mobileMenuDrawer = document.getElementById('mobile-menu-drawer');
+      const mobileMenuOverlay = document.getElementById('mobile-menu-overlay');
+
+      function openMobileMenu() {
+          mobileMenu.classList.remove('hidden');
+          setTimeout(() => {
+              mobileMenuDrawer.classList.remove('translate-x-full');
+          }, 10);
+          document.body.style.overflow = 'hidden';
+      }
+
+      function closeMobileMenu() {
+          mobileMenuDrawer.classList.add('translate-x-full');
+          setTimeout(() => {
+              mobileMenu.classList.add('hidden');
+          }, 300);
+          document.body.style.overflow = '';
+      }
+
+      mobileMenuButton?.addEventListener('click', openMobileMenu);
+      mobileMenuClose?.addEventListener('click', closeMobileMenu);
+      mobileMenuOverlay?.addEventListener('click', closeMobileMenu);
+  </script>
+
+  <!-- Legal Modal Script -->
+  <script src="./scripts/legal-modal.js"></script>
+
+  <!-- AOS Script -->
+  <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+  <script>
+    AOS.init({
+      once: true,
+      offset: 50,
+      duration: 800,
+      easing: 'ease-out-cubic',
+    });
+  </script>
+
+  <!-- Vercel Speed Insights & Analytics -->
+  <script>
+      window.si = window.si || function () { (window.siq = window.siq || []).push(arguments); };
+  </script>
+  <script defer src="/_vercel/speed-insights/script.js"></script>
+  <script defer src="/_vercel/insights/script.js"></script>
 </body>
-
 </html>

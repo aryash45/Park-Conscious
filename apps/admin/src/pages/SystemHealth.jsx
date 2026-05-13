@@ -199,6 +199,7 @@ const SystemHealth = () => {
                                 <tr className="text-[9px] text-zinc-700 font-bold uppercase tracking-[0.2em] border-b border-white/[0.02]">
                                     <th className="px-8 py-5">Source</th>
                                     <th className="px-8 py-5">Issue Message</th>
+                                    <th className="px-8 py-5 text-center">Occurrences</th>
                                     <th className="px-8 py-5 text-center">Status</th>
                                     <th className="px-8 py-5 text-right">Actions</th>
                                 </tr>
@@ -220,7 +221,13 @@ const SystemHealth = () => {
                                                     <p className={`text-xs font-semibold tracking-tight ${log.resolved ? 'text-zinc-500 line-through' : 'text-zinc-200 group-hover:text-white'}`}>
                                                         {log.message}
                                                     </p>
-                                                    <p className="text-[8px] text-zinc-700 font-mono uppercase truncate max-w-xs">{new Date(log.createdAt).toLocaleString()}</p>
+                                                    <p className="text-[8px] text-zinc-700 font-mono uppercase truncate max-w-xs">Last seen: {new Date(log.lastSeenAt || log.createdAt).toLocaleString()}</p>
+                                                </div>
+                                            </td>
+                                            <td className="px-8 py-6 text-center">
+                                                <div className="flex flex-col items-center">
+                                                    <span className="text-[14px] font-black text-zinc-300 font-outfit">{log.count || 1}</span>
+                                                    <span className="text-[7px] text-zinc-600 font-bold uppercase tracking-widest">Times</span>
                                                 </div>
                                             </td>
                                             <td className="px-8 py-6 text-center">
@@ -259,6 +266,10 @@ const SystemHealth = () => {
                                                                 <div className="flex justify-between border-b border-white/[0.01] pb-1.5">
                                                                     <span className="text-zinc-700">TYPE</span>
                                                                     <span className="text-zinc-300 uppercase">{log.type}</span>
+                                                                </div>
+                                                                <div className="flex justify-between border-b border-white/[0.01] pb-1.5">
+                                                                    <span className="text-zinc-700">DEDUPE_HASH</span>
+                                                                    <span className="text-zinc-400 font-mono">{log.hash || 'N/A'}</span>
                                                                 </div>
                                                                 <div className="space-y-2 mt-4">
                                                                     <span className="text-zinc-700 block">METADATA_PAYLOAD</span>

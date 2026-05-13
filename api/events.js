@@ -7,7 +7,10 @@
  */
 import connectDB from './lib/mongodb.js';
 import * as models from './lib/models.js';
-import { json, setCors, getBody, verifyUser, normalizeEvent } from './lib/utils.js';
+import { json, setCors, getBody, verifyUser, normalizeEvent, pruneEvent, logSystemError } from './lib/utils.js';
+import Razorpay from 'razorpay';
+import crypto from 'crypto';
+import { getCache, setCache, delCache } from './lib/redis.js';
 
 const { Event, Discussion, Comment, Contact } = models;
 
@@ -29,6 +32,89 @@ export default async function handler(req, res) {
         // -- Health Check --
         if (url.includes('/health')) {
             return json(res, 200, { status: 'ONLINE', timestamp: new Date().toISOString() });
+        }
+
+        // -- Event Promotion Payment --
+        if (url.includes('/events/promote')) {
+            if (!user) return json(res, 401, { message: 'Auth required' });
+            
+            const KEY_ID = process.env.RAZORPAY_KEY_ID;
+            const KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
+            
+            if (!KEY_ID || !KEY_SECRET) {
+                console.error("[PROMOTION_ERROR]: Razorpay Keys missing");
+                return json(res, 500, { message: 'Razorpay configuration error' });
+            }
+
+            const razorpay = new Razorpay({
+                key_id: KEY_ID,
+                key_secret: KEY_SECRET,
+            });
+
+            // Create Order for ₹499
+            if (url.endsWith('/order') && method === 'POST') {
+                try {
+                    const { eventId } = body;
+                    if (!eventId) return json(res, 400, { message: 'Event ID required' });
+
+                    const event = await Event.findById(eventId);
+                    if (!event) return json(res, 404, { message: 'Event not found' });
+                    if (String(event.organizerId) !== String(user.id)) {
+                        return json(res, 403, { message: 'Access Denied: You do not own this event' });
+                    }
+
+                    const options = {
+                        amount: 49900, // ₹499 in paise
+                        currency: "INR",
+                        receipt: `PROMO_${eventId.slice(-8)}`,
+                        notes: { eventId, userId: user.id }
+                    };
+
+                    const order = await razorpay.orders.create(options);
+                    return json(res, 200, { 
+                        success: true, 
+                        orderId: order.id, 
+                        amount: options.amount, 
+                        key: KEY_ID 
+                    });
+                } catch (err) {
+                    console.error("[PROMOTION_ORDER_FATAL]:", err);
+                    return json(res, 500, { message: 'Failed to create Razorpay order: ' + err.message });
+                }
+            }
+
+            // Verify Payment & Promote
+            if (url.endsWith('/verify') && method === 'POST') {
+                try {
+                    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, eventId } = body;
+                    if (!eventId) return json(res, 400, { message: 'Event ID required' });
+
+                    const event = await Event.findById(eventId);
+                    if (!event) return json(res, 404, { message: 'Event not found' });
+                    if (String(event.organizerId) !== String(user.id)) {
+                        return json(res, 403, { message: 'Access Denied: Ownership verification failed' });
+                    }
+                    
+                    const bodyString = razorpay_order_id + "|" + razorpay_payment_id;
+                    const expectedSignature = crypto
+                        .createHmac("sha256", KEY_SECRET)
+                        .update(bodyString.toString())
+                        .digest("hex");
+
+                    if (expectedSignature === razorpay_signature) {
+                        await Event.findByIdAndUpdate(eventId, { 
+                            isPublic: true, 
+                            listingPaid: true 
+                        });
+                        return json(res, 200, { success: true, message: 'Event promoted successfully!' });
+                    } else {
+                        return json(res, 400, { success: false, message: 'Invalid signature' });
+                    }
+                } catch (err) {
+                    console.error("[PROMOTION_VERIFY_FATAL]:", err);
+                    return json(res, 500, { message: 'Verification process failed' });
+                }
+            }
         }
 
         // -- Event Submission / Proposals --
@@ -61,6 +147,14 @@ export default async function handler(req, res) {
             if (method === 'GET') {
                 // Fetch single event
                 if (isIndividual) {
+                    const cacheKey = `event:${eventId}`;
+                    const cached = await getCache(cacheKey);
+                    if (cached) {
+                        console.log(`[REDIS] CACHE HIT: ${cacheKey}`);
+                        return json(res, 200, cached);
+                    }
+
+                    console.log(`[REDIS] CACHE MISS: ${cacheKey}. Fetching from MongoDB...`);
                     const event = await Event.findById(eventId).lean();
                     if (!event) return json(res, 404, { message: 'Event not found' });
                     
@@ -73,9 +167,10 @@ export default async function handler(req, res) {
                         return json(res, 403, { message: 'This event is currently in draft mode and not visible to the public.' });
                     }
 
-                    // NOTE: Unlisted events (isPublic: false) are still visible via direct link
-                    // but they won't appear in lists/featured feeds.
-                    return json(res, 200, normalizeEvent(event));
+                    const normalized = normalizeEvent(event);
+                    // Only cache published events to keep draft logic secure
+                    if (isPublished) await setCache(cacheKey, normalized, 600); // 10 mins cache
+                    return json(res, 200, normalized);
                 }
 
                 // Admin: fetch all events (restricted by role)
@@ -101,25 +196,54 @@ export default async function handler(req, res) {
                 // Fetch featured events (e.g. ?featured=true)
                 const params = new URLSearchParams(queryPart || '');
                 if (params.get('featured') === 'true') {
+                    const cacheKey = 'events:featured';
+                    const cached = await getCache(cacheKey);
+                    if (cached) {
+                        console.log(`[REDIS] CACHE HIT: ${cacheKey}`);
+                        return json(res, 200, cached);
+                    }
+
+                    console.log(`[REDIS] CACHE MISS: ${cacheKey}. Fetching from MongoDB...`);
                     const featuredList = await Event.find({ 
                         isFeatured: true, 
-                        status: { $in: ['published', 'Published'] }, $or: [{ isPublic: true }, { isPublic: { $exists: false } }]
+                        isPublic: true, 
+                        status: { $in: ['published', 'Published'] }
                     }).sort({ createdAt: -1 }).lean();
+                    
+                    const result = featuredList.map(pruneEvent);
+                    await setCache(cacheKey, result, 300); // 5 mins cache
                     res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=86400');
-                    return json(res, 200, featuredList.map(normalizeEvent));
+                    return json(res, 200, result);
                 }
 
-                // Public: fetch published events
+                // Public: fetch promoted events
+                const cacheKey = 'events:public';
+                const cached = await getCache(cacheKey);
+                if (cached) {
+                    console.log(`[REDIS] CACHE HIT: ${cacheKey}`);
+                    return json(res, 200, cached);
+                }
+
+                console.log(`[REDIS] CACHE MISS: ${cacheKey}. Fetching from MongoDB...`);
                 const evts = await Event.find({ 
-                    status: { $in: ['published', 'Published'] }, $or: [{ isPublic: true }, { isPublic: { $exists: false } }]
+                    status: { $in: ['published', 'Published'] },
+                    isPublic: true // Must be explicitly true
                 }).sort({ date: 1 }).lean();
+                
+                const result = evts.map(pruneEvent);
+                await setCache(cacheKey, result, 300); // 5 mins cache
                 res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=86400');
-                return json(res, 200, evts.map(normalizeEvent));
+                return json(res, 200, result);
             }
 
             if (method === 'POST') {
                 if (!user) return json(res, 401, { message: 'Auth required' });
                 const event = await Event.create({ ...body, organizerId: user.id });
+                
+                // Invalidate public lists
+                await delCache('events:public');
+                await delCache('events:featured');
+                
                 return json(res, 201, normalizeEvent(event.toObject()));
             }
 
@@ -135,6 +259,12 @@ export default async function handler(req, res) {
                 }
 
                 const updated = await Event.findByIdAndUpdate(eventId, body, { new: true }).lean();
+                
+                // Invalidate cache
+                await delCache(`event:${eventId}`);
+                await delCache('events:public');
+                await delCache('events:featured');
+                
                 return json(res, 200, normalizeEvent(updated));
             }
 
@@ -150,6 +280,12 @@ export default async function handler(req, res) {
                 }
 
                 await Event.findByIdAndDelete(eventId);
+                
+                // Invalidate cache
+                await delCache(`event:${eventId}`);
+                await delCache('events:public');
+                await delCache('events:featured');
+                
                 return json(res, 200, { message: 'Event removed' });
             }
         }
@@ -261,10 +397,11 @@ export default async function handler(req, res) {
         return json(res, 404, { message: 'Events endpoint not matched: ' + url });
     } catch (err) {
         if (err.missingConfig) {
-            console.warn('[EVENT API Warn]: Database configuration missing. Returning graceful fallback.');
-            return json(res, 200, { missingConfig: true, message: 'Database Connection Missing', data: [] });
+             return json(res, 200, { success: false, missingConfig: true, message: 'Missing database configuration.' });
         }
-        console.error('[EVENT ERROR]:', err);
-        return json(res, 500, { message: 'Internal Server Error', error: err.message });
+        
+        await logSystemError('events_api', 'api_fatal', err.message, err.stack, { url });
+        console.error('[EVENTS_ERROR]:', err);
+        return json(res, 500, { message: 'Server Error: ' + err.message });
     }
 }

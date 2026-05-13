@@ -14,6 +14,7 @@ import {
   Lock, Layout, Monitor, Globe, Trash2, RefreshCw, Ticket, Palette, PlayCircle, Rocket, ShieldCheck, Zap, Link2
 } from 'lucide-react';
 import { uploadToCloudinary, uploadVideoToCloudinary } from '../utils/cloudinary';
+import axios from 'axios';
 
 const SessionIdDisplay = () => {
   const [sessionId] = useState(() => Math.random().toString(36).substring(7).toUpperCase());
@@ -23,6 +24,16 @@ const SessionIdDisplay = () => {
     </p>
   );
 };
+
+const safeParseAdminUser = () => {
+  try {
+    const raw = localStorage.getItem('adminUser');
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+};
+
 
 const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => {
   const [formData, setFormData] = useState({
@@ -64,7 +75,7 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
       backgroundVideoUrl: ''
     },
 
-    isPublic: true,
+    isPublic: false,
     listingPaid: false,
     isTBA: false,
     isOnline: false,
@@ -75,6 +86,8 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
       startupSubtitle: 'Pitching & Stall Access'
     }
   });
+
+  const [localLoading, setLocalLoading] = useState(false);
 
   useEffect(() => {
     if (onThemeChange && formData.themeConfig) {
@@ -182,6 +195,80 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
       ...prev,
       images: prev.images.filter((_, i) => i !== index)
     }));
+  };
+
+  const [copied, setCopied] = useState(false);
+  const handleCopyLink = () => {
+    if (!initialData?._id) return;
+    const EVENTS_BASE = import.meta.env.VITE_EVENTS_APP_URL || "https://events.parkconscious.in";
+    const url = `${EVENTS_BASE}/event/${initialData._id}`;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handlePromotePayment = async () => {
+    const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5050";
+    
+    if (!initialData?._id) {
+      console.warn("[PAYMENT_ERROR] No Event ID found in initialData");
+      alert("Please save the event details first before promoting to the homepage.");
+      return;
+    }
+
+    setLocalLoading(true);
+    try {
+      // 1. Create Order
+      const { data: orderData } = await axios.post(`${API_BASE}/api/events/promote/order`, {
+        eventId: initialData._id
+      }, { withCredentials: true });
+
+
+      if (!orderData.success) throw new Error(orderData.message);
+
+      // 2. Open Razorpay
+      const options = {
+        key: orderData.key,
+        amount: orderData.amount,
+        currency: "INR",
+        name: "Backstage Promotion",
+        description: `Promote "${formData.title}" to Homepage`,
+        order_id: orderData.orderId,
+        handler: async (response) => {
+          try {
+            const { data: verifyData } = await axios.post(`${API_BASE}/api/events/promote/verify`, {
+              ...response,
+              eventId: initialData._id
+            }, { withCredentials: true });
+
+            if (verifyData.success) {
+              setFormData(prev => ({ ...prev, listingPaid: true, isPublic: true }));
+              alert("Payment Successful! Your event is now promoted to the homepage.");
+            }
+          } catch (err) {
+            console.error("[PAYMENT_VERIFY_ERROR]", err);
+            alert("Verification Failed: " + (err.response?.data?.message || err.message));
+          }
+        },
+        prefill: {
+          email: safeParseAdminUser()?.email || "",
+          contact: safeParseAdminUser()?.phone || ""
+        },
+        theme: { color: "#6366f1" }
+      };
+
+      if (!window.Razorpay) {
+        throw new Error("Razorpay SDK not loaded. Please refresh the page.");
+      }
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    } catch (err) {
+      console.error("[PAYMENT_FATAL_ERROR]", err);
+      alert("Payment Initialization Failed: " + (err.response?.data?.message || err.message));
+    } finally {
+      setLocalLoading(false);
+    }
   };
 
   const handleSubmit = (e) => {
@@ -539,6 +626,90 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
             </div>
           </section>
 
+          {/* Visibility & Distribution Section */}
+          <section className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-10 space-y-8 shadow-sm relative overflow-hidden">
+             <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+                <Globe size={120} className="text-sky-500" />
+             </div>
+             
+             <div className="flex items-center justify-between relative z-10">
+              <h3 className="text-[12px] font-black text-white uppercase tracking-[0.3em] flex items-center gap-3">
+                <Globe className="text-sky-500" size={20} /> VISIBILITY & DISTRIBUTION
+              </h3>
+              <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest bg-slate-950 px-3 py-1 rounded-full border border-slate-800">Section 03</span>
+            </div>
+
+            <div className="space-y-6 relative z-10">
+              <div className="p-6 bg-slate-950 border border-slate-800 rounded-3xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[11px] font-black text-white uppercase tracking-widest">Publicity Protocol</p>
+                    <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-1">Control how this asset is discovered</p>
+                  </div>
+                  
+                  {/* SuperAdmin or Paid User can toggle */}
+                  {(safeParseAdminUser()?.role === 'superadmin' || formData.listingPaid) ? (
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" name="isPublic" checked={formData.isPublic} onChange={handleChange}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-500"></div>
+                    </label>
+                  ) : (
+                    <button 
+                      type="button"
+                      onClick={handlePromotePayment}
+                      disabled={localLoading}
+                      className="flex items-center gap-2 px-6 py-3 bg-[#6366f1] hover:bg-[#4f46e5] text-white rounded-full text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {localLoading ? (
+                        <RefreshCw size={14} className="animate-spin" />
+                      ) : (
+                        <IndianRupee size={14} />
+                      )}
+                      {localLoading ? 'Processing...' : 'Promote to Homepage (₹499)'}
+                    </button>
+                  )}
+                </div>
+
+                <div className="pt-4 border-t border-slate-900 grid grid-cols-1 md:grid-cols-2 gap-6">
+                   <div className={`p-4 rounded-2xl border transition-all ${formData.isPublic ? 'bg-sky-500/5 border-sky-500/20' : 'bg-slate-900 border-slate-800'}`}>
+                      <div className="flex items-center gap-3 mb-2">
+                        <Globe size={14} className={formData.isPublic ? 'text-sky-500' : 'text-slate-600'} />
+                        <span className="text-[10px] font-black text-white uppercase tracking-widest">Homepage Listing</span>
+                      </div>
+                      <p className="text-[9px] font-medium text-slate-500 leading-relaxed uppercase">
+                        {formData.isPublic 
+                          ? "This event is currently live on the Backstage homepage and search results." 
+                          : "This event is currently unlisted. It will NOT appear on the home page."}
+                      </p>
+                   </div>
+                   <div className="p-4 rounded-2xl border bg-emerald-500/5 border-emerald-500/20 group/link relative">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-3">
+                          <Link2 size={14} className="text-emerald-500" />
+                          <span className="text-[10px] font-black text-white uppercase tracking-widest">Direct Link Access</span>
+                        </div>
+                        {initialData?._id && (
+                          <button
+                            type="button"
+                            onClick={handleCopyLink}
+                            className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${copied ? 'bg-emerald-500 text-white' : 'bg-white/5 text-emerald-500 hover:bg-white/10 border border-emerald-500/20'}`}
+                          >
+                            {copied ? 'Copied!' : 'Copy Link'}
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-[9px] font-medium text-slate-500 leading-relaxed uppercase">
+                        Always active. You can share this event via link like a private Google Form even if unlisted.
+                      </p>
+                   </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
           {/* Handpicked Experiences Section */}
           <section className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-10 space-y-8 shadow-sm relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-violet-950/20 to-transparent pointer-events-none" />
@@ -546,7 +717,7 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
               <h3 className="text-[12px] font-black text-white uppercase tracking-[0.3em] flex items-center gap-3">
                 <Star className="text-violet-400" size={20} /> HANDPICKED EXPERIENCES
               </h3>
-              <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest bg-slate-950 px-3 py-1 rounded-full border border-slate-800">Section 03 — Featured</span>
+              <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest bg-slate-950 px-3 py-1 rounded-full border border-slate-800">Section 04 — Featured</span>
             </div>
 
             {/* Featured Toggle */}
@@ -665,8 +836,8 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                      <Star size={24} />
                   </div>
                   <div>
-                    <p className="text-[11px] font-black text-white uppercase tracking-widest">Enable Startup Registration</p>
-                    <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-1">Activate the internal \"Google Form\" for founders & pitch-decks</p>
+                    <p className="text-[11px] font-black text-white uppercase tracking-widest">Enable Dual-Track Registration</p>
+                    <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-1">Only activate if you need users to choose between two paths (e.g. Attendee vs Founder). Leave OFF for a single form.</p>
                   </div>
                 </div>
                 <div className="relative">
@@ -686,7 +857,7 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                 <div className="mt-8 p-8 bg-slate-950/50 border border-slate-800 rounded-3xl space-y-8 animate-in fade-in slide-in-from-top-4 duration-500">
                   <div className="flex items-center gap-3 mb-2">
                     <Zap className="text-emerald-500" size={18} />
-                    <h4 className="text-[10px] font-black text-white uppercase tracking-[0.2em]">Protocol Customization</h4>
+                    <h4 className="text-[10px] font-black text-white uppercase tracking-[0.2em]">Dual-Track Customization</h4>
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -796,7 +967,7 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                     }}
                     className="flex items-center gap-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] transition-all border border-emerald-500/20"
                   >
-                    <RefreshCw size={12} /> Load Startup Template
+                    <RefreshCw size={12} /> Load Dual-Track Startup Template
                   </button>
                   <button
                     type="button"

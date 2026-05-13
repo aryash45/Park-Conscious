@@ -1,10 +1,9 @@
 import dotenv from 'dotenv';
 dotenv.config();
+dotenv.config({ path: '.env.local', override: true });
 
 import express from 'express';
 import cors from 'cors';
-import { fileURLToPath } from 'url';
-import path from 'path';
 
 // Import our serverless handlers and wrap them for Express
 import eventsHandler from './api/events.js';

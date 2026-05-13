@@ -9,8 +9,12 @@
 import jwt from 'jsonwebtoken';
 import { parse, serialize } from 'cookie';
 import mongoose from 'mongoose';
+import crypto from 'crypto';
 
-const JWT_SECRET = process.env.JWT_SECRET || "fallback_secret_65271829";
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+    throw new Error("CRITICAL CONFIGURATION ERROR: JWT_SECRET must be defined in environment variables to secure sessions.");
+}
 
 export function normalizeEvent(evt) {
     if (!evt) return null;
@@ -65,6 +69,61 @@ export function normalizeEvent(evt) {
     };
     
     return e;
+}
+
+/**
+ * Prune event data for public listings to reduce payload size.
+ */
+export function pruneEvent(evt) {
+    if (!evt) return null;
+    const e = normalizeEvent(evt);
+    
+    // Keep only essential fields for the grid
+    return {
+        _id: e._id,
+        title: e.title,
+        name: e.name,
+        date: e.date,
+        image: e.image,
+        images: [e.image],
+        category: e.category,
+        price: e.price,
+        venue: e.venue,
+        venueCity: e.venueCity,
+        isFeatured: e.isFeatured,
+        status: e.status,
+        badge: e.badge,
+        accentColor: e.accentColor
+    };
+}
+
+/**
+ * Centralized Error Logger with Deduplication
+ */
+export async function logSystemError(source, type, message, stack, metadata = {}) {
+    try {
+        const { SystemLog } = await import('./models.js');
+        
+        // Generate a hash based on source and message to group identical errors
+        const hash = crypto.createHash('md5').update(`${source}:${message}`).digest('hex');
+        
+        // Atomic Upsert: Group identical unresolved errors
+        return await SystemLog.findOneAndUpdate(
+            { hash, resolved: false },
+            { 
+                $inc: { count: 1 }, 
+                $set: { 
+                    lastSeenAt: new Date(),
+                    source, type, message, stack,
+                    ...(Object.keys(metadata).length > 0 ? { metadata } : {})
+                } 
+            },
+            { upsert: true, new: true, runValidators: true }
+        );
+    } catch (e) {
+        console.error('[CRITICAL_LOGGER_FAILURE]:', e.message);
+        return null;
+    }
 }
 
 export const json = (res, status, data) => {
@@ -135,11 +194,11 @@ export const setCors = (req, res) => {
         'http://localhost:3000'
     ];
     const origin = req.headers.origin;
+    const allowedVercelHosts = (process.env.ALLOWED_VERCEL_HOSTS || '').split(',').map(h => h.trim()).filter(Boolean);
     const isAllowed = origin && (
-        allowed.some(a => origin.startsWith(a)) || 
+        allowed.includes(origin) || 
         origin.endsWith('.parkconscious.in') || 
-        origin.endsWith('.vercel.app') ||
-        origin.includes('localhost')
+        allowedVercelHosts.includes(origin)
     );
 
     if (isAllowed) {
