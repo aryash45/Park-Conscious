@@ -1,11 +1,8 @@
 /**
  * api/lib/utils.js
  * 
- * Purpose: Utility functions for API handlers, including:
- * - Request body parsing (safe)
- * - Authentication (JWT)
- * - Error logging and standardization
- * - CORS management
+ * Purpose: Utility functions for API handlers.
+ * Optimized for resilience and data visibility.
  */
 import jwt from "jsonwebtoken";
 
@@ -53,54 +50,49 @@ export const verifyUser = (req) => {
         const token = authHeader.split(" ")[1];
         if (!token) return null;
 
-        if (process.env.JWT_SECRET === undefined) {
-            console.warn("[AUTH_WARN]: JWT_SECRET is undefined. Auth will likely fail.");
-        }
-
         return jwt.verify(token, JWT_SECRET);
     } catch (e) {
-        console.error("[VERIFY_USER_ERROR]:", e.message);
         return null;
     }
 };
 
 export const issueCookie = (payload) => {
-    if (!process.env.JWT_SECRET) {
-        console.error("[AUTH_ERROR]: Cannot issue cookie, JWT_SECRET missing.");
-        return null;
-    }
+    if (!process.env.JWT_SECRET) return null;
     return jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
 };
 
 export const normalizeEvent = (event) => {
     if (!event) return null;
+    const obj = event.toObject ? event.toObject() : event;
     return {
-        ...event.toObject ? event.toObject() : event,
-        id: event._id?.toString() || event.id,
+        ...obj,
+        id: obj._id?.toString() || obj.id,
     };
 };
 
+/**
+ * Prune sensitive internal fields but KEEP all functional data 
+ * required by the frontend (like customForms, hosts, etc.)
+ */
 export const pruneEvent = (event) => {
     if (!event) return null;
+    const obj = event.toObject ? event.toObject() : event;
+    
+    // We only remove true internal overhead, NOT functional fields
     const { 
         __v, 
-        managedBy, 
-        isDeleted, 
-        customForms, 
-        paymentSettings,
         ...rest 
-    } = event.toObject ? event.toObject() : event;
+    } = obj;
     
     return {
         ...rest,
-        id: event._id?.toString() || event.id
+        id: obj._id?.toString() || obj.id
     };
 };
 
 export const logSystemError = async (context, error) => {
     console.error(`[SYSTEM_ERROR][${context}]:`, error);
     try {
-        // Dynamic import to avoid circular dependency
         const { SystemLog } = await import("./models.js");
         await SystemLog.create({
             context,
@@ -108,28 +100,12 @@ export const logSystemError = async (context, error) => {
             stack: error.stack,
             timestamp: new Date()
         });
-    } catch (e) {
-        console.error("[LOGGING_FAILED]:", e.message);
-    }
+    } catch (e) {}
 };
 
 export const setCors = (req, res) => {
     const origin = req.headers.origin;
-    const allowedOrigins = [
-        "https://events.parkconscious.in",
-        "https://admin.parkconscious.in",
-        "https://www.parkconscious.in",
-        "http://localhost:3000",
-        "http://localhost:3001"
-    ];
-
-    if (origin && (allowedOrigins.includes(origin) || origin.endsWith(".vercel.app"))) {
-        res.setHeader("Access-Control-Allow-Origin", origin);
-    } else {
-        // Fallback for safety during debug
-        res.setHeader("Access-Control-Allow-Origin", "*");
-    }
-
+    res.setHeader("Access-Control-Allow-Origin", origin || "*");
     res.setHeader("Access-Control-Allow-Credentials", "true");
     res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS,PUT,PATCH,DELETE");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");

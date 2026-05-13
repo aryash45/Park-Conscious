@@ -4,6 +4,7 @@
  * Main handler for event-related operations.
  * Proxied from events.parkconscious.in and admin.parkconscious.in
  */
+import mongoose from "mongoose";
 import connectDB from "./lib/mongodb.js";
 import * as models from "./lib/models.js";
 import { 
@@ -30,8 +31,8 @@ export default async function handler(req, res) {
     // 2. Health check (Priority)
     const fullUrl = req.url || "/";
     if (fullUrl.includes("/health")) {
-        const dbStatus = models.mongoose.connection.readyState;
-        const dbName = models.mongoose.connection.name;
+        const dbStatus = mongoose.connection.readyState;
+        const dbName = mongoose.connection.name;
         return json(res, { 
             status: "ONLINE", 
             timestamp: new Date().toISOString(),
