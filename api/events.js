@@ -78,7 +78,7 @@ export default async function handler(req, res) {
         // POST: Create or Update (Requires Auth)
         if (req.method === "POST") {
             const user = verifyUser(req);
-            if (!user) return json(res, { error: "Unauthorized" }, 401);
+            if (!user) return json(res, 401, { error: "Unauthorized" });
 
             const body = await getBody(req);
             
@@ -88,7 +88,7 @@ export default async function handler(req, res) {
                 const { default: Razorpay } = await import("razorpay");
                 
                 if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
-                    return json(res, { error: "Payment gateway misconfigured" }, 500);
+                    return json(res, 500, { error: "Payment gateway misconfigured" });
                 }
 
                 const rzp = new Razorpay({
@@ -102,15 +102,15 @@ export default async function handler(req, res) {
                     receipt: `receipt_${Date.now()}`,
                 });
 
-                return json(res, order);
+                return json(res, 200, order);
             }
 
             // Standard Event Create/Update logic...
             // (Placeholder for brevity, assuming standard CRUD)
-            return json(res, { message: "Action processed" });
+            return json(res, 200, { message: "Action processed" });
         }
 
-        return json(res, { error: "Method not allowed" }, 405);
+        return json(res, 405, { error: "Method not allowed" });
 
     } catch (error) {
         console.error("[FATAL_HANDLER_ERROR]:", error);
