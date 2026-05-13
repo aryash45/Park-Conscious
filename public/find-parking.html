@@ -109,16 +109,18 @@
           <button id="tab-bookings" class="flex-1 pb-2 border-b-2 border-transparent text-slate-500 hover:text-slate-800 font-medium text-sm transition-colors">My Bookings</button>
         </div>
 
-        <div class="flex items-center justify-between">
-          <div class="text-slate-500 text-sm"><strong id="results-count" class="text-slate-900 font-bold">0</strong> spots found</div>
+        <div class="flex flex-col gap-3 mt-1 w-full">
+          <div class="flex items-center justify-between">
+            <div class="text-slate-500 text-sm"><strong id="results-count" class="text-slate-900 font-bold">0</strong> spots</div>
+            <div class="text-[10px] text-[#00C39A] bg-[#00C39A]/10 px-2 py-1 rounded font-bold uppercase tracking-wider flex items-center gap-1 shadow-sm border border-[#00C39A]/20">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              <span id="drive-time-display">10 min drive</span>
+            </div>
+          </div>
           <div class="flex items-center gap-2">
-            <label class="text-xs text-slate-400 uppercase tracking-wider font-bold">Radius</label>
-            <select id="radius-select" class="bg-white text-slate-700 text-sm border border-slate-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[#00C39A] focus:border-[#00C39A] shadow-sm">
-              <option value="1">1 km</option>
-              <option value="3" selected>3 km</option>
-              <option value="5">5 km</option>
-              <option value="10">10 km</option>
-            </select>
+            <span class="text-xs text-slate-400 font-bold">5m</span>
+            <input type="range" id="drive-time-slider" min="5" max="30" step="5" value="10" class="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#00C39A]">
+            <span class="text-xs text-slate-400 font-bold">30m</span>
           </div>
         </div>
       </div>
@@ -143,7 +145,7 @@
   <script>
     function loadGoogleMaps() {
       const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${window.PARK_CONFIG.MAPS_KEY}&libraries=places&callback=initMap`;
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${window.PARK_CONFIG.MAPS_KEY}&libraries=places,geometry&callback=initMap`;
       script.async = true;
       script.defer = true;
       document.head.appendChild(script);

@@ -1,0 +1,11 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Disallow: /backend/
+Disallow: /api/
+Disallow: /AdminPanel/
+Disallow: /Events/
+Disallow: /owner/dashboard.html
+Disallow: /owner/add-parking.html
+Disallow: /owner/logs.html
+
+Sitemap: https://parkconscious.in/sitemap.xml

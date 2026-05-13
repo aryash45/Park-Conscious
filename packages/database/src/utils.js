@@ -13,7 +13,7 @@ import crypto from 'crypto';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
-    throw new Error("CRITICAL CONFIGURATION ERROR: JWT_SECRET must be defined in environment variables to secure sessions.");
+    console.error('[FATAL]: JWT_SECRET is not defined in the environment. Authentication will fail.');
 }
 
 export function normalizeEvent(evt) {
@@ -107,19 +107,20 @@ export async function logSystemError(source, type, message, stack, metadata = {}
         // Generate a hash based on source and message to group identical errors
         const hash = crypto.createHash('md5').update(`${source}:${message}`).digest('hex');
         
-        // Atomic Upsert: Group identical unresolved errors
-        return await SystemLog.findOneAndUpdate(
-            { hash, resolved: false },
-            { 
-                $inc: { count: 1 }, 
-                $set: { 
-                    lastSeenAt: new Date(),
-                    source, type, message, stack,
-                    ...(Object.keys(metadata).length > 0 ? { metadata } : {})
-                } 
-            },
-            { upsert: true, new: true, runValidators: true }
-        );
+        // Check for an existing unresolved log with this hash
+        const existing = await SystemLog.findOne({ hash, resolved: false });
+        
+        if (existing) {
+            existing.count += 1;
+            existing.lastSeenAt = new Date();
+            if (metadata) existing.metadata = { ...existing.metadata, ...metadata };
+            await existing.save();
+            return existing;
+        }
+        
+        return await SystemLog.create({
+            source, type, message, stack, hash, metadata
+        });
     } catch (e) {
         console.error('[CRITICAL_LOGGER_FAILURE]:', e.message);
         return null;
@@ -151,13 +152,17 @@ export const verifyUser = (req) => {
         }
     }
 
-    if (!token) return null;
+    if (!token || !JWT_SECRET) return null;
     try { return jwt.verify(token, JWT_SECRET); } catch(e) { return null; }
 };
 
 export const issueCookie = (req, res, u) => {
     const host = req.headers.host || '';
     
+    if (!JWT_SECRET) {
+        throw new Error('JWT_SECRET_MISSING');
+    }
+
     // Core payload stabilization: Ensure both id and uid exist
     const payload = { 
         ...u, 
@@ -194,12 +199,9 @@ export const setCors = (req, res) => {
         'http://localhost:3000'
     ];
     const origin = req.headers.origin;
-    const allowedVercelHosts = (process.env.ALLOWED_VERCEL_HOSTS || '').split(',').map(h => h.trim()).filter(Boolean);
-    const isAllowed = origin && (
-        allowed.includes(origin) || 
-        origin.endsWith('.parkconscious.in') || 
-        allowedVercelHosts.includes(origin)
-    );
+    
+    // Security: Only allow origins explicitly listed in the 'allowed' array
+    const isAllowed = origin && allowed.includes(origin);
 
     if (isAllowed) {
         res.setHeader('Access-Control-Allow-Origin', origin);

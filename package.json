@@ -1,24 +1,25 @@
 {
   "name": "park-conscious",
   "version": "1.0.0",
+  "packageManager": "npm@10.2.4",
   "type": "module",
   "workspaces": [
     "apps/events",
-    "apps/admin"
+    "apps/admin",
+    "apps/api"
   ],
   "scripts": {
-    "start": "npm start --workspace=apps/events",
-    "dev": "concurrently \"npm run dev:backend\" \"npm start\" \"npm run dev:admin\"",
-    "dev:admin": "npm run dev --workspace=apps/admin",
-    "build": "mkdir -p public && cp web/*.html web/favicon.ico web/favicon.png web/sitemap.xml web/robots.txt public/ 2>/dev/null || true && cp -r web/assets web/scripts web/styles public/ 2>/dev/null || true && cp -r web/owner public/ 2>/dev/null || true && node -e \"const fs=require('fs'); const fn='public/scripts/config.js'; let c=fs.readFileSync(fn,'utf8'); c=c.replace('__MAPS_API_KEY__', process.env.GOOGLE_MAPS_API_KEY || '').replace('__ROUTING_API_URL__', process.env.ROUTING_API_URL || 'http://localhost:8000'); fs.writeFileSync(fn, c);\" && DISABLE_ESLINT_PLUGIN=true npm run build --workspaces",
-    "lint": "npm run lint --workspaces --if-present",
+    "dev": "turbo dev",
+    "build": "mkdir -p public && cp web/*.html web/favicon.ico web/favicon.png web/sitemap.xml web/robots.txt public/ 2>/dev/null || true && cp -r web/assets web/scripts web/styles public/ 2>/dev/null || true && cp -r web/owner public/ 2>/dev/null || true && node -e \"const fs=require('fs'); const fn='public/scripts/config.js'; let c=fs.readFileSync(fn,'utf8'); c=c.replace('__MAPS_API_KEY__', process.env.GOOGLE_MAPS_API_KEY || '').replace('__ROUTING_API_URL__', process.env.ROUTING_API_URL || 'http://localhost:8000'); fs.writeFileSync(fn, c);\" && turbo build",
+    "lint": "turbo lint",
     "dev:backend": "node --watch local-server.js",
-    "test:events": "npm run test:vitest --workspace=apps/events"
+    "test:events": "turbo test --filter=@parkconscious/events"
   },
   "devDependencies": {
     "babel-preset-react-app": "^10.0.1",
     "concurrently": "^9.2.1",
-    "eslint-config-react-app": "^7.0.1"
+    "eslint-config-react-app": "^7.0.1",
+    "turbo": "^2.9.12"
   },
   "dependencies": {
     "axios": "^1.14.0",
@@ -29,6 +30,8 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.1",
     "express": "^5.2.1",
+    "google-auth-library": "^10.6.2",
+    "ioredis": "^5.10.1",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "8.10.1",
     "nodemailer": "^8.0.7",

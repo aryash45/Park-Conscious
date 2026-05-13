@@ -23,3 +23,5 @@ yarn-error.log*
 # Dependencies
 node_modules/
 **/node_modules/
+.turbo/
+.agent/

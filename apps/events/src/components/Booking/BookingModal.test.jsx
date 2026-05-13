@@ -1,9 +1,10 @@
-import { describe, it, expect, vi } from 'vitest';
+// describe, it, expect are Jest globals via react-scripts - no import needed
+// jest.mock replaces vi.mock in this environment
 
 // 1. MOCK ALL HEAVY LIBRARIES to prevent OOM
 // We mock them as empty objects/functions because we only care about 
 // the component's internal logic and variable resolution for this smoke test.
-vi.mock('lucide-react', () => ({
+jest.mock('lucide-react', () => ({
   X: () => null, CheckCircle2: () => null, AlertCircle: () => null,
   Loader2: () => null, CreditCard: () => null, User: () => null,
   Mail: () => null, Phone: () => null, ShieldCheck: () => null,
@@ -12,25 +13,25 @@ vi.mock('lucide-react', () => ({
   ExternalLink: () => null,
 }));
 
-vi.mock('@headlessui/react', () => ({
+jest.mock('@headlessui/react', () => ({
   Dialog: ({ children }) => children,
   Transition: ({ children }) => children,
   Fragment: ({ children }) => children,
 }));
 
-vi.mock('../../context/DiscussionAuth.context', () => ({
+jest.mock('../../context/DiscussionAuth.context', () => ({
   useAuth: () => ({ user: {}, isLoggedIn: true }),
 }));
 
-vi.mock('../../axios', () => ({
+jest.mock('../../axios', () => ({
   backendAxios: {},
 }));
 
-vi.mock('../../utils/cloudinary', () => ({
+jest.mock('../../utils/cloudinary', () => ({
   uploadToCloudinary: () => {},
 }));
 
-vi.mock('../../utils/monitoring', () => ({
+jest.mock('../../utils/monitoring', () => ({
   reportSystemError: () => {},
 }));
 

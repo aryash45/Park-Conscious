@@ -1,3 +1,9 @@
 window.PARK_CONFIG = {
-    MAPS_KEY: "AIzaSyAbGNHEFN2Ta57Gz_5YB4w8ZDbuw6OVgRk"
+    MAPS_KEY: "",
+    MAPBOX_KEY: "", // Optional secondary fallback
+    ROUTING_API_URL: "http://localhost:8000",
+    getDmieUrl: function() {
+        // Pointing to production by default so local testing works without the Python engine
+        return "https://dmie.parkconscious.in/api/v1";
+    }
 };
