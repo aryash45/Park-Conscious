@@ -31,7 +31,6 @@ async function connectToDatabase() {
   if (!cached.promise) {
     const opts = {
       bufferCommands: false,
-      dbName: 'backstage_events', // Always use the primary database globally
     };
 
     console.log(`[MONGODB] Connecting to primary database: backstage_events`);
