@@ -206,10 +206,10 @@ export default async function handler(req, res) {
                     console.log(`[REDIS] CACHE MISS: ${cacheKey}. Fetching from MongoDB...`);
                     const featuredList = await Event.find({ 
                         isFeatured: true, 
-                        $or: [{ isPublic: true }, { isPublic: { $exists: false } }], 
                         status: { $in: ['published', 'Published'] }
                     }).sort({ createdAt: -1 }).lean();
                     
+                    console.log(`[EVENT API] Found ${featuredList.length} featured events`);
                     const result = featuredList.map(pruneEvent);
                     await setCache(cacheKey, result, 300); // 5 mins cache
                     res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=86400');
@@ -226,9 +226,10 @@ export default async function handler(req, res) {
 
                 console.log(`[REDIS] CACHE MISS: ${cacheKey}. Fetching from MongoDB...`);
                 const evts = await Event.find({ 
-                    status: { $in: ['published', 'Published'] },
-                    $or: [{ isPublic: true }, { isPublic: { $exists: false } }]
+                    status: { $in: ['published', 'Published'] }
                 }).sort({ date: 1 }).lean();
+                
+                console.log(`[EVENT API] Found ${evts.length} public events`);
                 
                 const result = evts.map(pruneEvent);
                 await setCache(cacheKey, result, 300); // 5 mins cache
