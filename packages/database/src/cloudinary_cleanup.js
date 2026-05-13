@@ -37,10 +37,22 @@ export const purgeEventAssets = async (eventId) => {
 
 function extractPublicId(url) {
     try {
-        // Simple regex to get public ID from Cloudinary URL
-        const parts = url.split('/');
-        const lastPart = parts[parts.length - 1];
-        return lastPart.split('.')[0];
+        if (!url || !url.includes('/upload/')) return null;
+        
+        // Cloudinary URL structure: .../upload/v12345678/folder/subfolder/public_id.jpg
+        // We need everything after the version (v...) or after /upload/
+        const parts = url.split('/upload/');
+        if (parts.length < 2) return null;
+        
+        const afterUpload = parts[1];
+        const segments = afterUpload.split('/');
+        
+        // Remove the version segment if it exists (starts with 'v' followed by digits)
+        const pathSegments = segments[0].match(/^v\d+$/) ? segments.slice(1) : segments;
+        
+        // Join segments and remove file extension
+        const fullPath = pathSegments.join('/');
+        return fullPath.split('.')[0];
     } catch (e) {
         return null;
     }

@@ -15,6 +15,11 @@ export async function handleParking(url, method, body, user, res) {
         const parts = url.split('/');
         const ownerId = parts[parts.indexOf('owner') + 1];
 
+        // Security: Enforce ownership or admin role
+        if (!user || (user.role !== 'superadmin' && user.role !== 'admin' && String(user.id) !== ownerId)) {
+            return json(res, 403, { message: 'Access Denied: You can only view your own dashboard' });
+        }
+
         const parkings = await Parking.find({ owner: ownerId }).lean();
         const parkingIds = parkings.map(p => String(p._id));
 
@@ -35,6 +40,11 @@ export async function handleParking(url, method, body, user, res) {
         const parts = url.split('/');
         const ownerId = parts[parts.indexOf('owner') + 1];
 
+        // Security: Enforce ownership or admin role
+        if (!user || (user.role !== 'superadmin' && user.role !== 'admin' && String(user.id) !== ownerId)) {
+            return json(res, 403, { message: 'Access Denied: You can only view your own logs' });
+        }
+
         const parkings = await Parking.find({ owner: ownerId }).lean();
         const parkingIds = parkings.map(p => String(p._id));
 
@@ -46,10 +56,13 @@ export async function handleParking(url, method, body, user, res) {
 
     // -- Parking Management (Admin/Owner) --
     if (url.includes('/owner/') && url.includes('/parkings')) {
-         if (!user) return json(res, 401, { message: 'Auth required' });
-         
          const parts = url.split('/');
          const ownerId = parts[parts.indexOf('owner') + 1];
+
+         // Security: Enforce ownership or admin role
+         if (!user || (user.role !== 'superadmin' && user.role !== 'admin' && String(user.id) !== ownerId)) {
+             return json(res, 403, { message: 'Access Denied: Administrative privileges required' });
+         }
          
          if (method === 'GET') return json(res, 200, await Parking.find({ owner: ownerId }).lean());
          if (method === 'POST') {

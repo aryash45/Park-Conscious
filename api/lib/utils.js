@@ -11,7 +11,10 @@ import { parse, serialize } from 'cookie';
 import mongoose from 'mongoose';
 import crypto from 'crypto';
 
-const JWT_SECRET = process.env.JWT_SECRET || "fallback_secret_65271829";
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+    console.error("[CRITICAL]: JWT_SECRET is not defined in environment variables. Auth will fail.");
+}
 
 export function normalizeEvent(evt) {
     if (!evt) return null;
@@ -193,10 +196,9 @@ export const setCors = (req, res) => {
     ];
     const origin = req.headers.origin;
     const isAllowed = origin && (
-        allowed.some(a => origin.startsWith(a)) || 
+        allowed.includes(origin) || 
         origin.endsWith('.parkconscious.in') || 
-        origin.endsWith('.vercel.app') ||
-        origin.includes('localhost')
+        origin.endsWith('.vercel.app')
     );
 
     if (isAllowed) {

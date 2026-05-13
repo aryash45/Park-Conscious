@@ -216,7 +216,8 @@ export const sendTicketEmail = async (to, userName, eventName, qrCodeUrl, prefer
     try {
         const urlObj = new URL(qrCodeUrl);
         if (urlObj.protocol === 'https:' || urlObj.protocol === 'http:') {
-            safeQrUrl = qrCodeUrl;
+            // Canonicalize and escape to prevent attribute injection
+            safeQrUrl = escapeHtml(urlObj.toString());
         }
     } catch (e) {
         console.warn('[EMAIL] Invalid QR URL provided:', qrCodeUrl);

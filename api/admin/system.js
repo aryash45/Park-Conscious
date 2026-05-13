@@ -55,7 +55,8 @@ export async function handleSystem(url, method, body, user, req, res) {
 
     // -- System Status Audit (Admin Only or Cron) --
     if (url.includes('system-status') && method === 'GET') {
-        const isCron = req.headers['x-cron-secret'] === process.env.CRON_SECRET;
+        const cronSecret = process.env.CRON_SECRET;
+        const isCron = cronSecret && req.headers['x-cron-secret'] === cronSecret;
         if (!isCron && (!user || (user.role !== 'superadmin' && user.role !== 'admin'))) {
             return json(res, 403, { message: 'Access Denied' });
         }

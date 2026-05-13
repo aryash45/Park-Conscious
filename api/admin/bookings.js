@@ -109,6 +109,8 @@ export async function handleBookings(url, method, body, user, res) {
         const eventMap = {};
         eventsList.forEach(e => eventMap[String(e._id)] = e.displayTitle || e.title);
 
+        const esc = (s) => String(s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+
         const emailsToSend = [];
         for (let b of bookings) {
             if (!b.email) continue;
@@ -128,14 +130,14 @@ export async function handleBookings(url, method, body, user, res) {
                html: `
                   <div style="font-family: 'Outfit', sans-serif; max-width: 600px; margin: 0 auto; background-color: #050507; color: #ffffff; padding: 60px 40px; border-radius: 40px; text-align: center; border: 1px solid rgba(255,255,255,0.05);">
                      <h1 style="color: #ffffff; margin: 0 0 12px 0; font-size: 32px; font-weight: 900; text-transform: uppercase;">YOUR TICKET IS READY</h1>
-                     <p style="color: #64748b; margin-bottom: 40px;">Hi ${bName}, see you at ${eventName}!</p>
+                     <p style="color: #64748b; margin-bottom: 40px;">Hi ${esc(bName)}, see you at ${esc(eventName)}!</p>
                      <div style="background-color: #ffffff; padding: 30px; border-radius: 30px; display: inline-block; margin-bottom: 40px;">
                         <img src="${qrUrl}" alt="QR" width="220" height="220" style="display: block; border-radius: 12px;" />
                      </div>
                      <div style="background-color: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 30px; border-radius: 24px; text-align: left;">
-                        <p style="color: #ffffff; font-size: 18px; font-weight: 800; margin: 0;">${bName}</p>
-                        <p style="color: #6366f1; font-size: 18px; font-weight: 800; margin: 0;">${eventName}</p>
-                        <p style="color: #ffffff; font-family: monospace; font-size: 20px; font-weight: 900; margin: 0;">#${ticketNumber}</p>
+                        <p style="color: #ffffff; font-size: 18px; font-weight: 800; margin: 0;">${esc(bName)}</p>
+                        <p style="color: #6366f1; font-size: 18px; font-weight: 800; margin: 0;">${esc(eventName)}</p>
+                        <p style="color: #ffffff; font-family: monospace; font-size: 20px; font-weight: 900; margin: 0;">#${esc(ticketNumber)}</p>
                      </div>
                   </div>
                `

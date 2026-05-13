@@ -87,9 +87,24 @@ export default async function handler(req, res) {
 
         // -- Google Auth --
         if (url.includes('/google') && method === 'POST') {
-            const { email, name, googleId, picture } = body;
-            if (!email) return json(res, 400, { message: 'Email required for Google Auth' });
+            const { credential } = body;
+            if (!credential) return json(res, 400, { message: 'Credential (ID Token) required' });
             
+            let payload;
+            try {
+                const { OAuth2Client } = await import('google-auth-library');
+                const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || "226356760349-2i4fuvevqqfqanehgjedcavlngurvlug.apps.googleusercontent.com");
+                const ticket = await client.verifyIdToken({
+                    idToken: credential,
+                    audience: process.env.GOOGLE_CLIENT_ID || "226356760349-2i4fuvevqqfqanehgjedcavlngurvlug.apps.googleusercontent.com"
+                });
+                payload = ticket.getPayload();
+            } catch (err) {
+                console.error('[GOOGLE_VERIFY_ERROR]:', err.message);
+                return json(res, 401, { message: 'Invalid Google Credential' });
+            }
+
+            const { email, name, sub: googleId, picture } = payload;
             const search = email.toLowerCase();
             
             // Step 1: Try Primary
@@ -124,7 +139,7 @@ export default async function handler(req, res) {
                     u.googleId = googleId;
                     changed = true;
                 }
-                // Unconditional name sync - force "Piyush" over placeholder names
+                // Unconditional name sync
                 if (u.name !== name) {
                     u.name = name;
                     changed = true;
@@ -140,7 +155,7 @@ export default async function handler(req, res) {
             // Sync identity to Park Conscious database in the background
             await syncIdentity(u, isOwner);
 
-            const payload = { 
+            const userPayload = { 
                 id: String(u._id), 
                 uid: String(u._id), 
                 name: u.name, 
@@ -148,8 +163,8 @@ export default async function handler(req, res) {
                 picture: u.picture || "",
                 role: isOwner ? (u.role || 'organizer').toLowerCase() : 'user' 
             };
-            const token = issueCookie(req, res, payload);
-            return json(res, 200, { user: payload, token, message: 'Logged in with Google' });
+            const token = issueCookie(req, res, userPayload);
+            return json(res, 200, { user: userPayload, token, message: 'Logged in with Google (Verified)' });
         }
 
         // -- Session Check --
