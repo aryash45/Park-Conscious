@@ -36,11 +36,13 @@ export default async function handler(req, res) {
         return json(res, 200, { 
             status: "ONLINE", 
             timestamp: new Date().toISOString(),
-            env: process.env.VERCEL_ENV || "development",
+            env: process.env.VERCEL_ENV || "production",
             database: {
                 connected: dbStatus === 1,
                 name: dbName || "none",
-                status: ["disconnected", "connected", "connecting", "disconnecting"][dbStatus]
+                uri_found: !!process.env.MONGODB_URI,
+                // Show only the database part of the URI for security
+                target_db: process.env.MONGODB_URI ? process.env.MONGODB_URI.split('/').pop().split('?')[0] : 'missing'
             }
         });
     }
