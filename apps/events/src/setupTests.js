@@ -1,4 +1,6 @@
-// src/setupTests.js (extended)
+// Extends Jest's expect with DOM matchers like toBeInTheDocument(), toBeVisible(), etc.
+import '@testing-library/jest-dom';
+
 // Polyfill window.matchMedia for libraries like react-slick that require it
 if (typeof window.matchMedia !== 'function') {
   Object.defineProperty(window, 'matchMedia', {
