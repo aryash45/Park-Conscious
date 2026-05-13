@@ -103,7 +103,7 @@ export default async function handler(req, res) {
                 if (params.get('featured') === 'true') {
                     const featuredList = await Event.find({ 
                         isFeatured: true, 
-                        status: { $in: ['published', 'Published'] }
+                        status: { $in: ['published', 'Published'] }, $or: [{ isPublic: true }, { isPublic: { $exists: false } }]
                     }).sort({ createdAt: -1 }).lean();
                     res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=86400');
                     return json(res, 200, featuredList.map(normalizeEvent));
@@ -111,7 +111,7 @@ export default async function handler(req, res) {
 
                 // Public: fetch published events
                 const evts = await Event.find({ 
-                    status: { $in: ['published', 'Published'] }
+                    status: { $in: ['published', 'Published'] }, $or: [{ isPublic: true }, { isPublic: { $exists: false } }]
                 }).sort({ date: 1 }).lean();
                 res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=86400');
                 return json(res, 200, evts.map(normalizeEvent));
