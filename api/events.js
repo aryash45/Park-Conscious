@@ -33,7 +33,7 @@ export default async function handler(req, res) {
     if (fullUrl.includes("/health")) {
         const dbStatus = mongoose.connection.readyState;
         const dbName = mongoose.connection.name;
-        return json(res, { 
+        return json(res, 200, { 
             status: "ONLINE", 
             timestamp: new Date().toISOString(),
             env: process.env.VERCEL_ENV || "development",
@@ -48,37 +48,44 @@ export default async function handler(req, res) {
     // 3. Main Logic wrapper
     try {
         await connectDB();
-        const { Event } = models;
+        const { Event, Discussion } = models;
 
-        // GET: Fetch Events
+        // GET: List or Single Event
         if (req.method === "GET") {
-            const { id, slug, type } = req.query;
+            const url = new URL(req.url, `http://${req.headers.host}`);
+            const eventId = url.searchParams.get("id");
 
-            // Single Event by ID or Slug
-            if (id || slug) {
-                const query = id ? { _id: id } : { slug };
-                const event = await Event.findOne(query);
-                if (!event) return json(res, { error: "Event not found" }, 404);
-                
-                // Prune sensitive data for public view
-                return json(res, pruneEvent(event));
+            if (eventId) {
+                // Try cache first
+                const cached = await getCache(`event:${eventId}`);
+                if (cached) return json(res, 200, cached);
+
+                const event = await Event.findById(eventId);
+                if (!event) {
+                    return json(res, 404, { error: "Event not found" });
+                }
+
+                const data = pruneEvent(event);
+                await setCache(`event:${eventId}`, data, 300); // 5 min cache
+                return json(res, 200, data);
             }
 
-            // List Events
-            // Relaxed filters for visibility restoration
-            const filter = { isDeleted: { $ne: true } };
+            // List Filtered Events
+            const filter = { status: "active" };
+            const type = url.searchParams.get("type");
+            if (type) filter.type = type;
             
             const events = await Event.find(filter)
                 .sort({ startDate: 1 })
                 .limit(50);
 
-            return json(res, events.map(pruneEvent));
+            return json(res, 200, events.map(pruneEvent));
         }
 
         // POST: Create or Update (Requires Auth)
         if (req.method === "POST") {
             const user = verifyUser(req);
-            if (!user) return json(res, { error: "Unauthorized" }, 401);
+            if (!user) return json(res, 401, { error: "Unauthorized" });
 
             const body = await getBody(req);
             
@@ -88,7 +95,7 @@ export default async function handler(req, res) {
                 const { default: Razorpay } = await import("razorpay");
                 
                 if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
-                    return json(res, { error: "Payment gateway misconfigured" }, 500);
+                    return json(res, 500, { error: "Payment gateway misconfigured" });
                 }
 
                 const rzp = new Razorpay({
@@ -102,25 +109,25 @@ export default async function handler(req, res) {
                     receipt: `receipt_${Date.now()}`,
                 });
 
-                return json(res, order);
+                return json(res, 200, order);
             }
 
             // Standard Event Create/Update logic...
             // (Placeholder for brevity, assuming standard CRUD)
-            return json(res, { message: "Action processed" });
+            return json(res, 200, { message: "Action processed" });
         }
 
-        return json(res, { error: "Method not allowed" }, 405);
+        return json(res, 405, { error: "Method not allowed" });
 
     } catch (error) {
         console.error("[FATAL_HANDLER_ERROR]:", error);
         await logSystemError("API_EVENTS_HANDLER", error);
         
-        return json(res, { 
+        return json(res, 500, { 
             error: "Internal Server Error", 
             message: error.message,
             code: error.code || "UNKNOWN_CRASH",
-            hint: "Check server logs for stack trace"
-        }, 500);
+            status: "CRASHED"
+        });
     }
 }
