@@ -33,7 +33,7 @@ export default async function handler(req, res) {
     if (fullUrl.includes("/health")) {
         const dbStatus = mongoose.connection.readyState;
         const dbName = mongoose.connection.name;
-        return json(res, { 
+        return json(res, 200, { 
             status: "ONLINE", 
             timestamp: new Date().toISOString(),
             env: process.env.VERCEL_ENV || "development",
