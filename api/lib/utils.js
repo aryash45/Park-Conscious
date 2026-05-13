@@ -8,10 +8,14 @@ import jwt from "jsonwebtoken";
 
 const JWT_SECRET = process.env.JWT_SECRET || "fallback_secret_not_for_prod";
 
-export const json = (res, data, status = 200) => {
+/**
+ * Standard JSON response utility.
+ * Signature matches existing codebase: (res, status, data)
+ */
+export const json = (res, status, data) => {
     res.setHeader("Content-Type", "application/json");
-    res.statusCode = status;
-    res.end(JSON.stringify(data));
+    res.statusCode = status || 200;
+    res.end(JSON.stringify(data || {}));
 };
 
 export const getBody = async (req) => {
