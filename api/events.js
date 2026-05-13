@@ -30,10 +30,17 @@ export default async function handler(req, res) {
     // 2. Health check (Priority)
     const fullUrl = req.url || "/";
     if (fullUrl.includes("/health")) {
+        const dbStatus = models.mongoose.connection.readyState;
+        const dbName = models.mongoose.connection.name;
         return json(res, { 
             status: "ONLINE", 
             timestamp: new Date().toISOString(),
-            env: process.env.VERCEL_ENV || "development"
+            env: process.env.VERCEL_ENV || "development",
+            database: {
+                connected: dbStatus === 1,
+                name: dbName || "none",
+                status: ["disconnected", "connected", "connecting", "disconnecting"][dbStatus]
+            }
         });
     }
 
