@@ -13,7 +13,7 @@ import crypto from 'crypto';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
-    throw new Error("CRITICAL CONFIGURATION ERROR: JWT_SECRET must be defined in environment variables to secure sessions.");
+    console.error("CRITICAL CONFIGURATION WARNING: JWT_SECRET is not defined. Sessions and authentication will fail.");
 }
 
 export function normalizeEvent(evt) {

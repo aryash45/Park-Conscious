@@ -206,7 +206,7 @@ export default async function handler(req, res) {
                     console.log(`[REDIS] CACHE MISS: ${cacheKey}. Fetching from MongoDB...`);
                     const featuredList = await Event.find({ 
                         isFeatured: true, 
-                        isPublic: true, 
+                        $or: [{ isPublic: true }, { isPublic: { $exists: false } }], 
                         status: { $in: ['published', 'Published'] }
                     }).sort({ createdAt: -1 }).lean();
                     
@@ -227,7 +227,7 @@ export default async function handler(req, res) {
                 console.log(`[REDIS] CACHE MISS: ${cacheKey}. Fetching from MongoDB...`);
                 const evts = await Event.find({ 
                     status: { $in: ['published', 'Published'] },
-                    isPublic: true // Must be explicitly true
+                    $or: [{ isPublic: true }, { isPublic: { $exists: false } }]
                 }).sort({ date: 1 }).lean();
                 
                 const result = evts.map(pruneEvent);

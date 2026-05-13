@@ -12,6 +12,24 @@ import authHandler from './api/auth.js';
 import adminHandler from './api/admin.js';
 import contactHandler from './api/contact.js';
 
+// BullMQ & Monitoring
+import { createBullBoard } from '@bull-board/api';
+import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
+import { ExpressAdapter } from '@bull-board/express';
+import { ticketQueue } from './api/lib/queue.js';
+import { initWorker } from './api/lib/worker.js';
+
+const serverAdapter = new ExpressAdapter();
+serverAdapter.setBasePath('/api/admin/queues');
+
+createBullBoard({
+    queues: ticketQueue ? [new BullMQAdapter(ticketQueue)] : [],
+    serverAdapter: serverAdapter,
+});
+
+// Start Background Worker
+initWorker();
+
 const app = express();
 
 // Request Logger
@@ -24,6 +42,9 @@ app.use(cors({
     origin: true, // Allow all origins for local mobile development
     credentials: true
 }));
+
+// Monitoring Dashboard (Mounted BEFORE raw body parser to avoid issues)
+app.use('/api/admin/queues', serverAdapter.getRouter());
 
 // Use express.raw so getBody() inside our serverless handlers works properly (it expects a stream/buffer)
 app.use(express.raw({ type: '*/*', limit: '50mb' }));

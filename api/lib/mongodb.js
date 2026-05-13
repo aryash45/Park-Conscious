@@ -33,8 +33,11 @@ async function connectToDatabase() {
       bufferCommands: false,
     };
 
-    console.log(`[MONGODB] Connecting to primary database: backstage_events`);
-    cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
+    console.log(`[MONGODB] Connecting to primary database: park-conscious`);
+    cached.promise = mongoose.connect(MONGODB_URI, {
+      ...opts,
+      dbName: 'park-conscious'
+    }).then((mongoose) => {
       return mongoose;
     });
   }
