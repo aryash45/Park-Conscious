@@ -72,7 +72,7 @@ export default async function handler(req, res) {
                 .sort({ startDate: 1 })
                 .limit(50);
 
-            return json(res, events.map(pruneEvent));
+            return json(res, 200, events.map(pruneEvent));
         }
 
         // POST: Create or Update (Requires Auth)
@@ -116,7 +116,7 @@ export default async function handler(req, res) {
         console.error("[FATAL_HANDLER_ERROR]:", error);
         await logSystemError("API_EVENTS_HANDLER", error);
         
-        return json(res, { 
+        return json(res, 500, { 
             error: "Internal Server Error", 
             message: error.message,
             code: error.code || "UNKNOWN_CRASH",
