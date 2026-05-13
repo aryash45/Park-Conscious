@@ -13,11 +13,20 @@
         "MSG91_FROM_EMAIL",
         "MSG91_DOMAIN",
         "MSG91_AUTH_KEY",
+        "MSG91_OTP_TEMPLATE_ID",
         "REACT_APP_API_BASE_URL",
         "REACT_APP_GOOGLE_CLIENT_ID",
         "REACT_APP_OPENCAGE_API_KEY",
         "REACT_APP_CLOUDINARY_CLOUD_NAME",
-        "REACT_APP_CLOUDINARY_UPLOAD_PRESET"
+        "REACT_APP_CLOUDINARY_UPLOAD_PRESET",
+        "RAZORPAY_KEY_ID",
+        "RAZORPAY_KEY_SECRET",
+        "GOOGLE_MAPS_API_KEY",
+        "CLOUDINARY_URL",
+        "CRON_SECRET",
+        "ROUTING_API_URL",
+        "ALLOWED_VERCEL_HOSTS",
+        "PORT"
       ]
     },
     "dev": {
