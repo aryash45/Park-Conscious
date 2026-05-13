@@ -125,7 +125,26 @@
     ::-webkit-scrollbar-thumb:hover {
       background: var(--slate-400);
     }
+    
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in-up {
+      animation: fadeInUp 0.4s ease-out forwards;
+    }
   </style>
+  <!-- Microsoft Clarity for Heatmap and Analytics -->
+  <script type="text/javascript">
+      (function(c,l,a,r,i,t,y){
+          c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+          t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+          y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+      })(window, document, "clarity", "script", "wh7xcac07l");
+  </script>
+  
+  <!-- System Error Monitoring -->
+  <script src="./scripts/error-handler.js"></script>
 </head>
 
   <body class="bg-white text-slate-900 selection:bg-teal-100 selection:text-teal-900">
@@ -230,6 +249,83 @@
               Owner Dashboard
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Smart Route Demo Section -->
+  <section class="py-12 bg-white relative z-20">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="backdrop-blur-xl bg-slate-50/80 border border-slate-200/60 rounded-3xl p-8 sm:p-12 flex flex-col md:flex-row gap-10 items-center shadow-lg shadow-slate-200/50 relative overflow-hidden" data-aos="fade-up">
+        <!-- Background Decorative Elements -->
+        <div class="absolute -top-24 -left-24 w-64 h-64 bg-emerald-400/10 blur-[80px] rounded-full pointer-events-none"></div>
+        <div class="absolute inset-0 w-full h-full opacity-20 pointer-events-none z-0">
+            <svg width="100%" height="100%" viewBox="0 0 1000 300" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M 0,200 C 200,50 400,350 600,150 C 800,0 1000,250 1000,200" stroke="#00C39A" stroke-width="2" fill="transparent" />
+            </svg>
+        </div>
+        
+        <!-- Context Side -->
+        <div class="flex-1 relative z-10 p-8 md:p-10 rounded-3xl bg-white/40 backdrop-blur-lg border border-white/60 shadow-[0_8px_32px_rgba(0,0,0,0.04)]">
+            <h2 class="text-3xl md:text-5xl font-black text-slate-900 mb-6 leading-[1.1] tracking-tight">
+              Move smarter.<br>
+              <span class="text-[#00C39A] drop-shadow-[0_0_20px_rgba(0,195,154,0.3)]">Stress less.</span>
+            </h2>
+            <p class="text-slate-600 mb-8 leading-relaxed text-lg max-w-md">
+              Find the fastest, most cost-effective travel mode.<br class="hidden md:block">
+              Optimized for <span class="text-slate-900 font-semibold">real-time traffic</span> and <span class="text-slate-900 font-semibold">peak pricing</span>.
+            </p>
+            <div class="flex gap-4 flex-wrap">
+              <div class="flex items-center gap-2 px-3 py-1.5 border border-white/50 rounded-lg text-xs font-semibold text-slate-700 bg-white/70 shadow-sm backdrop-blur-sm"><span class="w-2 h-2 rounded-full bg-emerald-400"></span> Metro</div>
+              <div class="flex items-center gap-2 px-3 py-1.5 border border-white/50 rounded-lg text-xs font-semibold text-slate-700 bg-white/70 shadow-sm backdrop-blur-sm"><span class="w-2 h-2 rounded-full bg-blue-400"></span> Cab</div>
+              <div class="flex items-center gap-2 px-3 py-1.5 border border-white/50 rounded-lg text-xs font-semibold text-slate-700 bg-white/70 shadow-sm backdrop-blur-sm"><span class="w-2 h-2 rounded-full bg-slate-900"></span> Auto</div>
+            </div>
+        </div>
+
+        <!-- Demo App Side -->
+        <!-- Demo App Side -->
+        <div class="w-full md:w-[380px] shrink-0 bg-white border border-slate-100 rounded-2xl p-6 shadow-xl relative z-20">
+            <a href="https://github.com/piyush588/DMIE-Delhi-Mobility-Intelligence-Engine" target="_blank" rel="noopener noreferrer" class="absolute -top-3 -right-3 bg-slate-900 text-[#00C39A] text-[9px] font-black px-2 py-1 rounded-md shadow-lg border border-slate-800 z-10 tracking-widest uppercase hover:bg-slate-800 transition-colors">
+              DMIE V2
+            </a>
+            <form id="smart-route-form" class="space-y-4">
+              <div class="relative">
+                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Starting Point</label>
+                <input type="text" id="route-src-input" placeholder="e.g. Connaught Place" autocomplete="off" class="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 text-slate-900 rounded-xl focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#00C39A] focus:border-transparent transition-all text-sm placeholder-slate-400 font-medium shadow-sm">
+                <input type="hidden" id="route-src-coords" value="">
+              </div>
+              
+              <div class="relative">
+                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Destination</label>
+                <input type="text" id="route-dest-input" placeholder="e.g. Cyber Hub (Gurgaon)" autocomplete="off" class="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 text-slate-900 rounded-xl focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#00C39A] focus:border-transparent transition-all text-sm placeholder-slate-400 font-medium shadow-sm">
+                <input type="hidden" id="route-dest-coords" value="">
+              </div>
+
+              <button type="submit" id="route-btn" class="w-full bg-[#00C39A] text-white px-6 py-3.5 rounded-xl font-bold hover:bg-[#00A683] transition-colors flex justify-center items-center gap-2 shadow-md hover:shadow-lg mt-2">
+                Calculate Best Route &rarr;
+              </button>
+            </form>
+            
+            <!-- Result State -->
+            <div id="route-loading" class="hidden mt-4 flex justify-center items-center py-4">
+              <svg class="animate-spin h-6 w-6 text-[#00C39A]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </div>
+            
+            <div id="route-result" class="hidden mt-4 bg-white/40 backdrop-blur-xl border border-white/60 rounded-2xl p-5 animate-fade-in-up shadow-[0_8px_32px_rgba(0,0,0,0.04)] sticky top-0">
+                <div class="flex items-center gap-3 mb-1">
+                    <h4 class="font-black text-slate-900 capitalize text-xl leading-none" id="res-mode">Metro</h4>
+                </div>
+                <p class="text-slate-600 text-xs leading-relaxed font-medium mt-2 mb-4" id="res-exp">Fastest and cheapest during peak hours.</p>
+                
+                <!-- Journey Steps Box -->
+                <div id="res-segments" class="hidden space-y-3 pt-3 border-t border-slate-200">
+                    <!-- Steps injected here -->
+                </div>
+            </div>
         </div>
       </div>
     </div>
@@ -396,29 +492,28 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="grid lg:grid-cols-2 gap-12 lg:gap-24 items-center">
         <div>
-          <h2 class="text-4xl md:text-6xl font-black mb-6 md:mb-8">Global Intelligence.</h2>
+          <h2 class="text-4xl md:text-6xl font-black mb-6 md:mb-8">Technical Excellence.</h2>
           <p class="text-slate-400 text-lg leading-relaxed mb-12">
-            Deploying robust parking solutions across 40+ major metropolitan areas, reducing urban carbon footprints one space at a time.
+            The Delhi Mobility Intelligence Engine (DMIE) V2 is built for scale, delivering millisecond-precision routing and real-time multi-modal logistics across the NCR. Rigorously validated using <span class="text-white font-semibold">k6 by Grafana</span>.
           </p>
-
         </div>
 
         <div class="grid grid-cols-2 gap-px bg-slate-800 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
           <div class="bg-slate-900 p-6 md:p-12">
-            <div class="text-4xl md:text-5xl font-black mb-2 md:mb-4">98%</div>
-            <div class="text-[#00C39A] text-[10px] font-bold uppercase tracking-widest">Accuracy Rate</div>
+            <div class="text-4xl md:text-5xl font-black mb-2 md:mb-4">&lt;40ms</div>
+            <div class="text-[#00C39A] text-[10px] font-bold uppercase tracking-widest">Average API Latency (p50)</div>
           </div>
           <div class="bg-slate-900 p-6 md:p-12">
-            <div class="text-4xl md:text-5xl font-black mb-2 md:mb-4">2.4M</div>
-            <div class="text-[#00C39A] text-[10px] font-bold uppercase tracking-widest">Vehicles Tracked</div>
+            <div class="text-4xl md:text-5xl font-black mb-2 md:mb-4">1,023</div>
+            <div class="text-[#00C39A] text-[10px] font-bold uppercase tracking-widest">Requests / Sec</div>
           </div>
           <div class="bg-slate-900 p-6 md:p-12">
-            <div class="text-4xl md:text-5xl font-black mb-2 md:mb-4">15%</div>
-            <div class="text-[#00C39A] text-[10px] font-bold uppercase tracking-widest">Revenue Lift</div>
+            <div class="text-4xl md:text-5xl font-black mb-2 md:mb-4">99.9%</div>
+            <div class="text-[#00C39A] text-[10px] font-bold uppercase tracking-widest">Routing Reliability Score</div>
           </div>
           <div class="bg-slate-900 p-6 md:p-12">
-            <div class="text-4xl md:text-5xl font-black mb-2 md:mb-4">40+</div>
-            <div class="text-[#00C39A] text-[10px] font-bold uppercase tracking-widest">Smart Cities</div>
+            <div class="text-4xl md:text-5xl font-black mb-2 md:mb-4">60x</div>
+            <div class="text-[#00C39A] text-[10px] font-bold uppercase tracking-widest">Edge-Cache Hit Improvement</div>
           </div>
         </div>
       </div>
@@ -890,6 +985,215 @@
         }
     });
 
+    function initMapsAutocomplete() {
+        const srcInput = document.getElementById('route-src-input');
+        const destInput = document.getElementById('route-dest-input');
+        
+        if (!srcInput || !destInput) return;
+
+        const srcAutocomplete = new google.maps.places.Autocomplete(srcInput, {
+            componentRestrictions: { country: "in" },
+            fields: ["geometry", "name"],
+        });
+        
+        const destAutocomplete = new google.maps.places.Autocomplete(destInput, {
+            componentRestrictions: { country: "in" },
+            fields: ["geometry", "name"],
+        });
+
+        srcAutocomplete.addListener("place_changed", () => {
+             const place = srcAutocomplete.getPlace();
+             if (place.geometry) {
+                 document.getElementById('route-src-coords').value = `${place.geometry.location.lat()},${place.geometry.location.lng()}`;
+             }
+        });
+
+        destAutocomplete.addListener("place_changed", () => {
+             const place = destAutocomplete.getPlace();
+             if (place.geometry) {
+                 document.getElementById('route-dest-coords').value = `${place.geometry.location.lat()},${place.geometry.location.lng()}`;
+             }
+        });
+    }
+
+    // Smart Route Engine Demo Form Logic
+    async function geocodeLocation(query) {
+        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1&countrycodes=in`;
+        const r = await fetch(url, { headers: { 'Accept-Language': 'en', 'User-Agent': 'ParkConscious/1.0' } });
+        const data = await r.json();
+        if (!data || data.length === 0) throw new Error(`Location not found: "${query}"`);
+        return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+    }
+
+    document.getElementById('smart-route-form')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        let srcVal = document.getElementById('route-src-coords').value;
+        let destVal = document.getElementById('route-dest-coords').value;
+        const srcText = document.getElementById('route-src-input').value.trim();
+        const destText = document.getElementById('route-dest-input').value.trim();
+        
+        const loading = document.getElementById('route-loading');
+        const result = document.getElementById('route-result');
+        const modeEl = document.getElementById('res-mode');
+        const expEl = document.getElementById('res-exp');
+
+        if (!srcText || !destText) {
+            alert('Please enter a starting point and destination.');
+            return;
+        }
+
+        // UI Reset
+        result.classList.add('hidden');
+        loading.classList.remove('hidden');
+
+        let srcArr, destArr;
+        try {
+            if (srcVal && destVal) {
+                // Autocomplete filled coords — use directly
+                srcArr = srcVal.split(',').map(Number);
+                destArr = destVal.split(',').map(Number);
+            } else {
+                // Fallback: geocode via Nominatim (free, no key needed)
+                [srcArr, destArr] = await Promise.all([
+                    geocodeLocation(srcText + ', Delhi NCR, India'),
+                    geocodeLocation(destText + ', Delhi NCR, India')
+                ]);
+            }
+        } catch (geoErr) {
+            loading.classList.add('hidden');
+            modeEl.textContent = 'Location Not Found';
+            modeEl.className = 'font-black capitalize text-xl text-red-500';
+            expEl.textContent = `Could not find one of the locations. Try being more specific, e.g. "Connaught Place, Delhi".`;
+            result.classList.remove('hidden');
+            return;
+        }
+
+        try {
+            // Dynamic URL helper from PARK_CONFIG
+            const dmieUrl = window.PARK_CONFIG?.getDmieUrl ? window.PARK_CONFIG.getDmieUrl() : 'https://dmie.parkconscious.in/api/v1';
+            
+            const res = await fetch(`${dmieUrl.replace('/api/v1', '')}/api/v1/recommend`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    src: srcArr,
+                    dest: destArr,
+                    time: new Date().toISOString()
+                })
+            });
+            
+            if (!res.ok) throw new Error('API error');
+            const data = await res.json();
+            
+            setTimeout(() => {
+                loading.classList.add('hidden');
+                
+                const bestOpt = data.options[0];
+                
+                // Set minimal glassmorphic class based on mode
+                modeEl.className = 'font-bold uppercase tracking-tighter text-2xl leading-none flex items-center gap-3';
+                let accentColor = 'text-slate-900';
+                let dotColor = 'bg-slate-900';
+
+                if(data.best_mode === 'metro') {
+                    accentColor = 'text-emerald-500';
+                    dotColor = 'bg-emerald-500';
+                } else if(data.best_mode === 'cab') {
+                    accentColor = 'text-blue-500';
+                    dotColor = 'bg-blue-500';
+                }
+                
+                modeEl.innerHTML = `<span class="w-3 h-3 rounded-full ${dotColor} shadow-[0_0_12px_rgba(0,0,0,0.1)]"></span> <span class="${accentColor}">${data.best_mode}</span>`;
+                expEl.innerHTML = `<span class="block mb-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Recommendation</span> ${data.explanation}`;
+
+                // Minimal Glassmorphic Stats
+                const statsHtml = `
+                    <div class="grid grid-cols-2 gap-2 my-5">
+                        <div class="bg-white/40 backdrop-blur-md rounded-xl p-3 border border-white/60 shadow-sm">
+                            <div class="text-[9px] uppercase font-black text-slate-400 tracking-widest mb-1">Duration</div>
+                            <div class="text-lg font-bold text-slate-900 tracking-tight">${Math.round(bestOpt.time)}<span class="text-xs ml-1 font-medium text-slate-500">mins</span></div>
+                        </div>
+                        <div class="bg-white/40 backdrop-blur-md rounded-xl p-3 border border-white/60 shadow-sm">
+                            <div class="text-[9px] uppercase font-black text-slate-400 tracking-widest mb-1">Est. Fare</div>
+                            <div class="text-lg font-bold text-slate-900 tracking-tight">₹${Math.round(bestOpt.cost)}</div>
+                        </div>
+                    </div>
+                `;
+
+                // Handle Multimodal Segments
+                const segmentsBox = document.getElementById('res-segments');
+                segmentsBox.innerHTML = statsHtml;
+
+                if (bestOpt.segments && bestOpt.segments.length > 0) {
+                    segmentsBox.classList.remove('hidden');
+                    
+                    bestOpt.segments.forEach((seg, idx) => {
+                        const step = document.createElement('div');
+                        step.className = 'flex gap-4 items-start animate-fade-in-up mt-4';
+                        step.style.animationDelay = `${(idx + 1) * 80}ms`;
+                        
+                        let colorClass = 'bg-slate-900';
+                        if (seg.mode === 'metro' && seg.color) {
+                            colorClass = seg.color.startsWith('bg-') ? seg.color : `bg-[${seg.color}]`;
+                        } else if (seg.mode === 'metro') {
+                            colorClass = 'bg-emerald-500';
+                        } else if (seg.mode === 'cab') {
+                            colorClass = 'bg-blue-500';
+                        }
+                        
+                        let extraInfo = '';
+                        if (seg.mode === 'metro' && seg.line) {
+                            extraInfo = `<span class="ml-2 px-1.5 py-0.5 rounded-md text-[8px] font-black text-white ${colorClass}">${seg.line.toUpperCase()}</span>`;
+                        }
+
+                        step.innerHTML = `
+                            <div class="flex flex-col items-center shrink-0">
+                                <div class="w-1.5 h-1.5 rounded-full ${colorClass} mt-1.5"></div>
+                                ${idx < bestOpt.segments.length - 1 ? '<div class="w-px h-12 bg-slate-200/60 my-1"></div>' : ''}
+                            </div>
+                            <div class="flex-1 pb-2">
+                                <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none flex items-center">
+                                    ${seg.mode} • ${Math.round(seg.duration_min)}m ${extraInfo}
+                                </p>
+                                <p class="text-[13px] text-slate-800 font-bold mt-1.5 tracking-tight">${seg.from_loc} <span class="text-slate-300 mx-1 font-light">→</span> ${seg.to_loc}</p>
+                            </div>
+                        `;
+                        segmentsBox.appendChild(step);
+                    });
+                } else {
+                    segmentsBox.classList.remove('hidden');
+                }
+                
+                result.classList.remove('hidden');
+            }, 600);
+            
+        } catch (error) {
+            console.error('Routing Error:', error);
+            setTimeout(() => {
+                loading.classList.add('hidden');
+                modeEl.textContent = 'Service Offline';
+                modeEl.className = 'font-black capitalize text-xl text-red-500';
+                expEl.textContent = 'The Smart Route engine is currently undergoing maintenance. Please try again in a few minutes.';
+                result.classList.remove('hidden');
+            }, 600);
+        }
+    });
+
+  </script>
+  <script src="./scripts/config.js"></script>
+  <script>
+    // Load Google Maps autocomplete only if a real key is configured
+    const mapsKey = window.PARK_CONFIG?.MAPS_KEY;
+    if (mapsKey && mapsKey !== '__MAPS_API_KEY__' && mapsKey.length > 10) {
+        window.initMapsAutocomplete = initMapsAutocomplete;
+        const script = document.createElement("script");
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${mapsKey}&libraries=places&callback=initMapsAutocomplete`;
+        script.async = true;
+        script.defer = true;
+        document.head.appendChild(script);
+    }
+    // If no valid Maps key, the DMIE form still works via Nominatim geocoding fallback
   </script>
   <!-- Vercel Speed Insights & Analytics -->
   <script defer src="/_vercel/insights/script.js"></script>

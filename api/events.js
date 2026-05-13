@@ -7,9 +7,10 @@
  */
 import connectDB from './lib/mongodb.js';
 import * as models from './lib/models.js';
-import { json, setCors, getBody, verifyUser, normalizeEvent } from './lib/utils.js';
+import { json, setCors, getBody, verifyUser, normalizeEvent, pruneEvent, logSystemError } from './lib/utils.js';
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
+import { getCache, setCache, delCache } from './lib/redis.js';
 
 const { Event, Discussion, Comment, Contact } = models;
 
@@ -146,6 +147,14 @@ export default async function handler(req, res) {
             if (method === 'GET') {
                 // Fetch single event
                 if (isIndividual) {
+                    const cacheKey = `event:${eventId}`;
+                    const cached = await getCache(cacheKey);
+                    if (cached) {
+                        console.log(`[REDIS] CACHE HIT: ${cacheKey}`);
+                        return json(res, 200, cached);
+                    }
+
+                    console.log(`[REDIS] CACHE MISS: ${cacheKey}. Fetching from MongoDB...`);
                     const event = await Event.findById(eventId).lean();
                     if (!event) return json(res, 404, { message: 'Event not found' });
                     
@@ -158,9 +167,10 @@ export default async function handler(req, res) {
                         return json(res, 403, { message: 'This event is currently in draft mode and not visible to the public.' });
                     }
 
-                    // NOTE: Unlisted events (isPublic: false) are still visible via direct link
-                    // but they won't appear in lists/featured feeds.
-                    return json(res, 200, normalizeEvent(event));
+                    const normalized = normalizeEvent(event);
+                    // Only cache published events to keep draft logic secure
+                    if (isPublished) await setCache(cacheKey, normalized, 600); // 10 mins cache
+                    return json(res, 200, normalized);
                 }
 
                 // Admin: fetch all events (restricted by role)
@@ -186,27 +196,54 @@ export default async function handler(req, res) {
                 // Fetch featured events (e.g. ?featured=true)
                 const params = new URLSearchParams(queryPart || '');
                 if (params.get('featured') === 'true') {
+                    const cacheKey = 'events:featured';
+                    const cached = await getCache(cacheKey);
+                    if (cached) {
+                        console.log(`[REDIS] CACHE HIT: ${cacheKey}`);
+                        return json(res, 200, cached);
+                    }
+
+                    console.log(`[REDIS] CACHE MISS: ${cacheKey}. Fetching from MongoDB...`);
                     const featuredList = await Event.find({ 
                         isFeatured: true, 
                         isPublic: true, 
                         status: { $in: ['published', 'Published'] }
                     }).sort({ createdAt: -1 }).lean();
+                    
+                    const result = featuredList.map(pruneEvent);
+                    await setCache(cacheKey, result, 300); // 5 mins cache
                     res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=86400');
-                    return json(res, 200, featuredList.map(normalizeEvent));
+                    return json(res, 200, result);
                 }
 
                 // Public: fetch promoted events
+                const cacheKey = 'events:public';
+                const cached = await getCache(cacheKey);
+                if (cached) {
+                    console.log(`[REDIS] CACHE HIT: ${cacheKey}`);
+                    return json(res, 200, cached);
+                }
+
+                console.log(`[REDIS] CACHE MISS: ${cacheKey}. Fetching from MongoDB...`);
                 const evts = await Event.find({ 
                     status: { $in: ['published', 'Published'] },
                     isPublic: true // Must be explicitly true
                 }).sort({ date: 1 }).lean();
+                
+                const result = evts.map(pruneEvent);
+                await setCache(cacheKey, result, 300); // 5 mins cache
                 res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=86400');
-                return json(res, 200, evts.map(normalizeEvent));
+                return json(res, 200, result);
             }
 
             if (method === 'POST') {
                 if (!user) return json(res, 401, { message: 'Auth required' });
                 const event = await Event.create({ ...body, organizerId: user.id });
+                
+                // Invalidate public lists
+                await delCache('events:public');
+                await delCache('events:featured');
+                
                 return json(res, 201, normalizeEvent(event.toObject()));
             }
 
@@ -222,6 +259,12 @@ export default async function handler(req, res) {
                 }
 
                 const updated = await Event.findByIdAndUpdate(eventId, body, { new: true }).lean();
+                
+                // Invalidate cache
+                await delCache(`event:${eventId}`);
+                await delCache('events:public');
+                await delCache('events:featured');
+                
                 return json(res, 200, normalizeEvent(updated));
             }
 
@@ -237,6 +280,12 @@ export default async function handler(req, res) {
                 }
 
                 await Event.findByIdAndDelete(eventId);
+                
+                // Invalidate cache
+                await delCache(`event:${eventId}`);
+                await delCache('events:public');
+                await delCache('events:featured');
+                
                 return json(res, 200, { message: 'Event removed' });
             }
         }
@@ -351,6 +400,7 @@ export default async function handler(req, res) {
              return json(res, 200, { success: false, missingConfig: true, message: 'Missing database configuration.' });
         }
         
+        await logSystemError('events_api', 'api_fatal', err.message, err.stack, { url });
         console.error('[EVENTS_ERROR]:', err);
         return json(res, 500, { message: 'Server Error: ' + err.message });
     }

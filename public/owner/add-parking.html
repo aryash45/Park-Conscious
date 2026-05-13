@@ -1,263 +1,436 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Add Parking | Park Conscious</title>
+    <title>Add Parking | Park Conscious Owner</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap"
-        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
-        :root {
-          --primary: #00C39A;
-          --primary-dark: #00A683;
-          --slate-900: #0F172A;
-          --slate-800: #1E293B;
-          --slate-600: #475569;
-          --slate-500: #64748B;
-          --slate-400: #94A3B8;
-          --slate-100: #F1F5F9;
-          --slate-50: #F8FAFC;
-        }
-
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #ffffff;
-            color: var(--slate-900);
-        }
-
-        h1, h2, h3, h4, h5, h6 {
-            font-family: 'Outfit', sans-serif;
-            color: var(--slate-900);
-        }
-
-        .glass-panel {
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(0, 0, 0, 0.05);
-            border-right: 1px solid rgba(0, 0, 0, 0.05);
-        }
-
-        .glass-card {
-            background: rgba(255, 255, 255, 0.9);
-            border: 1px solid rgba(0, 0, 0, 0.05);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.05);
-        }
-
-        .btn-primary {
-            background-color: var(--primary);
-            color: white;
-            transition: all 0.3s ease;
-        }
-
-        .btn-primary:hover {
-            background-color: var(--primary-dark);
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(0, 195, 154, 0.2);
-        }
+        :root { --primary: #00C39A; }
+        body { font-family: 'Inter', sans-serif; background-color: #F8FAFC; color: #0F172A; }
+        h1,h2,h3,h4,h5,h6 { font-family: 'Outfit', sans-serif; }
+        .glass-header { background: rgba(255,255,255,0.9); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(0,0,0,0.05); }
+        .sidebar { background: #0F172A; }
+        .nav-item { color: #94A3B8; transition: all 0.2s ease; }
+        .nav-item:hover { color: #fff; background: rgba(255,255,255,0.06); }
+        .nav-item.active { background: rgba(0,195,154,0.12); color: #00C39A; }
+        .form-input { width: 100%; background: #F8FAFC; border: 1.5px solid #E2E8F0; border-radius: 0.75rem; padding: 0.75rem 1rem; color: #0F172A; font-size: 0.875rem; transition: all 0.2s; outline: none; }
+        .form-input:focus { border-color: #00C39A; background: #fff; box-shadow: 0 0 0 3px rgba(0,195,154,0.1); }
+        .form-label { display: block; font-size: 0.75rem; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
     </style>
 </head>
+<body class="h-screen flex overflow-hidden">
 
-<body class="bg-white text-slate-900 h-screen flex overflow-hidden">
-
-    <!-- Mobile Sidebar Drawer -->
-    <div id="mobile-sidebar" class="fixed inset-0 z-[100] hidden">
-        <div id="mobile-sidebar-overlay" class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 opacity-0"></div>
-        <div id="mobile-sidebar-drawer" class="absolute left-0 top-0 h-full w-[280px] glass-panel bg-white flex flex-col translate-x-full transition-transform duration-300 border-r border-slate-200">
-            <div class="h-16 flex items-center justify-between px-6 border-b border-slate-200">
-                <div class="flex items-center">
-                    <div class="relative w-8 h-8 mr-3 flex items-center justify-center bg-white rounded-lg shadow-sm overflow-hidden">
-                        <img src="../assets/logo.jpg" alt="Logo" class="w-full h-full object-cover">
-                    </div>
-                    <span class="text-base font-bold text-slate-900 tracking-tight">Park <span class="text-[#00C39A]">Owner</span></span>
-                </div>
-                <button id="mobile-sidebar-close" class="p-2 text-slate-400 hover:text-slate-900">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
-            </div>
-            <nav class="flex-1 p-4 space-y-2">
-                <a href="dashboard.html" class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors">Dashboard</a>
-                <a href="logs.html" class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors">Access Logs</a>
-                <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-lg bg-[#00C39A]/10 text-slate-900 font-medium">Add Parking</a>
-            </nav>
+    <!-- Sidebar -->
+    <aside class="sidebar w-64 flex-none hidden md:flex flex-col">
+        <div class="h-16 flex items-center px-6 border-b border-white/5 cursor-pointer" onclick="window.location.href='../index.html'">
+            <img src="../assets/logo.jpg" alt="Logo" class="h-8 w-8 rounded-lg mr-3 object-cover">
+            <span class="text-lg font-bold text-white">Park <span class="text-[#00C39A]">Owner</span></span>
         </div>
-    </div>
-
-    <!-- Sidebar (Desktop) -->
-    <aside class="w-64 glass-panel flex-none hidden md:flex flex-col">
-        <div class="h-16 flex items-center px-6 border-b border-slate-200 cursor-pointer" onclick="window.location.href='../index.html'">
-            <div class="relative w-8 h-8 mr-3 flex items-center justify-center bg-white rounded-lg shadow-sm overflow-hidden">
-                <img src="../assets/logo.jpg" alt="Logo" class="w-full h-full object-cover opacity-90">
-            </div>
-            <span class="text-lg font-bold text-slate-900 tracking-tight">Park <span class="text-[#00C39A]">Owner</span></span>
-        </div>
-
-        <nav class="flex-1 p-4 space-y-2">
-            <a href="dashboard.html"
-                class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                </svg>
-                Dashboard
+        <nav class="flex-1 p-4 space-y-1 mt-2">
+            <a href="dashboard.html" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+                Overview
             </a>
-            <a href="logs.html"
-                class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-                Access Logs
+            <a href="logs.html" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                Booking Logs
             </a>
-            <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-lg bg-[#00C39A]/10 text-slate-900 font-medium">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
+            <a href="add-parking.html" class="nav-item active flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
                 Add Parking
             </a>
-            <a href="#"
-                class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-                Analytics
-            </a>
         </nav>
+        <div class="p-4 border-t border-white/5">
+            <button onclick="logoutOwner()" class="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-red-400 hover:bg-red-500/10 transition-all text-sm font-medium">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                Sign Out
+            </button>
+        </div>
     </aside>
 
-    <!-- Main Content -->
+    <!-- Main -->
     <main class="flex-1 overflow-y-auto">
-        <header class="h-16 flex items-center gap-4 px-4 md:px-8 border-b border-slate-200 bg-white/80 backdrop-blur-md sticky top-0 z-10">
-            <button id="mobile-sidebar-open" class="md:hidden p-1 text-slate-600 hover:text-slate-900">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
-            </button>
-            <h2 class="text-base md:text-xl font-bold text-slate-900">Add New Location</h2>
+        <header class="h-16 glass-header sticky top-0 z-10 px-6 md:px-8 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <button id="mobile-sidebar-open" class="md:hidden p-2 text-slate-500"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+                <span class="text-xs bg-emerald-50 text-emerald-600 border border-emerald-200 px-3 py-1 rounded-full font-bold uppercase tracking-wider">New Location</span>
+            </div>
         </header>
 
-        <div class="p-4 md:p-8 max-w-3xl mx-auto">
-            <div class="glass-card p-6 md:p-8 rounded-2xl">
-        <div class="p-4 md:p-8 max-w-3xl mx-auto">
-            <div class="glass-card p-6 md:p-8 rounded-2xl">
-                <form class="space-y-6"
-                    onsubmit="event.preventDefault(); alert('Location submitted for review!'); window.location.href='dashboard.html';">
-                    <!-- Name -->
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-2">Parking Name</label>
-                        <input type="text" placeholder="e.g. Central Mall Parking B"
-                            class="w-full bg-white border border-slate-300 rounded-lg px-4 py-3 text-slate-900 focus:outline-none focus:border-[#00C39A] transition-colors">
-                    </div>
-
-                    <!-- Address -->
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-2">Address / Google Maps Link</label>
-                        <input type="text" placeholder="Search for location..."
-                            class="w-full bg-white border border-slate-300 rounded-lg px-4 py-3 text-slate-900 focus:outline-none focus:border-[#00C39A] transition-colors">
-                    </div>
-
-                    <!-- Details Grid -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-2">Type</label>
-                            <select
-                                class="w-full bg-white border border-slate-300 rounded-lg px-4 py-3 text-slate-900 focus:outline-none focus:border-[#00C39A] transition-colors">
-                                <option>Commercial (Mall/Plaza)</option>
-                                <option>Office Complex</option>
-                                <option>Residential Society</option>
-                                <option>Public/Metro</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-2">Total Slots</label>
-                            <input type="number" placeholder="50"
-                                class="w-full bg-white border border-slate-300 rounded-lg px-4 py-3 text-slate-900 focus:outline-none focus:border-[#00C39A] transition-colors">
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-2">Pricing (₹/hr)</label>
-                        <input type="number" placeholder="40"
-                            class="w-full bg-white border border-slate-300 rounded-lg px-4 py-3 text-slate-900 focus:outline-none focus:border-[#00C39A] transition-colors">
-                    </div>
-
-                    <!-- Actions -->
-                    <div class="pt-6 flex gap-4">
-                        <button type="submit"
-                            class="flex-1 bg-[#00C39A] hover:bg-[#00A683] text-white font-bold py-3 rounded-lg transition-all">
-                            Submit for Verification
-                        </button>
-                        <button type="button" onclick="window.history.back()"
-                            class="px-6 py-3 border border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-slate-50 transition-all">
-                            Cancel
-                        </button>
-                    </div>
-                </form>
+        <div class="p-6 md:p-10 max-w-3xl mx-auto">
+            <div class="mb-8">
+                <h1 class="text-3xl font-black text-slate-900">Add New Location</h1>
+                <p class="text-slate-500 mt-1 text-sm">List a new parking lot - it will appear on the live map immediately after submission.</p>
             </div>
+
+            <!-- Info Banner -->
+            <div class="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start gap-3">
+                <svg class="w-5 h-5 text-emerald-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <div class="text-sm text-emerald-700"><span class="font-bold">Tip:</span> Find coordinates easily - right-click on any location in Google Maps and select "copy coordinates."</div>
+            </div>
+
+            <form id="add-parking-form" class="bg-white border border-slate-100 rounded-2xl shadow-sm p-8 space-y-6">
+                <!-- Name -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="form-label mb-0" for="loc-name">Parking Name / Location</label>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Smart Search</span>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="smart-search-toggle" class="sr-only peer" onchange="toggleSmartSearch()">
+                                <div class="w-8 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-[#00C39A]"></div>
+                            </label>
+                        </div>
+                    </div>
+                    <input id="loc-name" class="form-input" required type="text" placeholder="e.g. Central Mall Parking B2">
+                    <p id="search-hint" class="text-[10px] text-slate-400 mt-1">Suggestions will appear as you type.</p>
+                </div>
+
+                <!-- Auto Extractor -->
+                <div class="p-5 bg-slate-50 border border-slate-100 rounded-xl space-y-3">
+                    <label class="form-label mb-0" for="maps-url">Or Paste Google Maps URL</label>
+                    <div class="flex gap-2">
+                        <input id="maps-url" class="form-input flex-1 !bg-white" type="text" placeholder="https://www.google.com/maps/place/...">
+                        <button type="button" onclick="extractFromUrl()" class="px-4 py-2 bg-[#00C39A] text-white text-xs font-bold rounded-lg hover:bg-[#00A683] transition-all">Extract</button>
+                    </div>
+                </div>
+
+                <!-- Status Banner (Hidden by default) -->
+                <div id="map-status-banner" class="hidden px-4 py-2 bg-emerald-50 text-emerald-600 text-xs font-bold rounded-lg border border-emerald-100 flex items-center gap-2 animate-bounce">
+                    ✓ Coordinates extracted successfully
+                </div>
+
+                <div class="flex items-center justify-between">
+                    <label class="form-label mb-0">Location Coordinates</label>
+                    <button type="button" onclick="useCurrentLocation()" class="text-[#00C39A] text-xs font-bold hover:underline flex items-center gap-1">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                        Use My Current Location (GPS)
+                    </button>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="form-label" for="loc-lat">Latitude</label>
+                        <input id="loc-lat" class="form-input" required type="number" step="any" placeholder="28.6139">
+                    </div>
+                    <div>
+                        <label class="form-label" for="loc-lng">Longitude</label>
+                        <input id="loc-lng" class="form-input" required type="number" step="any" placeholder="77.2090">
+                    </div>
+                </div>
+
+                <!-- Divider -->
+                <div class="border-t border-slate-100"></div>
+
+                <!-- Details -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="form-label" for="loc-type">Parking Type</label>
+                        <select id="loc-type" class="form-input">
+                            <option>Commercial (Mall/Plaza)</option>
+                            <option>Office Complex</option>
+                            <option>Residential Society</option>
+                            <option>Street / Open</option>
+                            <option>Public / Metro</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label" for="loc-slots">Total Slots</label>
+                        <input id="loc-slots" class="form-input" type="number" placeholder="e.g. 50">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="form-label" for="loc-price">Pricing (₹ per hour)</label>
+                    <div class="relative">
+                        <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">₹</span>
+                        <input id="loc-price" class="form-input" style="padding-left: 2rem;" type="number" placeholder="40">
+                    </div>
+                    <p class="text-xs text-slate-400 mt-1.5">Leave blank if pricing varies or is on-request.</p>
+                </div>
+
+                <!-- Actions -->
+                <div class="flex gap-3 pt-2">
+                    <button type="submit" id="submit-btn" class="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 px-6 rounded-xl transition-all shadow-lg shadow-slate-900/20 hover:-translate-y-0.5 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                        Submit Location
+                    </button>
+                    <button type="button" onclick="window.history.back()" class="px-6 py-3.5 border border-slate-200 text-slate-500 font-medium rounded-xl hover:bg-slate-50 transition-all">
+                        Cancel
+                    </button>
+                </div>
+                <div id="demo-notice" class="hidden text-center text-xs font-bold text-amber-600 bg-amber-50 p-3 rounded-xl border border-amber-100">
+                    ⚠️ Demo Mode: You can explore the UI, but adding new locations is disabled.
+                </div>
+            </form>
         </div>
     </main>
 
-    <!-- Vercel Speed Insights -->
+    <div id="mobile-sidebar" class="fixed inset-0 z-[100] hidden">
+        <div id="mobile-sidebar-overlay" class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm opacity-0 transition-opacity"></div>
+        <div id="mobile-sidebar-drawer" class="absolute left-0 top-0 h-full w-72 sidebar flex flex-col translate-x-full transition-transform duration-300">
+            <div class="h-16 flex items-center justify-between px-6 border-b border-white/5">
+                <span class="text-white font-bold">Park <span class="text-[#00C39A]">Owner</span></span>
+                <button id="mobile-sidebar-close" class="p-2 text-slate-400"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+            </div>
+            <nav class="flex-1 p-4 space-y-1 mt-2">
+                <a href="dashboard.html" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm">Overview</a>
+                <a href="logs.html" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm">Booking Logs</a>
+                <a href="add-parking.html" class="nav-item active flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm">Add Parking</a>
+            </nav>
+            <div class="p-4 border-t border-white/5">
+                <button onclick="logoutOwner()" class="text-red-400 px-4 py-3 w-full text-sm font-medium text-left">Sign Out</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div id="success-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 hidden">
+        <div class="bg-white rounded-3xl p-10 max-w-sm w-full text-center shadow-2xl">
+            <div class="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-6 ring-4 ring-emerald-100">
+                <svg class="w-10 h-10 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+            </div>
+            <h3 class="text-2xl font-black text-slate-900 mb-2">Location Added!</h3>
+            <p class="text-slate-500 text-sm mb-6">Your parking location is now live on the platform and visible to users finding parking nearby.</p>
+            <button onclick="window.location.href='dashboard.html'" class="w-full bg-slate-900 text-white font-bold py-3.5 rounded-xl hover:bg-slate-800 transition-all">
+                Back to Dashboard
+            </button>
+        </div>
+    </div>
+
+    <script src="../scripts/config.js"></script>
     <script>
-        window.si = window.si || function () { (window.siq = window.siq || []).push(arguments); };
-        // Mobile sidebar logic
+        // Load Google Maps API with Places library
+        function loadMapsScript() {
+            if (!window.PARK_CONFIG || !window.PARK_CONFIG.MAPS_KEY) {
+                console.error("Maps API Key missing");
+                return;
+            }
+            const script = document.createElement('script');
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${window.PARK_CONFIG.MAPS_KEY}&libraries=places&callback=initAutocomplete`;
+            script.async = true;
+            script.defer = true;
+            document.head.appendChild(script);
+        }
+
+        let autocomplete;
+        let isSmartSearch = false; // Default to OFF
+
+        function useCurrentLocation() {
+            if (!navigator.geolocation) {
+                alert("Geolocation is not supported by your browser");
+                return;
+            }
+            const btn = event.currentTarget;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = "Detecting...";
+            
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    document.getElementById('loc-lat').value = pos.coords.latitude.toFixed(6);
+                    document.getElementById('loc-lng').value = pos.coords.longitude.toFixed(6);
+                    showStatusBadge('Current location captured!');
+                    btn.innerHTML = originalText;
+                },
+                (err) => {
+                    alert("Error getting location: " + err.message);
+                    btn.innerHTML = originalText;
+                }
+            );
+        }
+
+        function initAutocomplete() {
+            const input = document.getElementById('loc-name');
+            autocomplete = new google.maps.places.Autocomplete(input, {
+                types: ['establishment', 'geocode'],
+                componentRestrictions: { country: 'in' }
+            });
+
+            autocomplete.addListener('place_changed', () => {
+                if (!isSmartSearch) return;
+                const place = autocomplete.getPlace();
+                if (!place.geometry) return;
+
+                document.getElementById('loc-lat').value = place.geometry.location.lat().toFixed(6);
+                document.getElementById('loc-lng').value = place.geometry.location.lng().toFixed(6);
+                
+                // Visual feedback
+                showStatusBadge('Location pinned from search');
+            });
+        }
+
+        function toggleSmartSearch() {
+            isSmartSearch = document.getElementById('smart-search-toggle').checked;
+            const hint = document.getElementById('search-hint');
+            const input = document.getElementById('loc-name');
+            
+            if (isSmartSearch) {
+                hint.innerText = "Suggestions will appear as you type.";
+                // Clear any manual blocking CSS if we had any
+                input.setAttribute('placeholder', 'e.g. Central Mall Parking B2');
+            } else {
+                hint.innerText = "Free-text mode. Latitude/Longitude will not be auto-filled.";
+                input.setAttribute('placeholder', 'Enter a custom name here');
+                // Force closure of PAC container if it's open
+                const pac = document.querySelector('.pac-container');
+                if (pac) pac.style.display = 'none';
+            }
+        }
+        
+        // Ensure UI matches default state
+        document.addEventListener('DOMContentLoaded', () => {
+             toggleSmartSearch();
+        });
+        
+        // Add CSS to hide suggestions when smart search is off
+        const style = document.createElement('style');
+        style.innerHTML = `
+            #smart-search-toggle:not(:checked) ~ .pac-container,
+            body:has(#smart-search-toggle:not(:checked)) .pac-container {
+                display: none !important;
+            }
+        `;
+        document.head.appendChild(style);
+
+        function extractFromUrl() {
+            const urlInput = document.getElementById('maps-url');
+            const url = urlInput.value;
+            if (!url) return;
+
+            // Primary check for !3d...!4d format (Actual Place Pin Coordinates)
+            const regexExact = /!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/;
+            const matchExact = url.match(regexExact);
+
+            if (matchExact) {
+                document.getElementById('loc-lat').value = matchExact[1];
+                document.getElementById('loc-lng').value = matchExact[2];
+                showStatusBadge('Location extracted accurately');
+                urlInput.value = '';
+            } else {
+                // Fallback check for @lat,lng in Google Maps URLs (Viewport Center)
+                const regexViewport = /@(-?\d+\.\d+),(-?\d+\.\d+)/;
+                const matchViewport = url.match(regexViewport);
+                
+                if (matchViewport) {
+                    document.getElementById('loc-lat').value = matchViewport[1];
+                    document.getElementById('loc-lng').value = matchViewport[2];
+                    showStatusBadge('Viewport coordinates extracted from URL');
+                    urlInput.value = ''; // clear after success
+                } else {
+                    alert('Could not find coordinates in this URL. Try right-clicking on the map and selecting "What\'s here?" to get a better link.');
+                }
+            }
+        }
+
+        function showStatusBadge(text) {
+            const banner = document.getElementById('map-status-banner');
+            banner.innerText = '✓ ' + text;
+            banner.classList.remove('hidden');
+            setTimeout(() => banner.classList.add('hidden'), 5000);
+        }
+
+        loadMapsScript();
+
+        const ownerToken = localStorage.getItem('park_owner');
+        const userToken = localStorage.getItem('park_user');
+        const isDemo = sessionStorage.getItem('park_owner_demo');
+
+        async function checkAuth() {
+            // 1. Priority: Real Owner Session
+            if (ownerToken) {
+                try {
+                    const owner = JSON.parse(ownerToken);
+                    if (owner.id && owner.id !== 'demo') return owner;
+                } catch(e) {}
+            }
+
+            // 2. Priority: Unified Login (Bridge)
+            if (userToken) {
+                try {
+                    const user = JSON.parse(userToken);
+                    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+                    const API_URL = isLocal ? `http://localhost:5050/api/owner/check-session?email=${user.email}` : `/api/owner/check-session?email=${user.email}`;
+                    const resp = await fetch(API_URL);
+                    if (resp.ok) {
+                        const data = await resp.json();
+                        localStorage.setItem('park_owner', JSON.stringify(data.user));
+                        return data.user;
+                    }
+                } catch(e) {}
+            }
+
+            // 3. Priority: Demo Mode (Only if no real session)
+            if (isDemo) return { name: 'Demo Owner', id: 'demo' };
+
+            window.location.href = 'login.html';
+        }
+
+        checkAuth().then(owner => {
+            if (owner && owner.id === 'demo') {
+                const btn = document.getElementById('submit-btn');
+                btn.disabled = true;
+                btn.classList.add('opacity-50', 'grayscale');
+                document.getElementById('demo-notice').classList.remove('hidden');
+            }
+        });
+
+        function logoutOwner() { localStorage.removeItem('park_owner'); sessionStorage.removeItem('park_owner_demo'); window.location.href = '../index.html'; }
+
+        document.getElementById('add-parking-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!ownerToken) { window.location.href = 'login.html'; return; }
+            const owner = JSON.parse(ownerToken);
+            const ownerId = owner.id;
+            const btn = document.getElementById('submit-btn');
+            btn.innerHTML = '<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Submitting...';
+            btn.disabled = true;
+
+            const payload = {
+                Location: document.getElementById('loc-name').value,
+                Latitude: document.getElementById('loc-lat').value,
+                Longitude: document.getElementById('loc-lng').value,
+                Type: document.getElementById('loc-type').value,
+                TotalSlots: document.getElementById('loc-slots').value,
+                PricePerHour: document.getElementById('loc-price').value
+            };
+
+            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const API_URL = isLocal ? `http://localhost:5050/api/owner/${ownerId}/parkings` : `/api/owner/${ownerId}/parkings`;
+
+            try {
+                const resp = await fetch(API_URL, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify(payload) 
+                });
+                
+                if (!resp.ok) {
+                    const errorData = await resp.json().catch(() => ({}));
+                    throw new Error(errorData.message || `Server error (${resp.status})`);
+                }
+                
+                document.getElementById('success-modal').classList.remove('hidden');
+            } catch(err) {
+                console.error("Submission error:", err);
+                alert('Submission Failed: ' + err.message);
+                btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> Submit Location';
+                btn.disabled = false;
+            }
+        });
+
         const openBtn = document.getElementById('mobile-sidebar-open');
         const closeBtn = document.getElementById('mobile-sidebar-close');
         const overlay = document.getElementById('mobile-sidebar-overlay');
         const sidebar = document.getElementById('mobile-sidebar');
         const drawer = document.getElementById('mobile-sidebar-drawer');
-
-        function openSidebar() {
-            sidebar.classList.remove('hidden');
-            setTimeout(() => {
-                overlay?.classList.remove('opacity-0');
-                drawer.classList.remove('translate-x-full');
-            }, 10);
-        }
-
-        function closeSidebar() {
-            overlay?.classList.add('opacity-0');
-            drawer.classList.add('translate-x-full');
-            setTimeout(() => {
-                sidebar.classList.add('hidden');
-            }, 300);
-        }
-
-        openBtn?.addEventListener('click', openSidebar);
-        closeBtn?.addEventListener('click', closeSidebar);
-        overlay?.addEventListener('click', closeSidebar);
-        // Mobile sidebar logic
-        const openBtn = document.getElementById('mobile-sidebar-open');
-        const closeBtn = document.getElementById('mobile-sidebar-close');
-        const overlay = document.getElementById('mobile-sidebar-overlay');
-        const sidebar = document.getElementById('mobile-sidebar');
-        const drawer = document.getElementById('mobile-sidebar-drawer');
-
-        function openSidebar() {
-            sidebar.classList.remove('hidden');
-            setTimeout(() => {
-                overlay?.classList.remove('opacity-0');
-                drawer.classList.remove('translate-x-full');
-            }, 10);
-        }
-
-        function closeSidebar() {
-            overlay?.classList.add('opacity-0');
-            drawer.classList.add('translate-x-full');
-            setTimeout(() => {
-                sidebar.classList.add('hidden');
-            }, 300);
-        }
-
+        function openSidebar() { sidebar.classList.remove('hidden'); setTimeout(() => { overlay.classList.remove('opacity-0'); drawer.classList.remove('translate-x-full'); }, 10); }
+        function closeSidebar() { overlay.classList.add('opacity-0'); drawer.classList.add('translate-x-full'); setTimeout(() => sidebar.classList.add('hidden'), 300); }
         openBtn?.addEventListener('click', openSidebar);
         closeBtn?.addEventListener('click', closeSidebar);
         overlay?.addEventListener('click', closeSidebar);
     </script>
+    <script>window.si = window.si || function () { (window.siq = window.siq || []).push(arguments); };</script>
     <script defer src="/_vercel/speed-insights/script.js"></script>
 </body>
-
 </html>

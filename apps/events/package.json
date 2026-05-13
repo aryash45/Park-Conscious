@@ -1,5 +1,5 @@
 {
-  "name": "bookmyshow-clone",
+  "name": "@parkconscious/events",
   "version": "0.1.0",
   "private": true,
   "homepage": "/",
@@ -30,6 +30,7 @@
     "web-vitals": "^3.5.2"
   },
   "scripts": {
+    "dev": "react-scripts start",
     "start": "react-scripts start",
     "build": "DISABLE_ESLINT_PLUGIN=true CI=false NODE_OPTIONS=--max-old-space-size=4096 react-scripts build",
     "test": "react-scripts test",

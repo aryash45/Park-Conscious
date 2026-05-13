@@ -1,294 +1,252 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Access Logs | Park Conscious</title>
+    <title>Booking Logs | Park Conscious Owner</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap"
-        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
-        :root {
-          --primary: #00C39A;
-          --primary-dark: #00A683;
-          --slate-900: #0F172A;
-          --slate-800: #1E293B;
-          --slate-600: #475569;
-          --slate-500: #64748B;
-          --slate-400: #94A3B8;
-          --slate-100: #F1F5F9;
-          --slate-50: #F8FAFC;
-        }
-
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #ffffff;
-            color: var(--slate-900);
-        }
-
-        h1, h2, h3, h4, h5, h6 {
-            font-family: 'Outfit', sans-serif;
-            color: var(--slate-900);
-        }
-
-        .glass-panel {
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(0, 0, 0, 0.05);
-            border-right: 1px solid rgba(0, 0, 0, 0.05);
-        }
-
-        .glass-card {
-            background: rgba(255, 255, 255, 0.9);
-            border: 1px solid rgba(0, 0, 0, 0.05);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.05);
-        }
-
-        .btn-primary {
-            background-color: var(--primary);
-            color: white;
-            transition: all 0.3s ease;
-        }
-
-        .btn-primary:hover {
-            background-color: var(--primary-dark);
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(0, 195, 154, 0.2);
-        }
+        :root { --primary: #00C39A; }
+        body { font-family: 'Inter', sans-serif; background-color: #F8FAFC; color: #0F172A; }
+        h1,h2,h3,h4,h5,h6 { font-family: 'Outfit', sans-serif; }
+        .glass-header { background: rgba(255,255,255,0.9); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(0,0,0,0.05); }
+        .sidebar { background: #0F172A; }
+        .nav-item { color: #94A3B8; transition: all 0.2s ease; }
+        .nav-item:hover { color: #fff; background: rgba(255,255,255,0.06); }
+        .nav-item.active { background: rgba(0,195,154,0.12); color: #00C39A; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #F1F5F9; }
+        ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
     </style>
 </head>
+<body class="h-screen flex overflow-hidden">
 
-<body class="bg-white text-slate-900 h-screen flex overflow-hidden">
-
-    <!-- Mobile Sidebar Drawer -->
-    <div id="mobile-sidebar" class="fixed inset-0 z-[100] hidden">
-        <div id="mobile-sidebar-overlay" class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 opacity-0"></div>
-        <div id="mobile-sidebar-drawer" class="absolute left-0 top-0 h-full w-[280px] glass-panel bg-white flex flex-col translate-x-full transition-transform duration-300 border-r border-slate-200">
-            <div class="h-16 flex items-center justify-between px-6 border-b border-slate-200">
-                <div class="flex items-center">
-                    <div class="relative w-8 h-8 mr-3 flex items-center justify-center bg-white rounded-lg shadow-sm overflow-hidden">
-                        <img src="../assets/logo.jpg" alt="Logo" class="w-full h-full object-cover">
-                    </div>
-                    <span class="text-base font-bold text-slate-900 tracking-tight">Park <span class="text-[#00C39A]">Owner</span></span>
-                </div>
-                <button id="mobile-sidebar-close" class="p-2 text-slate-400 hover:text-slate-900">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
-            </div>
-            <nav class="flex-1 p-4 space-y-2">
-                <a href="dashboard.html" class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-50">Dashboard</a>
-                <a href="logs.html" class="flex items-center gap-3 px-4 py-3 rounded-lg bg-[#00C39A]/10 text-slate-900 font-medium">Access Logs</a>
-                <a href="add-parking.html" class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors">Add Parking</a>
-            </nav>
-            <div class="p-4 border-t border-slate-200">
-                <button onclick="window.location.href='index.html'" class="flex items-center gap-3 px-4 py-3 w-full rounded-lg text-red-600 hover:bg-red-50 transition-colors text-sm font-medium">Logout</button>
-            </div>
+    <!-- Sidebar -->
+    <aside class="sidebar w-64 flex-none hidden md:flex flex-col">
+        <div class="h-16 flex items-center px-6 border-b border-white/5 cursor-pointer" onclick="window.location.href='../index.html'">
+            <img src="../assets/logo.jpg" alt="Logo" class="h-8 w-8 rounded-lg mr-3 object-cover">
+            <span class="text-lg font-bold text-white">Park <span class="text-[#00C39A]">Owner</span></span>
         </div>
-    </div>
-
-    <!-- Sidebar (Desktop) -->
-    <aside class="w-64 glass-panel flex-none hidden md:flex flex-col">
-        <div class="h-16 flex items-center px-6 border-b border-slate-200 cursor-pointer" onclick="window.location.href='../index.html'">
-            <div class="relative w-8 h-8 mr-3 flex items-center justify-center bg-white rounded-lg shadow-sm overflow-hidden">
-                <img src="../assets/logo.jpg" alt="Logo" class="w-full h-full object-cover opacity-90">
-            </div>
-            <span class="text-lg font-bold text-slate-900 tracking-tight">Park <span class="text-[#00C39A]">Owner</span></span>
-        </div>
-
-        <nav class="flex-1 p-4 space-y-2">
-            <a href="dashboard.html" class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                </svg>
-                Dashboard
+        <nav class="flex-1 p-4 space-y-1 mt-2">
+            <a href="dashboard.html" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+                Overview
             </a>
-            <a href="logs.html" class="flex items-center gap-3 px-4 py-3 rounded-lg bg-[#00C39A]/10 text-slate-900 font-medium">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-                Access Logs
+            <a href="logs.html" class="nav-item active flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                Booking Logs
             </a>
-            <a href="add-parking.html" class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
+            <a href="add-parking.html" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
                 Add Parking
             </a>
-            <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-                Analytics
-            </a>
         </nav>
-
-        <div class="p-4 border-t border-slate-200">
-            <button onclick="window.location.href='index.html'" class="flex items-center gap-3 px-4 py-3 w-full rounded-lg text-red-600 hover:bg-red-50 transition-colors text-sm font-medium">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-                Logout
-            </button>
-        </div>
-    </aside>
-                    class=\"text-[#00C39A]\">Owner</span></span>
-        </div>
-
-        <nav class=\"flex-1 p-4 space-y-2\">
-            <a href=\"dashboard.html\"
-                class=\"flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors\">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                </svg>
-                Dashboard
-            </a>
-            <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-lg bg-[#00C39A]/10 text-slate-900 font-medium">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-                Access Logs
-            </a>
-            <a href="add-parking.html"
-                class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-                Add Parking
-            </a>
-            <a href="#"
-                class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-                Analytics
-            </a>
-        </nav>
-
-        <div class="p-4 border-t border-slate-200">
-            <button onclick="window.location.href='index.html'"
-                class="flex items-center gap-3 px-4 py-3 w-full rounded-lg text-red-600 hover:bg-red-50 transition-colors text-sm font-medium">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-                Logout
+        <div class="p-4 border-t border-white/5">
+            <button onclick="logoutOwner()" class="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-red-400 hover:bg-red-500/10 transition-all text-sm font-medium">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                Sign Out
             </button>
         </div>
     </aside>
 
-    <!-- Main Content -->
-    <main class="flex-1 overflow-y-auto relative">
-        <header class="h-16 flex items-center justify-between px-4 md:px-8 border-b border-slate-200 bg-white/80 backdrop-blur-md sticky top-0 z-10">
-            <div class="flex items-center gap-4">
-                <button id="mobile-sidebar-open" class="md:hidden p-1 text-slate-600 hover:text-slate-900">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
-                </button>
-                <h2 class="text-base md:text-xl font-bold text-slate-900">Live Access Logs</h2>
+    <!-- Main -->
+    <main class="flex-1 overflow-y-auto">
+        <header class="h-16 glass-header sticky top-0 z-10 px-6 md:px-8 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <button id="mobile-sidebar-open" class="md:hidden p-2 text-slate-500"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+                <span class="text-xs bg-blue-50 text-blue-600 border border-blue-200 px-3 py-1 rounded-full font-bold uppercase tracking-wider">Booking Logs</span>
             </div>
             <div class="flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                <span class="text-[10px] md:text-sm text-slate-600 uppercase tracking-widest font-bold">Scanner Online</span>
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span class="text-xs text-slate-400 font-bold uppercase tracking-wider hidden sm:block">Live Feed</span>
             </div>
         </header>
 
-        <div class="p-4 md:p-8 max-w-7xl mx-auto">
-            <div class="glass-card rounded-xl overflow-x-auto">
-        <div class="p-4 md:p-8 max-w-7xl mx-auto">
-            <div class="glass-card rounded-xl overflow-x-auto">
-                <table class="w-full text-left">
-                    <thead>
-                        <tr class="border-b border-slate-200 bg-slate-50">
-                            <th class="px-6 py-4 text-xs font-bold text-slate-600 uppercase tracking-wider">Time</th>
-                            <th class="px-6 py-4 text-xs font-bold text-slate-600 uppercase tracking-wider">Plate Number
-                            </th>
-                            <th class="px-6 py-4 text-xs font-bold text-slate-600 uppercase tracking-wider">Location</th>
-                            <th class="px-6 py-4 text-xs font-bold text-slate-600 uppercase tracking-wider">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="logsBody" class="divide-y divide-slate-200">
-                        <!-- Logs will be injected here -->
-                    </tbody>
-                </table>
+        <div class="p-6 md:p-10 max-w-7xl mx-auto">
+            <div class="mb-6">
+                <h1 class="text-3xl font-black text-slate-900">Booking Logs</h1>
+                <p class="text-slate-500 mt-1 text-sm">All incoming reservations across your parking locations.</p>
+            </div>
+
+            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div class="flex bg-slate-100 p-1 rounded-xl w-full sm:w-auto">
+                        <button onclick="switchTab('active')" id="tab-active" class="flex-1 sm:flex-none px-6 py-2 rounded-lg text-xs font-bold transition-all bg-white text-slate-900 shadow-sm">Active</button>
+                        <button onclick="switchTab('history')" id="tab-history" class="flex-1 sm:flex-none px-6 py-2 rounded-lg text-xs font-bold transition-all text-slate-500 hover:text-slate-700">History</button>
+                    </div>
+                    <button onclick="fetchLogs()" class="text-xs text-[#00C39A] font-bold hover:text-[#00A683] flex items-center gap-1.5 bg-emerald-50 px-4 py-2 rounded-xl border border-emerald-100 transition-colors">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        Refresh Feed
+                    </button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="border-b border-slate-100 bg-slate-50">
+                                <th class="px-6 py-3.5 text-xs font-bold text-slate-400 uppercase tracking-wider">Date</th>
+                                <th class="px-6 py-3.5 text-xs font-bold text-slate-400 uppercase tracking-wider">Location</th>
+                                <th class="px-6 py-3.5 text-xs font-bold text-slate-400 uppercase tracking-wider">Vehicle Details</th>
+                                <th class="px-6 py-3.5 text-xs font-bold text-slate-400 uppercase tracking-wider">Time Slot</th>
+                                <th class="px-6 py-3.5 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Revenue</th>
+                                <th class="px-6 py-3.5 text-xs font-bold text-slate-400 uppercase tracking-wider">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logsBody" class="divide-y divide-slate-50 text-sm">
+                            <tr><td colspan="6" class="px-6 py-10 text-center text-slate-400 text-sm italic">Initializing logs...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </main>
 
+    <div id="mobile-sidebar" class="fixed inset-0 z-[100] hidden">
+        <div id="mobile-sidebar-overlay" class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm opacity-0 transition-opacity"></div>
+        <div id="mobile-sidebar-drawer" class="absolute left-0 top-0 h-full w-72 sidebar flex flex-col translate-x-full transition-transform duration-300">
+            <div class="h-16 flex items-center justify-between px-6 border-b border-white/5">
+                <span class="text-white font-bold">Park <span class="text-[#00C39A]">Owner</span></span>
+                <button id="mobile-sidebar-close" class="p-2 text-slate-400"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+            </div>
+            <nav class="flex-1 p-4 space-y-1 mt-2">
+                <a href="dashboard.html" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm">Overview</a>
+                <a href="logs.html" class="nav-item active flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm">Booking Logs</a>
+                <a href="add-parking.html" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm">Add Parking</a>
+            </nav>
+            <div class="p-4 border-t border-white/5">
+                <button onclick="logoutOwner()" class="text-red-400 px-4 py-3 w-full text-sm font-medium text-left">Sign Out</button>
+            </div>
+        </div>
+    </div>
+
     <script>
-        async function fetchLogs() {
-            try {
-                // Determine API URL
-                const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-                const API_URL = isLocal ? (window.location.port === '3000' ? '/api/logs' : 'http://localhost:5050/api/logs') : '/api/logs';
+        const ownerToken = localStorage.getItem('park_owner');
+        const userToken = localStorage.getItem('park_user');
+        const isDemo = sessionStorage.getItem('park_owner_demo');
 
-                const response = await fetch(API_URL);
-                const data = await response.json();
-
-                const body = document.getElementById('logsBody');
-                body.innerHTML = '';
-
-                data.forEach(log => {
-                    const row = document.createElement('tr');
-                    row.className = 'hover:bg-white/5 transition-colors';
-                    row.innerHTML = `
-                        <td class="px-6 py-4 text-sm text-gray-300 font-mono">${new Date(log.timestamp).toLocaleString()}</td>
-                        <td class="px-6 py-4">
-                            <span class="bg-blue-500/10 text-blue-400 border border-blue-500/20 px-3 py-1 rounded-md font-bold tracking-widest uppercase">
-                                ${log.plateNumber}
-                            </span>
-                        </td>
-                        <td class="px-6 py-4 text-sm text-gray-400">${log.location}</td>
-                        <td class="px-6 py-4">
-                            <span class="text-xs bg-green-500/10 text-green-400 border border-green-500/20 px-2 py-0.5 rounded-full">Detected</span>
-                        </td>
-                    `;
-                    body.appendChild(row);
-                });
-
-                if (data.length === 0) {
-                    body.innerHTML = '<tr><td colspan="4" class="px-6 py-12 text-center text-gray-500">No detections logged yet...</td></tr>';
-                }
-            } catch (error) {
-                console.error('Failed to fetch logs:', error);
+        async function checkAuth() {
+            // 1. Priority: Real Owner Session
+            if (ownerToken) {
+                try {
+                    const owner = JSON.parse(ownerToken);
+                    if (owner.id && owner.id !== 'demo') return owner;
+                } catch(e) {}
             }
+
+            // 2. Priority: Unified Login (Bridge)
+            if (userToken) {
+                try {
+                    const user = JSON.parse(userToken);
+                    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+                    const API_URL = isLocal ? `http://localhost:5050/api/owner/check-session?email=${user.email}` : `/api/owner/check-session?email=${user.email}`;
+                    const resp = await fetch(API_URL);
+                    if (resp.ok) {
+                        const data = await resp.json();
+                        localStorage.setItem('park_owner', JSON.stringify(data.user));
+                        return data.user;
+                    }
+                } catch(e) {}
+            }
+
+            // 3. Priority: Demo Mode (Only as fallback)
+            if (isDemo) return { name: 'Demo Owner', id: 'demo' };
+
+            window.location.href = 'login.html';
+        }
+        
+        checkAuth().then(owner => {
+            if (owner) fetchLogs(owner.id);
+        });
+
+        function logoutOwner() { localStorage.removeItem('park_owner'); sessionStorage.removeItem('park_owner_demo'); window.location.href = '../index.html'; }
+
+        let currentLogs = [];
+        let activeFilter = 'active';
+
+        function switchTab(tab) {
+            activeFilter = tab;
+            const btnActive = document.getElementById('tab-active');
+            const btnHistory = document.getElementById('tab-history');
+            
+            if (tab === 'active') {
+                btnActive.className = "flex-1 sm:flex-none px-6 py-2 rounded-lg text-xs font-bold transition-all bg-white text-slate-900 shadow-sm";
+                btnHistory.className = "flex-1 sm:flex-none px-6 py-2 rounded-lg text-xs font-bold transition-all text-slate-500 hover:text-slate-700";
+            } else {
+                btnHistory.className = "flex-1 sm:flex-none px-6 py-2 rounded-lg text-xs font-bold transition-all bg-white text-slate-900 shadow-sm";
+                btnActive.className = "flex-1 sm:flex-none px-6 py-2 rounded-lg text-xs font-bold transition-all text-slate-500 hover:text-slate-700";
+            }
+            renderLogs();
         }
 
-        // Poll for new logs every 5 seconds
-        fetchLogs();
-        setInterval(fetchLogs, 5000);
-        // Mobile sidebar logic
+        async function fetchLogs(ownerId) {
+            if (!ownerId) {
+                const owner = await checkAuth();
+                ownerId = owner?.id;
+            }
+            if (!ownerId) return;
+
+            try {
+                const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+                const API_URL = isLocal ? `http://localhost:5050/api/owner/${ownerId}/logs` : `/api/owner/${ownerId}/logs`;
+                const response = await fetch(API_URL);
+                if (!response.ok) throw new Error('Network error');
+                currentLogs = await response.json();
+                renderLogs();
+            } catch(e) { console.error('Logs load failed:', e); }
+        }
+
+        function renderLogs() {
+            const body = document.getElementById('logsBody');
+            body.innerHTML = '';
+            
+            const now = new Date();
+            const filtered = currentLogs.filter(log => {
+                const logDate = new Date(log.createdAt || log.date);
+                // Simplify: if log is from today or later, it's active. For real production, we'd check times.
+                const isPast = logDate < new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                return activeFilter === 'history' ? isPast : !isPast;
+            });
+
+            if (filtered.length === 0) {
+                body.innerHTML = `<tr><td colspan="6" class="px-6 py-12 text-center text-slate-400 text-sm">No ${activeFilter} bookings yet.</td></tr>`;
+                return;
+            }
+
+            filtered.forEach(log => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-slate-50/70 transition-colors';
+                const vehicleTypeLabel = log.vehicleType === '2wheeler' ? '2-Wheel' : (log.vehicleType === 'heavy' ? 'Heavy' : '4-Wheel');
+                
+                row.innerHTML = `
+                    <td class="px-6 py-4 text-slate-500 font-mono text-[11px]">${new Date(log.createdAt || log.date).toLocaleDateString('en-IN', {day:'2-digit', month:'short'})}</td>
+                    <td class="px-6 py-4 font-bold text-slate-900">${log.locationName}</td>
+                    <td class="px-6 py-4">
+                        <div class="font-bold text-slate-800 uppercase tracking-tight">${log.vehicleNumber || '---'}</div>
+                        <div class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">${vehicleTypeLabel}</div>
+                    </td>
+                    <td class="px-6 py-4 text-slate-500 font-medium italic">${log.startTime} → ${log.endTime}</td>
+                    <td class="px-6 py-4 text-right"><span class="font-black text-slate-900">${log.amount}</span></td>
+                    <td class="px-6 py-4"><span class="inline-flex items-center gap-1.5 text-[10px] bg-emerald-50 text-emerald-600 border border-emerald-100 px-2.5 py-1 rounded-full font-black uppercase tracking-wider"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 ${activeFilter === 'active' ? 'animate-pulse' : ''}"></span>Confirmed</span></td>`;
+                body.appendChild(row);
+            });
+        }
+        
+        setInterval(() => {
+            checkAuth().then(owner => { if (owner) fetchLogs(owner.id); });
+        }, 30000);
+
         const openBtn = document.getElementById('mobile-sidebar-open');
         const closeBtn = document.getElementById('mobile-sidebar-close');
         const overlay = document.getElementById('mobile-sidebar-overlay');
         const sidebar = document.getElementById('mobile-sidebar');
         const drawer = document.getElementById('mobile-sidebar-drawer');
-
-        function openSidebar() {
-            sidebar.classList.remove('hidden');
-            setTimeout(() => {
-                overlay.classList.remove('opacity-0');
-                drawer.classList.remove('translate-x-full');
-            }, 10);
-        }
-
-        function closeSidebar() {
-            overlay.classList.add('opacity-0');
-            drawer.classList.add('translate-x-full');
-            setTimeout(() => {
-                sidebar.classList.add('hidden');
-            }, 300);
-        }
-
+        function openSidebar() { sidebar.classList.remove('hidden'); setTimeout(() => { overlay.classList.remove('opacity-0'); drawer.classList.remove('translate-x-full'); }, 10); }
+        function closeSidebar() { overlay.classList.add('opacity-0'); drawer.classList.add('translate-x-full'); setTimeout(() => sidebar.classList.add('hidden'), 300); }
         openBtn?.addEventListener('click', openSidebar);
         closeBtn?.addEventListener('click', closeSidebar);
         overlay?.addEventListener('click', closeSidebar);
     </script>
+    <script>window.si = window.si || function () { (window.siq = window.siq || []).push(arguments); };</script>
+    <script defer src="/_vercel/speed-insights/script.js"></script>
 </body>
-
 </html>
