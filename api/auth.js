@@ -155,9 +155,9 @@ export default async function handler(req, res) {
                 if (!u.googleId) {
                     // REQUIRE VERIFICATION for binding Google to an existing password-based account
                     // For now, we reject to prevent auto-binding without a verification flow
-                    console.info(`[AUTH_BIND_REQUIRED]: User ${search} needs to verify email before linking Google.`);
+                    console.info(`[AUTH_BIND_REQUIRED]: User ${search} attempted Google login but account is password-only.`);
                     return json(res, 401, { 
-                        message: 'For your security, please log in with your password first to link your Google account in settings.' 
+                        message: 'This account was created with a password. Please sign in using your email and password, or contact support if you wish to link your Google account.' 
                     });
                 }
 
