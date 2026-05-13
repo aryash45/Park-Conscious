@@ -13,7 +13,7 @@ import crypto from 'crypto';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
-    console.error("[CRITICAL]: JWT_SECRET is not defined in environment variables. Auth will fail.");
+    throw new Error("CRITICAL CONFIGURATION ERROR: JWT_SECRET must be defined in environment variables to secure sessions.");
 }
 
 export function normalizeEvent(evt) {
@@ -107,20 +107,19 @@ export async function logSystemError(source, type, message, stack, metadata = {}
         // Generate a hash based on source and message to group identical errors
         const hash = crypto.createHash('md5').update(`${source}:${message}`).digest('hex');
         
-        // Check for an existing unresolved log with this hash
-        const existing = await SystemLog.findOne({ hash, resolved: false });
-        
-        if (existing) {
-            existing.count += 1;
-            existing.lastSeenAt = new Date();
-            if (metadata) existing.metadata = { ...existing.metadata, ...metadata };
-            await existing.save();
-            return existing;
-        }
-        
-        return await SystemLog.create({
-            source, type, message, stack, hash, metadata
-        });
+        // Atomic Upsert: Group identical unresolved errors
+        return await SystemLog.findOneAndUpdate(
+            { hash, resolved: false },
+            { 
+                $inc: { count: 1 }, 
+                $set: { 
+                    lastSeenAt: new Date(),
+                    source, type, message, stack,
+                    ...(Object.keys(metadata).length > 0 ? { metadata } : {})
+                } 
+            },
+            { upsert: true, new: true, runValidators: true }
+        );
     } catch (e) {
         console.error('[CRITICAL_LOGGER_FAILURE]:', e.message);
         return null;
@@ -195,10 +194,11 @@ export const setCors = (req, res) => {
         'http://localhost:3000'
     ];
     const origin = req.headers.origin;
+    const allowedVercelHosts = (process.env.ALLOWED_VERCEL_HOSTS || '').split(',').map(h => h.trim()).filter(Boolean);
     const isAllowed = origin && (
         allowed.includes(origin) || 
         origin.endsWith('.parkconscious.in') || 
-        origin.endsWith('.vercel.app')
+        allowedVercelHosts.includes(origin)
     );
 
     if (isAllowed) {

@@ -82,9 +82,10 @@ export async function handleBookings(url, method, body, user, res) {
         if (!RESEND_API_KEY) return json(res, 500, { success: false, message: 'RESEND_API_KEY not configured.' });
 
         const resend = new Resend(RESEND_API_KEY);
+        const role = (user.role || '').toLowerCase();
         let bookingQuery = { _id: { $in: bookingIds }, emailSent: { $ne: true }, status: { $in: ["Confirmed", "confirmed"] } };
         
-        if (user.role !== 'superadmin' && user.role !== 'admin') {
+        if (role !== 'superadmin' && role !== 'admin') {
             const myEvents = await Event.find({ organizerId: user.id }).select('_id').lean();
             const myEventIds = myEvents.map(e => String(e._id));
             bookingQuery.eventId = { $in: myEventIds };
@@ -163,12 +164,13 @@ export async function handleBookings(url, method, body, user, res) {
         const booking = await Booking.findById(bookingId);
         if (!booking) return json(res, 404, { message: 'Booking not found' });
 
-        if (user.role !== 'superadmin' && user.role !== 'admin') {
+        const role = (user.role || '').toLowerCase();
+        if (role !== 'superadmin' && role !== 'admin') {
             const event = await Event.findById(booking.eventId);
             if (!event || String(event.organizerId) !== String(user.id)) return json(res, 403, { message: 'Access Denied' });
         }
 
-        if (booking.status === "Confirmed" && booking.eventId && booking.eventId.length === 24) {
+        if (booking.status && booking.status.toLowerCase() === "confirmed" && booking.eventId && booking.eventId.length === 24) {
            await Event.findByIdAndUpdate(booking.eventId, { $inc: { capacity: 1 } });
         }
 
@@ -178,7 +180,8 @@ export async function handleBookings(url, method, body, user, res) {
 
     // -- Payment Reconciliation (Force Sync with PhonePe) --
     if (url.includes('reconcile') && method === 'POST') {
-        if (!user || user.role !== 'admin') return json(res, 403, { message: 'Access Denied' });
+        const role = (user.role || '').toLowerCase();
+        if (!user || role !== 'admin') return json(res, 403, { message: 'Access Denied' });
 
         const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1000);
         const pendingBookings = await Booking.find({ status: "Initiated", createdAt: { $lt: fiveMinsAgo } }).limit(20);
@@ -200,19 +203,43 @@ export async function handleBookings(url, method, body, user, res) {
                     timeout: 5000
                 });
 
-                if (response.data.success && response.data.data.state === "COMPLETED") {
+                const data = response.data;
+                const state = data?.data?.state;
+
+                if (data?.success && state === "COMPLETED") {
+                    // ATOMIC CAPACITY GUARD: Check and decrement first
+                    let capacityUpdate = null;
+                    if (b.eventId && b.eventId.length === 24) {
+                        capacityUpdate = await Event.findOneAndUpdate(
+                            { _id: b.eventId, capacity: { $gt: 0 } },
+                            { $inc: { capacity: -1 } },
+                            { new: true }
+                        );
+                        
+                        if (!capacityUpdate) {
+                            console.error(`[RECONCILE_OVERSOLD] Event ${b.eventId} is full. Skipping.`);
+                            continue;
+                        }
+                    }
+
                     const updated = await Booking.findOneAndUpdate(
                         { _id: b._id, status: "Initiated" },
                         { $set: { status: "Confirmed", ticketId: "TK-" + crypto.randomUUID().slice(0, 8).toUpperCase() } },
                         { new: true }
                     );
+
                     if (updated) {
                         recoveredCount++;
-                        if (updated.eventId && updated.eventId.length === 24) await Event.findByIdAndUpdate(updated.eventId, { $inc: { capacity: -1 } });
+                    } else if (capacityUpdate) {
+                        // Rollback capacity if booking update failed
+                        await Event.findByIdAndUpdate(b.eventId, { $inc: { capacity: 1 } });
                     }
-                } else if (response.data.data.state === "FAILED" || response.data.data.state === "CANCELLED") {
+                } else if (state === "FAILED" || state === "CANCELLED") {
                     await Booking.findByIdAndUpdate(b._id, { $set: { status: "Failed" } });
                     failureCount++;
+                } else if (!data || !data.success) {
+                    // Treat missing data or success:false as failure to avoid TypeErrors
+                    await Booking.findByIdAndUpdate(b._id, { $inc: { failureCount: 1 } });
                 }
             } catch (err) { console.error(`Reconcile failed:`, err.message); }
         }

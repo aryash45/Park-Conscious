@@ -26,8 +26,8 @@ if [ -d "$DEST" ]; then
     else
         echo "⚠️ Warning: DEST exists but is not a git repo. Proceeding with caution."
         # Extra safety: only clear if it looks like the right project
-        if [ -f "$DEST/package.json" ]; then
-            rm -rf "$DEST"/*
+        if [ -f "${DEST:?}/package.json" ]; then
+            rm -rf "${DEST:?}"/*
         else
             echo "❌ Error: DEST does not look like the target project (missing package.json). Aborting to prevent accidental deletion."
             exit 1
@@ -65,23 +65,27 @@ rsync -a --exclude 'node_modules' "$SOURCE/packages/" "$DEST/packages/"
 echo "Redacting Parking Moduels..."
 
 # Replace Logo
-cp "$DEST/Events/public/logo.svg" "$DEST/Events/public/logo.png" 2>/dev/null || true
-cp "$DEST/Events/public/logo.svg" "$DEST/Events/public/favicon.ico" 2>/dev/null || true
+cp "$DEST/apps/events/public/logo.svg" "$DEST/apps/events/public/logo.png" 2>/dev/null || true
+cp "$DEST/apps/events/public/logo.svg" "$DEST/apps/events/public/favicon.ico" 2>/dev/null || true
 
-# Redact models.js (remove AccessLog and Parking schemas)
-sed -i '' '/const accessLogSchema = new mongoose.Schema(/,/);/d' "$DEST/api/lib/models.js"
-sed -i '' '/const parkingSchema = new mongoose.Schema(/,/);/d' "$DEST/api/lib/models.js"
-sed -i '' 's/export const AccessLog.*//g' "$DEST/api/lib/models.js"
-sed -i '' 's/export const Parking.*//g' "$DEST/api/lib/models.js"
+# Redact models.js (remove AccessLog and Parking schemas) - Portable Syntax
+sed -i.bak '/const accessLogSchema = new mongoose.Schema(/,/);/d' "$DEST/api/lib/models.js"
+sed -i.bak '/const parkingSchema = new mongoose.Schema(/,/);/d' "$DEST/api/lib/models.js"
+sed -i.bak 's/export const AccessLog.*//g' "$DEST/api/lib/models.js"
+sed -i.bak 's/export const Parking.*//g' "$DEST/api/lib/models.js"
+rm -f "$DEST/api/lib/models.js.bak"
 
 # Redact App.js (Remove custom branding routes like Afsana/TEDx)
 node -e "
 const fs = require('fs');
-let appStr = fs.readFileSync('$DEST/Events/src/App.js', 'utf8');
-appStr = appStr.replace(/import TedxTicketsPage.*/g, '');
-appStr = appStr.replace(/import AfsanaPage.*/g, '');
-appStr = appStr.split('\\n').filter(line => !line.includes('/tedx-tickets') && !line.includes('/afsana-tickets')).join('\\n');
-fs.writeFileSync('$DEST/Events/src/App.js', appStr);
+let appPath = '$DEST/apps/events/src/App.js';
+if (fs.existsSync(appPath)) {
+    let appStr = fs.readFileSync(appPath, 'utf8');
+    appStr = appStr.replace(/import TedxTicketsPage.*/g, '');
+    appStr = appStr.replace(/import AfsanaPage.*/g, '');
+    appStr = appStr.split('\\n').filter(line => !line.includes('/tedx-tickets') && !line.includes('/afsana-tickets')).join('\\n');
+    fs.writeFileSync(appPath, appStr);
+}
 "
 
 # Redact admin.js (Remove parking api endpoints)

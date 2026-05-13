@@ -92,13 +92,23 @@ export default async function handler(req, res) {
             
             let payload;
             try {
+                const googleClientId = process.env.GOOGLE_CLIENT_ID;
+                if (!googleClientId) {
+                    console.error('[SECURITY]: GOOGLE_CLIENT_ID is missing from environment.');
+                    return json(res, 500, { message: 'Internal Server Error: Google OAuth not configured.' });
+                }
+
                 const { OAuth2Client } = await import('google-auth-library');
-                const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || "226356760349-2i4fuvevqqfqanehgjedcavlngurvlug.apps.googleusercontent.com");
+                const client = new OAuth2Client(googleClientId);
                 const ticket = await client.verifyIdToken({
                     idToken: credential,
-                    audience: process.env.GOOGLE_CLIENT_ID || "226356760349-2i4fuvevqqfqanehgjedcavlngurvlug.apps.googleusercontent.com"
+                    audience: googleClientId
                 });
                 payload = ticket.getPayload();
+                
+                if (!payload || !payload.email) {
+                    return json(res, 401, { message: 'Invalid Google Credential: Email missing' });
+                }
             } catch (err) {
                 console.error('[GOOGLE_VERIFY_ERROR]:', err.message);
                 return json(res, 401, { message: 'Invalid Google Credential' });
@@ -134,11 +144,24 @@ export default async function handler(req, res) {
                 u = await User.create({ name, email: search, googleId, picture });
                 isOwner = false;
             } else {
-                let changed = false;
-                if (!u.googleId) {
-                    u.googleId = googleId;
-                    changed = true;
+                // SECURITY: Prevent unauthorized account binding/hijacking
+                if (u.googleId && u.googleId !== googleId) {
+                    console.warn(`[AUTH_HIJACK_ATTEMPT]: User ${search} attempted Google login with different googleId.`);
+                    return json(res, 403, { 
+                        message: 'This account is already linked to a different Google identity. Please log in with your password or contact support.' 
+                    });
                 }
+
+                if (!u.googleId) {
+                    // REQUIRE VERIFICATION for binding Google to an existing password-based account
+                    // For now, we reject to prevent auto-binding without a verification flow
+                    console.info(`[AUTH_BIND_REQUIRED]: User ${search} needs to verify email before linking Google.`);
+                    return json(res, 401, { 
+                        message: 'For your security, please log in with your password first to link your Google account in settings.' 
+                    });
+                }
+
+                let changed = false;
                 // Unconditional name sync
                 if (u.name !== name) {
                     u.name = name;
