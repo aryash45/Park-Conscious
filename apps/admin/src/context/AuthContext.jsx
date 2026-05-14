@@ -15,7 +15,12 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const checkSession = async () => {
       try {
-        const response = await fetch('/api/auth/me');
+        const API_URL = import.meta.env.VITE_API_URL || "";
+        const response = await fetch(`${API_URL}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${JSON.parse(localStorage.getItem('adminUser') || '{}').token || ''}`
+          }
+        });
         if (response.ok) {
           const data = await response.json();
           if (data.authenticated && data.user) {
@@ -25,8 +30,9 @@ export const AuthProvider = ({ children }) => {
             
             if (isAdmin) {
               setAdmin(data.user);
-              // Sync to localStorage for other components
-              localStorage.setItem('adminUser', JSON.stringify({ user: data.user }));
+              // Sync to localStorage while PRESERVING the existing token
+              const existing = JSON.parse(localStorage.getItem('adminUser') || '{}');
+              localStorage.setItem('adminUser', JSON.stringify({ ...existing, user: data.user }));
             } else {
               setAdmin(null);
               localStorage.removeItem('adminUser');

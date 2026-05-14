@@ -34,17 +34,11 @@ async function connectToDatabase() {
 
         const opts = {
             bufferCommands: false,
-            // We remove the hardcoded dbName to allow it to be driven by the connection string
-            // This supports multi-tenant deployments (e.g. backstage_events vs park-conscious)
+            // Force the database name to backstage_events to restore production visibility
+            dbName: process.env.DB_NAME || "backstage_events",
             connectTimeoutMS: 15000,
             socketTimeoutMS: 45000,
         };
-
-        // If a specific dbName is provided in the URI (after the /), Mongoose will use it.
-        // If the user wants to override it via ENV, we can check for a DB_NAME var.
-        if (process.env.DB_NAME) {
-            opts.dbName = process.env.DB_NAME;
-        }
 
         cached.promise = mongoose.connect(process.env.MONGODB_URI, opts).then((mongoose) => {
             console.log("[DB_SUCCESS]: Connected to MongoDB ->", mongoose.connection.name);

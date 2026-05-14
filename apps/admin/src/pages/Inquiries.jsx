@@ -11,7 +11,7 @@ import {
   Trash2, ExternalLink, Filter, Search,
   AlertCircle, ChevronRight, User, Mail
 } from 'lucide-react';
-import axios from 'axios';
+import { adminService } from '../services/api';
 
 const TabButton = ({ active, onClick, icon: Icon, label, count }) => (
   <button
@@ -129,7 +129,7 @@ const Inquiries = () => {
     let isMounted = true;
     const loadData = async () => {
       try {
-        const res = await axios.get('/api/admin/inquiries', { withCredentials: true });
+        const res = await adminService.getInquiries();
         if (isMounted) setData(res.data);
       } catch (err) {
         console.error('Failed to fetch inquiries:', err);
@@ -144,21 +144,19 @@ const Inquiries = () => {
 
   const handleAction = async (action, id) => {
     try {
-      if (action === 'delete') {
-        await axios.delete(`/api/admin/inquiries/contact/${id}`, { withCredentials: true });
-      } else {
-        const status = action === 'approve' ? 'approved' : 'rejected';
-        await axios.patch(`/api/admin/inquiries/request/${id}`, { status }, { withCredentials: true });
-      }
+      await adminService.handleInquiry(action, id, { status: action === 'approve' ? 'approved' : 'rejected' });
       setRefreshTrigger(prev => prev + 1);
     } catch (err) {
-      alert('Action failed: ' + err.message);
+      alert('Action failed: ' + (err.response?.data?.message || err.message));
     }
   };
 
+  const contacts = data?.contacts || [];
+  const requests = data?.requests || [];
+
   const filteredData = activeTab === 'support' 
-    ? data.contacts.filter(c => c.name.toLowerCase().includes(filter.toLowerCase()) || c.email.toLowerCase().includes(filter.toLowerCase()))
-    : data.requests.filter(r => r.eventName.toLowerCase().includes(filter.toLowerCase()) || r.contactName.toLowerCase().includes(filter.toLowerCase()));
+    ? contacts.filter(c => (c.name || '').toLowerCase().includes(filter.toLowerCase()) || (c.email || '').toLowerCase().includes(filter.toLowerCase()))
+    : requests.filter(r => (r.eventName || '').toLowerCase().includes(filter.toLowerCase()) || (r.contactName || '').toLowerCase().includes(filter.toLowerCase()));
 
   return (
     <div className="space-y-10 animate-in fade-in duration-700">
@@ -190,14 +188,14 @@ const Inquiries = () => {
           onClick={() => setActiveTab('support')}
           icon={MessageSquare}
           label="Support Messages"
-          count={data.contacts.length}
+          count={contacts.length}
         />
         <TabButton 
           active={activeTab === 'proposals'} 
           onClick={() => setActiveTab('proposals')}
           icon={Send}
           label="Event Proposals"
-          count={data.requests.filter(r => r.status === 'pending').length}
+          count={requests.filter(r => r.status === 'pending').length}
         />
       </div>
 

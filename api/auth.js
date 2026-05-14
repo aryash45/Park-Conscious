@@ -25,6 +25,7 @@ export default async function handler(req, res) {
     const url = pathPart.replace(/\/+/g, '/').replace(/\/$/, '') || '/';
     const method = req.method || 'GET';
     const body = await getBody(req);
+    const user = verifyUser(req);
 
     try {
         await connectDB();
@@ -37,6 +38,7 @@ export default async function handler(req, res) {
             // Priority: Check Primary Database
             let u = await Owner.findOne({ email: search });
             let isOwner = !!u;
+            console.log(`[AUTH_DEBUG]: Search for ${search} | Found in Primary: ${!!u}`);
             
             if (!u) {
                 u = await User.findOne({ email: search });
@@ -192,20 +194,19 @@ export default async function handler(req, res) {
 
         // -- Session Check --
         if (url.includes('/me') && method === 'GET') {
-            const decoded = verifyUser(req);
-            if (!decoded) return json(res, 401, { authenticated: false });
+            if (!user) return json(res, 401, { authenticated: false });
             
             const host = req.headers.host || '';
             const isAdminHost = host.includes('admin.events');
             
             // Firewall: Ensure the user's role matches the portal they are accessing
-            const isPortalAdmin = decoded.role === 'admin' || decoded.role === 'superadmin' || decoded.role === 'organizer' || decoded.role === 'owner';
+            const isPortalAdmin = user.role === 'admin' || user.role === 'superadmin' || user.role === 'organizer' || user.role === 'owner';
             
             if (!isPortalAdmin && isAdminHost) {
                 return json(res, 401, { authenticated: false, message: 'Public sessions not allowed on admin portal' });
             }
 
-            return json(res, 200, { authenticated: true, user: decoded });
+            return json(res, 200, { authenticated: true, user });
         }
 
         // -- Organizer Registration (Self-Service with OTP) --

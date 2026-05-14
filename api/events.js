@@ -28,45 +28,184 @@ export default async function handler(req, res) {
         return;
     }
 
-    // 2. Health check (Priority)
-    const fullUrl = req.url || "/";
-    if (fullUrl.includes("/health")) {
-        const dbStatus = mongoose.connection.readyState;
-        const dbName = mongoose.connection.name;
-        return json(res, 200, { 
-            status: "ONLINE", 
-            timestamp: new Date().toISOString(),
-            env: process.env.VERCEL_ENV || "development",
-            database: {
-                connected: dbStatus === 1,
-                name: dbName || "none",
-                status: ["disconnected", "connected", "connecting", "disconnecting"][dbStatus]
-            }
-        });
-    }
-
-    // 3. Main Logic wrapper
+    // 2. Main Logic wrapper
     try {
         await connectDB();
-        const { Event } = models;
+        const { Event, Discussion, Comment } = models;
 
-        // GET: Fetch Events
-        if (req.method === "GET") {
-            const { id, slug, type } = req.query;
+        // Health check (Now accurately reflects the connection)
+        const fullUrl = req.url || "/";
+        if (fullUrl.includes("/health")) {
+            const dbStatus = mongoose.connection.readyState;
+            const dbName = mongoose.connection.name;
+            return json(res, 200, { 
+                status: "ONLINE", 
+                timestamp: new Date().toISOString(),
+                env: process.env.VERCEL_ENV || "production",
+                database: {
+                    connected: dbStatus === 1,
+                    readyState: dbStatus, // 0=disc, 1=conn, 2=connecting, 3=disconnecting
+                    name: dbName || "none",
+                    uri_found: !!process.env.MONGODB_URI,
+                    target_db: process.env.MONGODB_URI ? process.env.MONGODB_URI.split('/').pop().split('?')[0] : 'missing'
+                }
+            });
+        }
 
-            // Single Event by ID or Slug
-            if (id || slug) {
-                const query = id ? { _id: id } : { slug };
-                const event = await Event.findOne(query);
-                if (!event) return json(res, { error: "Event not found" }, 404);
+        const host = req.headers.host || 'localhost';
+        const parsedUrl = new URL(req.url, `http://${host}`);
+        const [pathPart] = (req.url || '/').split('?');
+        const urlPath = pathPart.replace(/\/+/g, '/').replace(/\/$/, '') || '/';
+        const method = req.method || 'GET';
+
+        // -- Discussions & Comments --
+        if (urlPath.includes('/discussions')) {
+            const id = parsedUrl.searchParams.get('id'); // Discussion ID
+            
+            if (method === 'GET') {
+                if (id) {
+                    const disc = await Discussion.findById(id).lean();
+                    if (!disc) return json(res, 404, { message: 'Discussion not found' });
+                    const comms = await Comment.find({ discussionId: id }).sort({ createdAt: -1 }).lean();
+                    return json(res, 200, { ...disc, comments: comms });
+                }
                 
-                // Prune sensitive data for public view
-                return json(res, pruneEvent(event));
+                // Sanitize and clamp pagination values
+                let page = parseInt(parsedUrl.searchParams.get('page')) || 1;
+                let limit = parseInt(parsedUrl.searchParams.get('limit')) || 6;
+                
+                page = Math.max(1, page);
+                limit = Math.max(1, Math.min(100, limit)); // Clamp limit between 1 and 100
+                const skip = (page - 1) * limit;
+
+                const total = await Discussion.countDocuments();
+                const discussions = await Discussion.find()
+                    .sort({ createdAt: -1 })
+                    .skip(skip)
+                    .limit(limit)
+                    .lean();
+
+                return json(res, 200, { 
+                    discussions, 
+                    totalPages: Math.ceil(total / limit) || 1,
+                    currentPage: page
+                });
             }
 
-            // List Events
-            // Relaxed filters for visibility restoration
-            const filter = { isDeleted: { $ne: true } };
+            if (method === 'POST') {
+                const user = verifyUser(req);
+                if (!user) return json(res, 401, { message: 'Auth required' });
+                const body = await getBody(req);
+                
+                // Create Comment with guards
+                if (urlPath.includes('/comments')) {
+                    if (!id) return json(res, 400, { message: 'Discussion ID required for comments' });
+                    
+                    const exists = await Discussion.findById(id);
+                    if (!exists) return json(res, 404, { message: 'Discussion not found' });
+
+                    const comment = await Comment.create({
+                        discussionId: id,
+                        parentId: body.parentId || null,
+                        text: body.text,
+                        authorName: user.name,
+                        authorUid: user.id,
+                        authorPhoto: user.picture || ""
+                    });
+                    await Discussion.findByIdAndUpdate(id, { $inc: { commentCount: 1 } });
+                    return json(res, 201, comment.toObject());
+                }
+                
+                // Ensure Discussion creation doesn't collide with Comment path
+                if (urlPath.endsWith('/discussions')) {
+                    // Logic for Discussion.create would go here if matched
+                }
+                const disc = await Discussion.create({ 
+                    ...body, 
+                    authorUid: user.id, 
+                    authorName: user.name,
+                    authorPhoto: user.picture || ""
+                });
+                return json(res, 201, disc.toObject());
+            }
+
+            if (method === 'PATCH') {
+                const user = verifyUser(req);
+                if (!user) return json(res, 401, { message: 'Auth required' });
+                const body = await getBody(req);
+                
+                // Vote Discussion
+                if (urlPath.includes('/details') && id) {
+                    const { action } = body;
+                    const disc = await Discussion.findById(id);
+                    if (!disc) return json(res, 404, { message: 'Not found' });
+                    
+                    disc.upvotes = disc.upvotes.filter(uid => uid !== user.id);
+                    disc.downvotes = disc.downvotes.filter(uid => uid !== user.id);
+                    
+                    if (action === 'upvote') disc.upvotes.push(user.id);
+                    else if (action === 'downvote') disc.downvotes.push(user.id);
+                    
+                    await disc.save();
+                    return json(res, 200, { upvotes: disc.upvotes, downvotes: disc.downvotes });
+                }
+                
+                // Vote Comment
+                if (urlPath.includes('/comments') && id) {
+                    const { commentId, action } = body;
+                    const comment = await Comment.findById(commentId);
+                    if (!comment) return json(res, 404, { message: 'Not found' });
+                    
+                    comment.upvotes = comment.upvotes.filter(uid => uid !== user.id);
+                    comment.downvotes = comment.downvotes.filter(uid => uid !== user.id);
+                    
+                    if (action === 'upvote') comment.upvotes.push(user.id);
+                    else if (action === 'downvote') comment.downvotes.push(user.id);
+                    
+                    await comment.save();
+                    return json(res, 200, { upvotes: comment.upvotes, downvotes: comment.downvotes });
+                }
+            }
+            
+            return json(res, 405, { error: "Method not allowed for discussions" });
+        }
+
+        // GET: List or Single Event
+        if (req.method === "GET") {
+            let eventId = parsedUrl.searchParams.get("id");
+            
+            // Extract from path if not in query (Vercel rewrite scenario)
+            if (!eventId) {
+                const pathParts = urlPath.split('/');
+                const lastPart = pathParts[pathParts.length - 1];
+                if (lastPart && lastPart !== 'events' && lastPart.length >= 20) {
+                    eventId = lastPart;
+                }
+            }
+
+            if (eventId) {
+                // Try cache first
+                const cached = await getCache(`event:${eventId}`);
+                if (cached) return json(res, 200, cached);
+
+                const event = await Event.findById(eventId);
+                if (!event) {
+                    return json(res, 404, { error: "Event not found" });
+                }
+
+                const data = pruneEvent(event);
+                await setCache(`event:${eventId}`, data, 300); // 5 min cache
+                return json(res, 200, data);
+            }
+
+            // List Filtered Events
+            const filter = { 
+                status: { $in: ["active", "published"] },
+                isPublic: true,
+                title: { $not: /test/i } // Case-insensitive filter to hide "Test", "TEST", "test 1", etc.
+            };
+            const type = parsedUrl.searchParams.get("type");
+            if (type) filter.type = type;
             
             const events = await Event.find(filter)
                 .sort({ startDate: 1 })
@@ -114,13 +253,13 @@ export default async function handler(req, res) {
 
     } catch (error) {
         console.error("[FATAL_HANDLER_ERROR]:", error);
-        await logSystemError("API_EVENTS_HANDLER", error);
+        await logSystemError("API_EVENTS_HANDLER", "router_fatal", error.message, error.stack, { url: req.url });
         
         return json(res, 500, { 
             error: "Internal Server Error", 
             message: error.message,
             code: error.code || "UNKNOWN_CRASH",
-            hint: "Check server logs for stack trace"
-        }, 500);
+            status: "CRASHED"
+        });
     }
 }

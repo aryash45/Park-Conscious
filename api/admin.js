@@ -31,28 +31,33 @@ export default async function handler(req, res) {
 
         // Delegate to sub-handlers. Each returns a response or null if not matched.
         let result = await handleSystem(url, method, body, user, req, res);
-        if (result) return result;
+        if (result || res.headersSent) return;
 
         result = await handleEvents(url, method, body, user, res);
-        if (result) return result;
+        if (result || res.headersSent) return;
 
         result = await handleUsers(url, method, body, user, res);
-        if (result) return result;
+        if (result || res.headersSent) return;
 
         result = await handleBookings(url, method, body, user, res);
-        if (result) return result;
+        if (result || res.headersSent) return;
 
         result = await handleAnalytics(url, method, body, user, res);
-        if (result) return result;
+        if (result || res.headersSent) return;
 
         result = await handleParking(url, method, body, user, res);
-        if (result) return result;
+        if (result || res.headersSent) return;
 
         result = await handleScanner(url, method, body, user, res);
-        if (result) return result;
+        if (result || res.headersSent) return;
 
         return json(res, 404, { message: 'Admin endpoint not matched: ' + url });
     } catch (err) {
+        if (res.headersSent) {
+            console.error('[ADMIN_ROUTER_CATCH_ERROR]: Headers already sent.', err);
+            return;
+        }
+        
         if (err.missingConfig) {
              return json(res, 200, { success: false, missingConfig: true, message: 'Database Connection Missing' });
         }
