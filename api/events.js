@@ -44,6 +44,7 @@ export default async function handler(req, res) {
                 env: process.env.VERCEL_ENV || "production",
                 database: {
                     connected: dbStatus === 1,
+                    readyState: dbStatus, // 0=disc, 1=conn, 2=connecting, 3=disconnecting
                     name: dbName || "none",
                     uri_found: !!process.env.MONGODB_URI,
                     target_db: process.env.MONGODB_URI ? process.env.MONGODB_URI.split('/').pop().split('?')[0] : 'missing'
