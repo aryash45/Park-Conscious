@@ -28,29 +28,28 @@ export default async function handler(req, res) {
         return;
     }
 
-    // 2. Health check (Priority)
-    const fullUrl = req.url || "/";
-    if (fullUrl.includes("/health")) {
-        const dbStatus = mongoose.connection.readyState;
-        const dbName = mongoose.connection.name;
-        return json(res, 200, { 
-            status: "ONLINE", 
-            timestamp: new Date().toISOString(),
-            env: process.env.VERCEL_ENV || "production",
-            database: {
-                connected: dbStatus === 1,
-                name: dbName || "none",
-                uri_found: !!process.env.MONGODB_URI,
-                // Show only the database part of the URI for security
-                target_db: process.env.MONGODB_URI ? process.env.MONGODB_URI.split('/').pop().split('?')[0] : 'missing'
-            }
-        });
-    }
-
-    // 3. Main Logic wrapper
+    // 2. Main Logic wrapper
     try {
         await connectDB();
         const { Event, Discussion, Comment } = models;
+
+        // Health check (Now accurately reflects the connection)
+        const fullUrl = req.url || "/";
+        if (fullUrl.includes("/health")) {
+            const dbStatus = mongoose.connection.readyState;
+            const dbName = mongoose.connection.name;
+            return json(res, 200, { 
+                status: "ONLINE", 
+                timestamp: new Date().toISOString(),
+                env: process.env.VERCEL_ENV || "production",
+                database: {
+                    connected: dbStatus === 1,
+                    name: dbName || "none",
+                    uri_found: !!process.env.MONGODB_URI,
+                    target_db: process.env.MONGODB_URI ? process.env.MONGODB_URI.split('/').pop().split('?')[0] : 'missing'
+                }
+            });
+        }
 
         const host = req.headers.host || 'localhost';
         const parsedUrl = new URL(req.url, `http://${host}`);
