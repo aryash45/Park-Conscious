@@ -93,6 +93,11 @@ export const adminService = {
   resolveLog: (id, resolved) => api.patch(`/api/admin/logs/${id}`, { resolved }),
   getStats: () => api.get('/api/admin/stats'),
   getInsights: () => api.get('/api/admin/organizer/insights'),
+  getInquiries: () => api.get('/api/admin/inquiries'),
+  handleInquiry: (action, id, data) => {
+    if (action === 'delete') return api.delete(`/api/admin/inquiries/contact/${id}`);
+    return api.patch(`/api/admin/inquiries/request/${id}`, data);
+  }
 };
 
 export default api;

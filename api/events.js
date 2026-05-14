@@ -50,12 +50,126 @@ export default async function handler(req, res) {
     // 3. Main Logic wrapper
     try {
         await connectDB();
-        const { Event, Discussion } = models;
+        const { Event, Discussion, Comment } = models;
+
+        const host = req.headers.host || 'localhost';
+        const parsedUrl = new URL(req.url, `http://${host}`);
+        const [pathPart] = (req.url || '/').split('?');
+        const urlPath = pathPart.replace(/\/+/g, '/').replace(/\/$/, '') || '/';
+        const method = req.method || 'GET';
+
+        // -- Discussions & Comments --
+        if (urlPath.includes('/discussions')) {
+            const id = parsedUrl.searchParams.get('id'); // Discussion ID
+            
+            if (method === 'GET') {
+                if (id) {
+                    const disc = await Discussion.findById(id).lean();
+                    if (!disc) return json(res, 404, { message: 'Discussion not found' });
+                    const comms = await Comment.find({ discussionId: id }).sort({ createdAt: -1 }).lean();
+                    return json(res, 200, { ...disc, comments: comms });
+                }
+                
+                const page = parseInt(parsedUrl.searchParams.get('page')) || 1;
+                const limit = parseInt(parsedUrl.searchParams.get('limit')) || 6;
+                const skip = (page - 1) * limit;
+
+                const total = await Discussion.countDocuments();
+                const discussions = await Discussion.find()
+                    .sort({ createdAt: -1 })
+                    .skip(skip)
+                    .limit(limit)
+                    .lean();
+
+                return json(res, 200, { 
+                    discussions, 
+                    totalPages: Math.ceil(total / limit) || 1,
+                    currentPage: page
+                });
+            }
+
+            if (method === 'POST') {
+                const user = verifyUser(req);
+                if (!user) return json(res, 401, { message: 'Auth required' });
+                const body = await getBody(req);
+                
+                // Create Comment
+                if (urlPath.includes('/comments') && id) {
+                    const comment = await Comment.create({
+                        discussionId: id,
+                        parentId: body.parentId || null,
+                        text: body.text,
+                        authorName: user.name,
+                        authorUid: user.id,
+                        authorPhoto: user.picture || ""
+                    });
+                    await Discussion.findByIdAndUpdate(id, { $inc: { commentCount: 1 } });
+                    return json(res, 201, comment.toObject());
+                }
+                
+                // Create Discussion
+                const disc = await Discussion.create({ 
+                    ...body, 
+                    authorUid: user.id, 
+                    authorName: user.name,
+                    authorPhoto: user.picture || ""
+                });
+                return json(res, 201, disc.toObject());
+            }
+
+            if (method === 'PATCH') {
+                const user = verifyUser(req);
+                if (!user) return json(res, 401, { message: 'Auth required' });
+                const body = await getBody(req);
+                
+                // Vote Discussion
+                if (urlPath.includes('/details') && id) {
+                    const { action } = body;
+                    const disc = await Discussion.findById(id);
+                    if (!disc) return json(res, 404, { message: 'Not found' });
+                    
+                    disc.upvotes = disc.upvotes.filter(uid => uid !== user.id);
+                    disc.downvotes = disc.downvotes.filter(uid => uid !== user.id);
+                    
+                    if (action === 'upvote') disc.upvotes.push(user.id);
+                    else if (action === 'downvote') disc.downvotes.push(user.id);
+                    
+                    await disc.save();
+                    return json(res, 200, { upvotes: disc.upvotes, downvotes: disc.downvotes });
+                }
+                
+                // Vote Comment
+                if (urlPath.includes('/comments') && id) {
+                    const { commentId, action } = body;
+                    const comment = await Comment.findById(commentId);
+                    if (!comment) return json(res, 404, { message: 'Not found' });
+                    
+                    comment.upvotes = comment.upvotes.filter(uid => uid !== user.id);
+                    comment.downvotes = comment.downvotes.filter(uid => uid !== user.id);
+                    
+                    if (action === 'upvote') comment.upvotes.push(user.id);
+                    else if (action === 'downvote') comment.downvotes.push(user.id);
+                    
+                    await comment.save();
+                    return json(res, 200, { upvotes: comment.upvotes, downvotes: comment.downvotes });
+                }
+            }
+            
+            return json(res, 405, { error: "Method not allowed for discussions" });
+        }
 
         // GET: List or Single Event
         if (req.method === "GET") {
-            const url = new URL(req.url, `http://${req.headers.host}`);
-            const eventId = url.searchParams.get("id");
+            let eventId = parsedUrl.searchParams.get("id");
+            
+            // Extract from path if not in query (Vercel rewrite scenario)
+            if (!eventId) {
+                const pathParts = urlPath.split('/');
+                const lastPart = pathParts[pathParts.length - 1];
+                if (lastPart && lastPart !== 'events' && lastPart.length >= 20) {
+                    eventId = lastPart;
+                }
+            }
 
             if (eventId) {
                 // Try cache first
@@ -73,8 +187,12 @@ export default async function handler(req, res) {
             }
 
             // List Filtered Events
-            const filter = { status: "active" };
-            const type = url.searchParams.get("type");
+            const filter = { 
+                status: { $in: ["active", "published"] },
+                isPublic: true,
+                title: { $not: /test/i } // Case-insensitive filter to hide "Test", "TEST", "test 1", etc.
+            };
+            const type = parsedUrl.searchParams.get("type");
             if (type) filter.type = type;
             
             const events = await Event.find(filter)
@@ -123,7 +241,7 @@ export default async function handler(req, res) {
 
     } catch (error) {
         console.error("[FATAL_HANDLER_ERROR]:", error);
-        await logSystemError("API_EVENTS_HANDLER", error);
+        await logSystemError("API_EVENTS_HANDLER", "router_fatal", error.message, error.stack, { url: req.url });
         
         return json(res, 500, { 
             error: "Internal Server Error", 

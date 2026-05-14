@@ -15,7 +15,12 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const checkSession = async () => {
       try {
-        const response = await fetch('/api/auth/me');
+        const API_URL = import.meta.env.VITE_API_URL || "";
+        const response = await fetch(`${API_URL}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${JSON.parse(localStorage.getItem('adminUser') || '{}').token || ''}`
+          }
+        });
         if (response.ok) {
           const data = await response.json();
           if (data.authenticated && data.user) {

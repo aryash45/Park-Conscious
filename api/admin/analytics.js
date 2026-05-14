@@ -6,7 +6,7 @@
 import { json } from '../lib/utils.js';
 import * as models from '../lib/models.js';
 
-const { Booking, Event } = models;
+const { Booking, Event, User, Owner } = models;
 
 export async function handleAnalytics(url, method, body, user, res) {
     // -- Scoped Organizer Analytics & Insights (RBAC) --
@@ -107,6 +107,31 @@ export async function handleAnalytics(url, method, body, user, res) {
                     status: e.status
                 };
             })
+        });
+    }
+
+    // -- Global Admin Stats (SuperAdmin/Admin Only) --
+    if (url.includes('admin/stats') && method === 'GET') {
+        const isAdmin = user && (user.role === 'superadmin' || user.role === 'admin');
+        if (!isAdmin) return json(res, 403, { message: 'Access Denied' });
+
+        const [bookings, events, users, owners] = await Promise.all([
+            Booking.find({ status: { $in: ["Confirmed", "confirmed"] } }).sort({ createdAt: -1 }).limit(100).lean(),
+            Event.find({}).lean(),
+            User.countDocuments(),
+            Owner.countDocuments()
+        ]);
+
+        const totalRevenue = bookings.reduce((acc, b) => acc + (parseFloat(b.amount) || 0), 0);
+        const activeEvents = (events || []).filter(e => e.status === 'published' || e.status === 'active');
+
+        return json(res, 200, {
+            totalRevenue,
+            totalSales: bookings.length,
+            totalUsers: users + owners,
+            activeEvents: activeEvents.length,
+            recentBookings: bookings.slice(0, 10),
+            events: events // Include events for the dashboard filters
         });
     }
 

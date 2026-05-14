@@ -25,6 +25,7 @@ export default async function handler(req, res) {
     const url = pathPart.replace(/\/+/g, '/').replace(/\/$/, '') || '/';
     const method = req.method || 'GET';
     const body = await getBody(req);
+    const user = verifyUser(req);
 
     try {
         await connectDB();
@@ -37,6 +38,7 @@ export default async function handler(req, res) {
             // Priority: Check Primary Database
             let u = await Owner.findOne({ email: search });
             let isOwner = !!u;
+            console.log(`[AUTH_DEBUG]: Search for ${search} | Found in Primary: ${!!u}`);
             
             if (!u) {
                 u = await User.findOne({ email: search });

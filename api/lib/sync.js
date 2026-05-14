@@ -15,21 +15,29 @@ import { getSecondaryModel } from './models.js';
 export async function syncIdentity(data, isOwner = false) {
     if (!data || !data.email) return;
 
-    try {
-        // Convert to a plain object and remove sensitive internal fields if necessary
-        const cleanData = JSON.parse(JSON.stringify(data));
-        delete cleanData._id; // Ensure we don't force _id conflicts
+    // Fire and forget: We don't await this in the main handler to prevent blocking
+    const runSync = async () => {
+        try {
+            const cleanData = JSON.parse(JSON.stringify(data));
+            delete cleanData._id;
 
-        const SecModel = isOwner ? getSecondaryModel('Owner') : getSecondaryModel('User');
+            const SecModel = isOwner ? getSecondaryModel('Owner') : getSecondaryModel('User');
 
-        await SecModel.findOneAndUpdate(
-            { email: cleanData.email },
-            { $set: cleanData },
-            { upsert: true, new: true }
-        );
+            // Use a timeout for the DB operation
+            await Promise.race([
+                SecModel.findOneAndUpdate(
+                    { email: cleanData.email },
+                    { $set: cleanData },
+                    { upsert: true, new: true }
+                ),
+                new Promise((_, reject) => setTimeout(() => reject(new Error("Sync Timeout")), 2000))
+            ]);
 
-        console.log(`[SYNC] Success: ${cleanData.email} mirrored.`);
-    } catch (err) {
-        console.error(`[SYNC ERROR] Failed to mirror identity for ${data.email}:`, err);
-    }
+            console.log(`[SYNC] Success: ${cleanData.email} mirrored.`);
+        } catch (err) {
+            console.error(`[SYNC ERROR] Failed to mirror identity for ${data.email}:`, err.message);
+        }
+    };
+
+    runSync(); // Execute in background
 }

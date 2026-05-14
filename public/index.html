@@ -1089,14 +1089,9 @@
             setTimeout(() => {
                 loading.classList.add('hidden');
                 
-                // Helper to escape HTML to prevent XSS
-                const esc = (str) => {
-                    if (!str) return '';
-                    return String(str).replace(/[&<>"']/g, m => ({
-                        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-                    }[m]));
-                };
-
+                const bestOpt = data.options[0];
+                
+                // Set minimal glassmorphic class based on mode
                 modeEl.className = 'font-bold uppercase tracking-tighter text-2xl leading-none flex items-center gap-3';
                 let accentColor = 'text-slate-900';
                 let dotColor = 'bg-slate-900';
@@ -1109,22 +1104,19 @@
                     dotColor = 'bg-blue-500';
                 }
                 
-                modeEl.innerHTML = `<span class="w-3 h-3 rounded-full ${dotColor} shadow-[0_0_12px_rgba(0,0,0,0.1)]"></span> <span class="${accentColor}">${esc(data.best_mode)}</span>`;
-                expEl.innerHTML = `<span class="block mb-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Recommendation</span> ${esc(data.explanation)}`;
-
-                // Define bestOpt from the response for stats/segments rendering
-                const bestOpt = data;
+                modeEl.innerHTML = `<span class="w-3 h-3 rounded-full ${dotColor} shadow-[0_0_12px_rgba(0,0,0,0.1)]"></span> <span class="${accentColor}">${data.best_mode}</span>`;
+                expEl.innerHTML = `<span class="block mb-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Recommendation</span> ${data.explanation}`;
 
                 // Minimal Glassmorphic Stats
                 const statsHtml = `
                     <div class="grid grid-cols-2 gap-2 my-5">
                         <div class="bg-white/40 backdrop-blur-md rounded-xl p-3 border border-white/60 shadow-sm">
                             <div class="text-[9px] uppercase font-black text-slate-400 tracking-widest mb-1">Duration</div>
-                            <div class="text-lg font-bold text-slate-900 tracking-tight">${esc(Math.round(bestOpt.time))}<span class="text-xs ml-1 font-medium text-slate-500">mins</span></div>
+                            <div class="text-lg font-bold text-slate-900 tracking-tight">${Math.round(bestOpt.time)}<span class="text-xs ml-1 font-medium text-slate-500">mins</span></div>
                         </div>
                         <div class="bg-white/40 backdrop-blur-md rounded-xl p-3 border border-white/60 shadow-sm">
                             <div class="text-[9px] uppercase font-black text-slate-400 tracking-widest mb-1">Est. Fare</div>
-                            <div class="text-lg font-bold text-slate-900 tracking-tight">₹${esc(Math.round(bestOpt.cost))}</div>
+                            <div class="text-lg font-bold text-slate-900 tracking-tight">₹${Math.round(bestOpt.cost)}</div>
                         </div>
                     </div>
                 `;
@@ -1143,8 +1135,7 @@
                         
                         let colorClass = 'bg-slate-900';
                         if (seg.mode === 'metro' && seg.color) {
-                            // Validate color class/hex to prevent style injection
-                            colorClass = /^[#a-zA-Z0-9-]+$/.test(seg.color) ? (seg.color.startsWith('bg-') ? seg.color : `bg-[${seg.color}]`) : 'bg-slate-900';
+                            colorClass = seg.color.startsWith('bg-') ? seg.color : `bg-[${seg.color}]`;
                         } else if (seg.mode === 'metro') {
                             colorClass = 'bg-emerald-500';
                         } else if (seg.mode === 'cab') {
@@ -1153,7 +1144,7 @@
                         
                         let extraInfo = '';
                         if (seg.mode === 'metro' && seg.line) {
-                            extraInfo = `<span class="ml-2 px-1.5 py-0.5 rounded-md text-[8px] font-black text-white ${colorClass}">${esc(seg.line.toUpperCase())}</span>`;
+                            extraInfo = `<span class="ml-2 px-1.5 py-0.5 rounded-md text-[8px] font-black text-white ${colorClass}">${seg.line.toUpperCase()}</span>`;
                         }
 
                         step.innerHTML = `
@@ -1163,9 +1154,9 @@
                             </div>
                             <div class="flex-1 pb-2">
                                 <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none flex items-center">
-                                    ${esc(seg.mode)} • ${esc(Math.round(seg.duration_min))}m ${extraInfo}
+                                    ${seg.mode} • ${Math.round(seg.duration_min)}m ${extraInfo}
                                 </p>
-                                <p class="text-[13px] text-slate-800 font-bold mt-1.5 tracking-tight">${esc(seg.from_loc)} <span class="text-slate-300 mx-1 font-light">→</span> ${esc(seg.to_loc)}</p>
+                                <p class="text-[13px] text-slate-800 font-bold mt-1.5 tracking-tight">${seg.from_loc} <span class="text-slate-300 mx-1 font-light">→</span> ${seg.to_loc}</p>
                             </div>
                         `;
                         segmentsBox.appendChild(step);

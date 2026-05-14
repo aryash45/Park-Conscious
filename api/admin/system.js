@@ -36,21 +36,32 @@ export async function handleSystem(url, method, body, user, req, res) {
         return json(res, 200, stats);
     }
     
-    // -- Unified Error Reporting (Public/Semi-Public) --
+    // -- Unified Error Reporting with Deduplication --
     if (url.includes('logs') && method === 'POST') {
         const { source, type, message, stack, url: errorUrl, metadata } = body;
         if (!source || !message) return json(res, 400, { message: 'Missing source or message' });
         
-        const log = await SystemLog.create({
-            source,
-            type: type || 'frontend_crash',
-            message,
-            stack,
-            url: errorUrl,
-            metadata: metadata || {}
-        });
+        const crypto = await import('crypto');
+        const hash = crypto.default.createHash('md5').update(`${source}:${message}`).digest('hex');
+
+        const log = await SystemLog.findOneAndUpdate(
+            { hash, resolved: false },
+            {
+                $inc: { count: 1 },
+                $set: {
+                    source,
+                    type: type || 'frontend_crash',
+                    message,
+                    stack,
+                    url: errorUrl,
+                    metadata: metadata || {},
+                    lastSeenAt: new Date()
+                }
+            },
+            { upsert: true, new: true }
+        );
         
-        return json(res, 201, { success: true, logId: log._id });
+        return json(res, 201, { success: true, logId: log._id, count: log.count });
     }
 
     // -- System Status Audit (Admin Only or Cron) --

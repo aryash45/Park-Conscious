@@ -38,5 +38,19 @@ export async function handleEvents(url, method, body, user, res) {
         }
     }
 
+    // -- Global Event Management --
+    if (url.includes('events/admin/all') && method === 'GET') {
+        if (!user) return json(res, 401, { message: 'Auth required' });
+        
+        const role = (user.role || '').toLowerCase();
+        let query = {};
+        if (role !== 'superadmin' && role !== 'admin') {
+            query.organizerId = user.id;
+        }
+
+        const events = await models.Event.find(query).sort({ createdAt: -1 }).lean();
+        return json(res, 200, events);
+    }
+
     return null;
 }
