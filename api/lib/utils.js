@@ -62,7 +62,8 @@ export const verifyUser = (req) => {
         }
 
         if (!token) return null;
-        const secret = process.env.JWT_SECRET || "fallback_secret_not_for_prod";
+        const secret = process.env.JWT_SECRET;
+        if (!secret) throw new Error("CRITICAL_SECURITY_ERROR: JWT_SECRET environment variable is missing.");
         return jwt.verify(token, secret);
     } catch (e) {
         console.error("[AUTH_VERIFY_ERROR]:", e.message);
@@ -71,7 +72,8 @@ export const verifyUser = (req) => {
 };
 
 export const issueCookie = (req, res, payload) => {
-    const secret = process.env.JWT_SECRET || "fallback_secret_not_for_prod";
+    const secret = process.env.JWT_SECRET;
+    if (!secret) throw new Error("CRITICAL_SECURITY_ERROR: JWT_SECRET environment variable is missing.");
     const token = jwt.sign(payload, secret, { expiresIn: "7d" });
     
     // Set the cookie globally, with conditional Domain/Secure for localhost testing
@@ -168,8 +170,8 @@ export const setCors = (req, res) => {
     if (origin && (allowedOrigins.includes(origin) || origin.includes('localhost') || origin.includes('127.0.0.1'))) {
         res.setHeader("Access-Control-Allow-Origin", origin);
     } else {
-        // Fallback to primary production domain or the first allowed origin
-        res.setHeader("Access-Control-Allow-Origin", origin || allowedOrigins[0]);
+        // Fallback to primary production domain. Never reflect untrusted origins.
+        res.setHeader("Access-Control-Allow-Origin", allowedOrigins[0]);
     }
 
     res.setHeader("Access-Control-Allow-Credentials", "true");

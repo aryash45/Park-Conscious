@@ -115,22 +115,34 @@ export async function handleAnalytics(url, method, body, user, res) {
         const isAdmin = user && (user.role === 'superadmin' || user.role === 'admin');
         if (!isAdmin) return json(res, 403, { message: 'Access Denied' });
 
-        const [bookings, events, users, owners] = await Promise.all([
+        const [recentBookings, events, users, owners] = await Promise.all([
             Booking.find({ status: { $in: ["Confirmed", "confirmed"] } }).sort({ createdAt: -1 }).limit(100).lean(),
             Event.find({}).lean(),
             User.countDocuments(),
             Owner.countDocuments()
         ]);
 
-        const totalRevenue = bookings.reduce((acc, b) => acc + (parseFloat(b.amount) || 0), 0);
-        const activeEvents = (events || []).filter(e => e.status === 'published' || e.status === 'active');
+        // True Aggregation for Total Revenue & Sales (Not limited to 100)
+        const stats = await Booking.aggregate([
+            { $match: { status: { $in: ["Confirmed", "confirmed"] } } },
+            { 
+                $group: { 
+                    _id: null, 
+                    totalRevenue: { $sum: { $toDouble: "$amount" } },
+                    totalSales: { $sum: 1 }
+                } 
+            }
+        ]);
+
+        const { totalRevenue = 0, totalSales = 0 } = stats[0] || {};
+        const activeEventsCount = (events || []).filter(e => e.status === 'published' || e.status === 'active').length;
 
         return json(res, 200, {
             totalRevenue,
-            totalSales: bookings.length,
+            totalSales,
             totalUsers: users + owners,
-            activeEvents: activeEvents.length,
-            recentBookings: bookings.slice(0, 10),
+            activeEvents: activeEventsCount,
+            recentBookings: recentBookings.slice(0, 10),
             events: events // Include events for the dashboard filters
         });
     }

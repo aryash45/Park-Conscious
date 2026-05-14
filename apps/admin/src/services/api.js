@@ -96,7 +96,8 @@ export const adminService = {
   getInquiries: () => api.get('/api/admin/inquiries'),
   handleInquiry: (action, id, data) => {
     if (action === 'delete') return api.delete(`/api/admin/inquiries/contact/${id}`);
-    return api.patch(`/api/admin/inquiries/request/${id}`, data);
+    if (action === 'patch' || action === 'update') return api.patch(`/api/admin/inquiries/request/${id}`, data);
+    throw new Error(`Invalid inquiry action: ${action}`);
   }
 };
 

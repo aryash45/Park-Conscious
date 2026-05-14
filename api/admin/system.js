@@ -38,6 +38,12 @@ export async function handleSystem(url, method, body, user, req, res) {
     
     // -- Unified Error Reporting with Deduplication --
     if (url.includes('logs') && method === 'POST') {
+        // Lightweight abuse protection
+        const clientToken = req.headers['x-log-token'];
+        if (!clientToken && process.env.NODE_ENV === 'production') {
+            return json(res, 401, { message: 'Unauthorized Log Source' });
+        }
+
         const { source, type, message, stack, url: errorUrl, metadata } = body;
         if (!source || !message) return json(res, 400, { message: 'Missing source or message' });
         

@@ -30,8 +30,9 @@ export const AuthProvider = ({ children }) => {
             
             if (isAdmin) {
               setAdmin(data.user);
-              // Sync to localStorage for other components
-              localStorage.setItem('adminUser', JSON.stringify({ user: data.user }));
+              // Sync to localStorage while PRESERVING the existing token
+              const existing = JSON.parse(localStorage.getItem('adminUser') || '{}');
+              localStorage.setItem('adminUser', JSON.stringify({ ...existing, user: data.user }));
             } else {
               setAdmin(null);
               localStorage.removeItem('adminUser');

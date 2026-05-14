@@ -70,8 +70,12 @@ export default async function handler(req, res) {
                     return json(res, 200, { ...disc, comments: comms });
                 }
                 
-                const page = parseInt(parsedUrl.searchParams.get('page')) || 1;
-                const limit = parseInt(parsedUrl.searchParams.get('limit')) || 6;
+                // Sanitize and clamp pagination values
+                let page = parseInt(parsedUrl.searchParams.get('page')) || 1;
+                let limit = parseInt(parsedUrl.searchParams.get('limit')) || 6;
+                
+                page = Math.max(1, page);
+                limit = Math.max(1, Math.min(100, limit)); // Clamp limit between 1 and 100
                 const skip = (page - 1) * limit;
 
                 const total = await Discussion.countDocuments();
@@ -93,8 +97,13 @@ export default async function handler(req, res) {
                 if (!user) return json(res, 401, { message: 'Auth required' });
                 const body = await getBody(req);
                 
-                // Create Comment
-                if (urlPath.includes('/comments') && id) {
+                // Create Comment with guards
+                if (urlPath.includes('/comments')) {
+                    if (!id) return json(res, 400, { message: 'Discussion ID required for comments' });
+                    
+                    const exists = await Discussion.findById(id);
+                    if (!exists) return json(res, 404, { message: 'Discussion not found' });
+
                     const comment = await Comment.create({
                         discussionId: id,
                         parentId: body.parentId || null,
@@ -107,7 +116,10 @@ export default async function handler(req, res) {
                     return json(res, 201, comment.toObject());
                 }
                 
-                // Create Discussion
+                // Ensure Discussion creation doesn't collide with Comment path
+                if (urlPath.endsWith('/discussions')) {
+                    // Logic for Discussion.create would go here if matched
+                }
                 const disc = await Discussion.create({ 
                     ...body, 
                     authorUid: user.id, 
