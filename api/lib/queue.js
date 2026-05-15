@@ -17,7 +17,10 @@ const REDIS_URL = process.env.REDIS_URL;
 let cachedRedis = null;
 let cachedQueue = null;
 
-export const getRedisConnection = () => {
+/**
+ * Lazy getter for Redis connection
+ */
+export function getRedisConnection() {
     if (cachedRedis) return cachedRedis;
     if (!REDIS_URL) return null;
 
@@ -40,10 +43,12 @@ export const getRedisConnection = () => {
         console.error('[REDIS_INIT_FAILED]:', err.message);
         return null;
     }
-};
+}
 
-// Lazy-loaded queue to prevent blocking function startup
-export const getTicketQueue = () => {
+/**
+ * Lazy getter for Ticket Queue
+ */
+export function getTicketQueue() {
     if (cachedQueue) return cachedQueue;
     
     const connection = getRedisConnection();
@@ -66,8 +71,8 @@ export const getTicketQueue = () => {
         console.error('[QUEUE_INIT_FAILED]:', err.message);
         return null;
     }
-};
+}
 
-// Compatibility exports
+// Export connection references (initialized lazily when imported)
 export const redisConnection = getRedisConnection();
-export const ticketQueue = getTicketQueue(); // This might still run once at top-level if imported, but safely
+export const ticketQueue = getTicketQueue();
