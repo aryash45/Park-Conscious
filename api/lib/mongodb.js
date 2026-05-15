@@ -7,8 +7,10 @@
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 
-dotenv.config();
-dotenv.config({ path: '.env.local', override: true });
+if (process.env.NODE_ENV !== 'production') {
+    dotenv.config();
+    dotenv.config({ path: '.env.local', override: true });
+}
 
 const MONGODB_URI = (process.env.MONGODB_URI || "").trim();
 

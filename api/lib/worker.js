@@ -10,8 +10,10 @@ import { Resend } from 'resend';
 import * as models from './models.js';
 import dotenv from 'dotenv';
 
-dotenv.config();
-dotenv.config({ path: '.env.local', override: true });
+if (process.env.NODE_ENV !== 'production') {
+    dotenv.config();
+    dotenv.config({ path: '.env.local', override: true });
+}
 
 const { Booking, Event, User, Owner } = models;
 

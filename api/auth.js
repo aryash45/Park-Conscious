@@ -12,8 +12,10 @@ import bcrypt from 'bcryptjs';
 import { serialize } from 'cookie';
 import dotenv from 'dotenv';
 
-dotenv.config();
-dotenv.config({ path: '.env.local', override: true });
+if (process.env.NODE_ENV !== 'production') {
+    dotenv.config();
+    dotenv.config({ path: '.env.local', override: true });
+}
 
 import { json, setCors, getBody, verifyUser, issueCookie } from './lib/utils.js';
 import { syncIdentity } from './lib/sync.js';
