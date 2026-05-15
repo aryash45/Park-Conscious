@@ -43,10 +43,9 @@ export default async function handler(req, res) {
         }
         
         // Optimize Cloudinary image for Social Media
+        // Optimize Cloudinary image for Social Media (1200x630 is the gold standard)
         if (absoluteImageUrl.includes('res.cloudinary.com')) {
-            absoluteImageUrl = absoluteImageUrl.replace(/\/upload\/v\d+\//, '/upload/').replace('/upload/', `/upload/q_auto,f_auto,w_1200,h_630,c_fill/v${Date.now()}/`);
-        } else {
-            absoluteImageUrl = `${absoluteImageUrl}?v=${Date.now()}`;
+            absoluteImageUrl = absoluteImageUrl.replace(/\/v\d+\//, '/').replace('/upload/', '/upload/q_auto,f_auto,w_1200,h_630,c_pad,b_black/');
         }
 
         const canonicalUrl = `https://events.parkconscious.in/event/${id}`;
@@ -57,13 +56,22 @@ export default async function handler(req, res) {
         
         let html = '';
         try {
-            const indexResponse = await fetch(`${protocol}://${host}/index.html?render=true`, { 
-                headers: { 'User-Agent': 'Backstage-SEO-Renderer' }
+            const indexUrl = `${protocol}://${host}/index.html`;
+            console.log(`[RENDERER]: Fetching index from ${indexUrl}`);
+            const indexResponse = await fetch(indexUrl, { 
+                headers: { 'User-Agent': 'Backstage-SEO-Renderer' },
+                timeout: 3000
             });
-            html = await indexResponse.text();
+            if (indexResponse.ok) {
+                html = await indexResponse.text();
+            }
         } catch (fetchErr) {
-            console.error('Fetch index.html failed:', fetchErr);
-            return res.redirect('/');
+            console.error('[RENDERER] Fetch index.html failed:', fetchErr.message);
+        }
+
+        // Fallback HTML if fetching index.html failed (avoids the "Logo-only" redirect)
+        if (!html) {
+            html = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><head><body><div id="root"></div></body></html>`;
         }
 
         // Inject our dynamic meta tags by replacing the static ones
