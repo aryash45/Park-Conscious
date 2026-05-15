@@ -6,10 +6,10 @@
  */
 import mongoose from "mongoose";
 
-const MONGODB_URI = process.env.MONGODB_URI;
+const MONGODB_URI = (process.env.MONGODB_URI || "").trim();
 
 if (!MONGODB_URI) {
-    console.warn("[DB_WARN]: MONGODB_URI is not defined in environment variables.");
+    console.warn("[DB_WARN]: MONGODB_URI is not defined or is empty.");
 }
 
 /**
