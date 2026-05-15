@@ -4,7 +4,7 @@
   "rewrites": [
     {
       "source": "/static/:path*",
-      "has": [{ "type": "host", "value": "events.parkconscious.in" }],
+      "has": [{ "type": "host", "value": "(events\\.parkconscious\\.in|.*\\.vercel\\.app)" }],
       "destination": "/apps/events/build/static/:path*"
     },
     {
@@ -41,12 +41,12 @@
     { "source": "/api/:path*", "destination": "/api/events.js" },
     {
       "source": "/sitemap.xml",
-      "has": [{ "type": "host", "value": "events.parkconscious.in" }],
+      "has": [{ "type": "host", "value": "(events\\.parkconscious\\.in|.*\\.vercel\\.app)" }],
       "destination": "/api/sitemap.js"
     },
     {
       "source": "/robots.txt",
-      "has": [{ "type": "host", "value": "events.parkconscious.in" }],
+      "has": [{ "type": "host", "value": "(events\\.parkconscious\\.in|.*\\.vercel\\.app)" }],
       "destination": "/api/robots.js"
     },
     {
@@ -78,12 +78,12 @@
 
     {
       "source": "/booking-confirmed",
-      "has": [{ "type": "host", "value": "events.parkconscious.in" }],
+      "has": [{ "type": "host", "value": "(events\\.parkconscious\\.in|.*\\.vercel\\.app)" }],
       "destination": "/apps/events/build/index.html"
     },
     {
       "source": "/payment-success",
-      "has": [{ "type": "host", "value": "events.parkconscious.in" }],
+      "has": [{ "type": "host", "value": "(events\\.parkconscious\\.in|.*\\.vercel\\.app)" }],
       "destination": "/apps/events/build/index.html"
     },
     {
@@ -103,7 +103,7 @@
     },
     {
       "source": "/((?!api/|static/|sitemap\\.xml|robots\\.txt).*)",
-      "has": [{ "type": "host", "value": "events.parkconscious.in" }],
+      "has": [{ "type": "host", "value": "(events\\.parkconscious\\.in|.*\\.vercel\\.app)" }],
       "destination": "/apps/events/build/index.html"
     },
     {
