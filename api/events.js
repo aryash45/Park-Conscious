@@ -188,9 +188,13 @@ export default async function handler(req, res) {
                 }
             }
 
+            const user = verifyUser(req);
+            const isAdmin = user && (user.role === 'admin' || user.role === 'superadmin' || user.role === 'organizer' || user.role === 'owner');
+
             if (eventId) {
-                // Try cache first
-                const cached = await getCache(`event:${eventId}`);
+                // Try cache first (Cache is per-user-type to prevent data leakage)
+                const cacheKey = `event:${eventId}:${isAdmin ? 'admin' : 'public'}`;
+                const cached = await getCache(cacheKey);
                 if (cached) return json(res, 200, cached);
 
                 const event = await Event.findById(eventId);
@@ -198,17 +202,20 @@ export default async function handler(req, res) {
                     return json(res, 404, { error: "Event not found" });
                 }
 
-                const data = pruneEvent(event);
-                await setCache(`event:${eventId}`, data, 300); // 5 min cache
+                const data = pruneEvent(event, isAdmin);
+                await setCache(cacheKey, data, 300); // 5 min cache
                 return json(res, 200, data);
             }
 
             // List Filtered Events
-            const filter = { 
-                status: { $in: ["active", "published"] },
-                isPublic: true,
-                title: { $not: /test/i } // Case-insensitive filter to hide "Test", "TEST", "test 1", etc.
-            };
+            const filter = {};
+            
+            // Public users only see Active & Public events without "test" in the title
+            if (!isAdmin) {
+                filter.status = { $in: ["active", "published", "Active", "Published"] };
+                filter.isPublic = true;
+                filter.title = { $not: /test/i };
+            }
             const type = parsedUrl.searchParams.get("type");
             if (type) filter.type = type;
 
@@ -219,7 +226,7 @@ export default async function handler(req, res) {
                 .sort({ startDate: 1 })
                 .limit(50);
 
-            return json(res, 200, events.map(pruneEvent));
+            return json(res, 200, events.map(e => pruneEvent(e, isAdmin)));
         }
 
         // POST: Create or Update (Requires Auth)

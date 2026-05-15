@@ -58,6 +58,26 @@ export function normalizeEvent(evt) {
     return e;
 }
 
+/**
+ * pruneEvent
+ * Security wrapper to remove sensitive fields before sending to client.
+ */
+export const pruneEvent = (event, isAdmin = false) => {
+    if (!event) return null;
+    const e = event.toObject ? event.toObject() : JSON.parse(JSON.stringify(event));
+    
+    // Optimization for public views: Keep IDs for navigation
+    if (!isAdmin) {
+        delete e.bankDetails;
+        delete e.payouts;
+        delete e.organizerPayout;
+        delete e.platformFee;
+        // Don't delete _id or id! The frontend needs them for links.
+    }
+    
+    return normalizeEvent(e);
+};
+
 export const json = (res, status, data) => {
     res.setHeader('Content-Type', 'application/json');
     res.statusCode = status;
