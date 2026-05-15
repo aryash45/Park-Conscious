@@ -71,6 +71,10 @@ export default async function handler(req, res) {
                 role: isOwner ? (u.role || 'organizer').toLowerCase() : 'user' 
             };
             const token = issueCookie(req, res, payload);
+
+            // Sync identity in the background (Non-blocking)
+            syncIdentity(u, isOwner);
+
             return json(res, 200, { user: payload, token });
         }
 
@@ -177,8 +181,8 @@ export default async function handler(req, res) {
                 if (changed) await u.save();
             }
 
-            // Sync identity to Park Conscious database in the background
-            await syncIdentity(u, isOwner);
+            // Sync identity in the background (Non-blocking)
+            syncIdentity(u, isOwner);
 
             const userPayload = { 
                 id: String(u._id), 

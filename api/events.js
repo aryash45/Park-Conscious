@@ -51,7 +51,7 @@ export default async function handler(req, res) {
                 },
                 security: {
                     hasJwtSecret: !!process.env.JWT_SECRET,
-                    hasGoogleId: !!process.env.GOOGLE_CLIENT_ID
+                    hasGoogleId: !!(process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID)
                 }
             });
         }
