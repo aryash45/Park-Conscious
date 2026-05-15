@@ -189,20 +189,28 @@ export default async function handler(req, res) {
             }
 
             const user = verifyUser(req);
-            const isAdmin = user && (user.role === 'admin' || user.role === 'superadmin' || user.role === 'organizer' || user.role === 'owner');
+            // Global Admin roles (can see everything)
+            const isGlobalAdmin = user && ['admin', 'superadmin', 'owner'].includes(user.role);
 
             if (eventId) {
-                // Try cache first (Cache is per-user-type to prevent data leakage)
-                const cacheKey = `event:${eventId}:${isAdmin ? 'admin' : 'public'}`;
-                const cached = await getCache(cacheKey);
-                if (cached) return json(res, 200, cached);
-
+                // Fetch first to determine ownership and status before caching/returning
                 const event = await Event.findById(eventId);
-                if (!event) {
+                if (!event) return json(res, 404, { error: "Event not found" });
+
+                const isOwner = user && (String(event.organizerUid) === String(user.id));
+                const canSeePrivate = isGlobalAdmin || isOwner;
+                
+                // Enforce visibility: Non-admins/non-owners only see public published events
+                const isPublished = ['active', 'published', 'Active', 'Published'].includes(event.status);
+                if (!canSeePrivate && (!isPublished || !event.isPublic)) {
                     return json(res, 404, { error: "Event not found" });
                 }
 
-                const data = pruneEvent(event, isAdmin);
+                const cacheKey = `event:${eventId}:${canSeePrivate ? 'privileged' : 'public'}`;
+                const cached = await getCache(cacheKey);
+                if (cached) return json(res, 200, cached);
+
+                const data = pruneEvent(event, canSeePrivate);
                 await setCache(cacheKey, data, 300); // 5 min cache
                 return json(res, 200, data);
             }
@@ -210,11 +218,24 @@ export default async function handler(req, res) {
             // List Filtered Events
             const filter = {};
             
-            // Public users only see Active & Public events without "test" in the title
-            if (!isAdmin) {
-                filter.status = { $in: ["active", "published", "Active", "Published"] };
-                filter.isPublic = true;
-                filter.title = { $not: /test/i };
+            // Apply strict filters for non-GlobalAdmins
+            if (!isGlobalAdmin) {
+                const publicFilter = {
+                    status: { $in: ["active", "published", "Active", "Published"] },
+                    isPublic: true,
+                    title: { $not: /test/i },
+                    name: { $not: /test/i }
+                };
+
+                // Organizers see public events PLUS their own managed events
+                if (user && user.role === 'organizer') {
+                    filter.$or = [
+                        publicFilter,
+                        { organizerUid: user.id }
+                    ];
+                } else {
+                    Object.assign(filter, publicFilter);
+                }
             }
             const type = parsedUrl.searchParams.get("type");
             if (type) filter.type = type;
@@ -226,7 +247,10 @@ export default async function handler(req, res) {
                 .sort({ startDate: 1 })
                 .limit(50);
 
-            return json(res, 200, events.map(e => pruneEvent(e, isAdmin)));
+            return json(res, 200, events.map(e => {
+                const isOwner = user && (String(e.organizerUid) === String(user.id));
+                return pruneEvent(e, isGlobalAdmin || isOwner);
+            }));
         }
 
         // POST: Create or Update (Requires Auth)

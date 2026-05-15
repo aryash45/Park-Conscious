@@ -22,9 +22,13 @@ export const getRedisConnection = () => {
         maxRetriesPerRequest: null, // Required by BullMQ
         enableReadyCheck: false,
         staleIdentifier: 'bullmq',
-        connectionName: `park-conscious-${process.env.VERCEL_ENV || 'dev'}`,
-        ...(REDIS_URL.startsWith('rediss://') ? { tls: { rejectUnauthorized: false } } : {})
-    });
+    connectionName: `park-conscious-${process.env.VERCEL_ENV || 'dev'}`,
+    ...(REDIS_URL.startsWith('rediss://') ? { 
+        tls: { 
+            rejectUnauthorized: process.env.NODE_ENV !== 'production' // Only allow self-signed in dev/preview
+        } 
+    } : {})
+});
 
     cachedRedis.on('error', (err) => {
         console.error('[BULLMQ_REDIS_ERROR]:', err.message);
@@ -45,7 +49,7 @@ export const ticketQueue = redisConnection ? new Queue('TicketEmails', {
             delay: 1000,
         },
         removeOnComplete: true,
-        removeOnFail: true, // Don't accumulate failed jobs in Redis
+        removeOnFail: { count: 100 }, // Keep last 100 failed jobs for triage
     }
 }) : null;
 
