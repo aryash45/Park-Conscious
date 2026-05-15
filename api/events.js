@@ -215,7 +215,8 @@ export default async function handler(req, res) {
                 return json(res, 200, data);
             }
 
-            // List Filtered Events
+            const host = req.headers.host || '';
+            const isAdminHost = host.startsWith('admin.');
             const filter = {};
             
             // Apply strict filters for non-GlobalAdmins
@@ -227,8 +228,12 @@ export default async function handler(req, res) {
                     name: { $not: /test/i }
                 };
 
-                // Organizers see public events PLUS their own managed events
-                if (user && user.role === 'organizer') {
+                // If on Admin Portal, organizers ONLY see their own events
+                if (isAdminHost && user && user.role === 'organizer') {
+                    filter.organizerUid = user.id;
+                } 
+                // If on Public Site, organizers see public events PLUS their own
+                else if (user && user.role === 'organizer') {
                     filter.$or = [
                         publicFilter,
                         { organizerUid: user.id }
