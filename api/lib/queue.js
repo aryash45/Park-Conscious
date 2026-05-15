@@ -12,19 +12,28 @@ dotenv.config();
 const REDIS_URL = process.env.REDIS_URL;
 
 // Connection options optimized for BullMQ and Upstash
-export const redisConnection = REDIS_URL ? new IORedis(REDIS_URL, {
-    maxRetriesPerRequest: null, // Required by BullMQ
-    enableReadyCheck: false,
-    staleIdentifier: 'bullmq',
-    // Upstash specific: sometimes requires family: 6 or tls
-    ...(REDIS_URL.startsWith('rediss://') ? { tls: { rejectUnauthorized: false } } : {})
-}) : null;
+let cachedRedis = null;
 
-if (redisConnection) {
-    redisConnection.on('error', (err) => {
+export const getRedisConnection = () => {
+    if (cachedRedis) return cachedRedis;
+    if (!REDIS_URL) return null;
+
+    cachedRedis = new IORedis(REDIS_URL, {
+        maxRetriesPerRequest: null, // Required by BullMQ
+        enableReadyCheck: false,
+        staleIdentifier: 'bullmq',
+        connectionName: `park-conscious-${process.env.VERCEL_ENV || 'dev'}`,
+        ...(REDIS_URL.startsWith('rediss://') ? { tls: { rejectUnauthorized: false } } : {})
+    });
+
+    cachedRedis.on('error', (err) => {
         console.error('[BULLMQ_REDIS_ERROR]:', err.message);
     });
-}
+
+    return cachedRedis;
+};
+
+export const redisConnection = getRedisConnection();
 
 // Define our specific queues with safety check
 export const ticketQueue = redisConnection ? new Queue('TicketEmails', { 
@@ -36,7 +45,7 @@ export const ticketQueue = redisConnection ? new Queue('TicketEmails', {
             delay: 1000,
         },
         removeOnComplete: true,
-        removeOnFail: 1000, // Keep failed jobs for a while for debugging
+        removeOnFail: true, // Don't accumulate failed jobs in Redis
     }
 }) : null;
 
