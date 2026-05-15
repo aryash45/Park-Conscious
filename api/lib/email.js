@@ -1,284 +1,85 @@
+/**
+ * api/lib/email.js
+ * 
+ * Purpose: Centralized email dispatch logic.
+ * Supports both direct (Vercel-compatible) and queued (BullMQ) sending.
+ */
 import { Resend } from 'resend';
-import nodemailer from 'nodemailer';
-import axios from 'axios';
+import * as models from './models.js';
+import { getTicketQueue } from './queue.js';
+import './env.js';
 
-// Providers
-let resendClient;
-let smtpClient;
-
-/**
- * Basic HTML escaping to prevent injection
- */
-const escapeHtml = (text) => {
-    if (!text) return "";
-    return String(text)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-};
+const { Booking, Event, User, Owner } = models;
+const esc = (s) => String(s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 
 /**
- * Initialize Resend if API key is present
+ * The core logic to send a ticket email.
  */
-const getResend = () => {
-    if (resendClient) return resendClient;
-    if (process.env.RESEND_API_KEY) {
-        resendClient = new Resend(process.env.RESEND_API_KEY);
-        return resendClient;
-    }
-    return null;
-};
-
-/**
- * Initialize SMTP (Gmail/Outlook/etc) if credentials are present
- */
-const getSMTP = () => {
-    if (smtpClient) return smtpClient;
-    if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-        const port = parseInt(process.env.SMTP_PORT) || 587;
-        smtpClient = nodemailer.createTransport({
-            host: process.env.SMTP_HOST,
-            port: port,
-            secure: port === 465,
-            auth: {
-                user: process.env.SMTP_USER,
-                pass: process.env.SMTP_PASS,
-            },
-        });
-        return smtpClient;
-    }
-    return null;
-};
-
-/**
- * MSG91 Email Provider
- */
-const sendViaMSG91 = async ({ to, subject, html, fromName, variables, template_id }) => {
-    if (!process.env.MSG91_AUTH_KEY) return null;
-    
+export async function sendTicketEmail(bookingId) {
     try {
-        const domain = process.env.MSG91_DOMAIN || 'otp.parkconscious.in';
-        const fromEmail = process.env.MSG91_FROM_EMAIL || `no-reply@${domain}`;
+        const booking = await Booking.findById(bookingId).lean();
+        if (!booking || !booking.email) return false;
 
-        const payload = {
-            recipients: [
-                {
-                    to: [{ email: to, name: to.split('@')[0] }],
-                    variables: variables || {}
-                }
-            ],
-            from: { 
-                name: fromName, 
-                email: fromEmail 
-            },
-            domain: domain,
-        };
-
-        // If a template ID is provided, use it
-        const finalTemplateId = template_id || process.env.MSG91_TEMPLATE_ID;
-        if (finalTemplateId) {
-            payload.template_id = finalTemplateId;
-        } else {
-            payload.subject = subject;
-            payload.body = {
-                type: 'text/html',
-                data: html
-            };
-        }
-
-        const response = await axios.post('https://control.msg91.com/api/v5/email/send', payload, {
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'authkey': process.env.MSG91_AUTH_KEY
-            },
-            timeout: parseInt(process.env.MSG91_TIMEOUT) || 8000
-        });
+        // Fetch Context
+        const userId = String(booking.userId || '');
+        const isValidId = userId.length === 24 && /^[a-fA-F0-9]{24}$/.test(userId);
         
-        return { success: true, provider: 'msg91', id: response.data?.request_id || response.data?.data?.unique_id };
+        let user = null;
+        if (isValidId) {
+            user = await User.findById(userId).lean() || await Owner.findById(userId).lean();
+        }
+
+        const event = await Event.findById(booking.eventId).lean();
+        
+        const userName = user?.name || (!isValidId && userId ? userId : "Attendee");
+        const eventName = event?.displayTitle || event?.title || "BACKSTAGE Experience";
+        const ticketNumber = booking.ticketId || booking.transactionId || String(booking._id).slice(-8);
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(ticketNumber)}&ecc=L&margin=0`;
+
+        const resend = new Resend(process.env.RESEND_API_KEY);
+        const { error } = await resend.emails.send({
+            from: process.env.EMAIL_FROM || 'BACKSTAGE <tickets@parkconscious.in>',
+            to: booking.email,
+            subject: `Your Admittance Pass for ${eventName}`,
+            html: `
+                <div style="font-family: 'Outfit', sans-serif; max-width: 600px; margin: 0 auto; background-color: #050507; color: #ffffff; padding: 60px 40px; border-radius: 40px; text-align: center; border: 1px solid rgba(255,255,255,0.05);">
+                    <h1 style="color: #ffffff; margin: 0 0 12px 0; font-size: 32px; font-weight: 900; text-transform: uppercase;">YOUR TICKET IS READY</h1>
+                    <p style="color: #64748b; margin-bottom: 40px;">Hi ${esc(userName)}, see you at ${esc(eventName)}!</p>
+                    <div style="background-color: #ffffff; padding: 30px; border-radius: 30px; display: inline-block; margin-bottom: 40px;">
+                        <img src="${qrUrl}" alt="QR" width="220" height="220" style="display: block; border-radius: 12px;" />
+                    </div>
+                    <div style="background-color: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 30px; border-radius: 24px; text-align: left;">
+                        <p style="color: #ffffff; font-size: 18px; font-weight: 800; margin: 0;">${esc(userName)}</p>
+                        <p style="color: #6366f1; font-size: 18px; font-weight: 800; margin: 0;">${esc(eventName)}</p>
+                        <p style="color: #ffffff; font-family: monospace; font-size: 20px; font-weight: 900; margin: 0;">#${esc(ticketNumber)}</p>
+                    </div>
+                </div>
+            `
+        });
+
+        if (error) throw new Error(error.message);
+
+        await Booking.findByIdAndUpdate(bookingId, { $set: { emailSent: true } });
+        return true;
     } catch (err) {
-        console.error('[EMAIL] MSG91 Failure:', err.response?.data || err.message);
-        return null;
+        console.error('[EMAIL_ERROR]:', err.message);
+        return false;
     }
-};
+}
 
 /**
- * Core Send Function
+ * Smart dispatcher: Queues if possible, otherwise sends directly.
  */
-export const sendEmail = async ({ to, subject, html, fromName = 'Backstage', preferredProvider = 'resend', variables, template_id }) => {
-    const domain = process.env.MSG91_DOMAIN || 'otp.parkconscious.in';
-    const fromAddress = process.env.EMAIL_FROM || `no-reply@${domain}`;
-    const fullFrom = `${fromName} <${fromAddress}>`;
+export async function dispatchTicketEmail(bookingId) {
+    const queue = getTicketQueue();
+    const useQueue = process.env.USE_QUEUE === 'true';
 
-    // Define the provider sequence based on preference
-    let sequence = [];
-    if (preferredProvider === 'msg91') {
-        sequence = ['msg91', 'resend', 'smtp'];
+    if (queue && useQueue) {
+        console.log(`[DISPATCH]: Queuing ticket email for ${bookingId}`);
+        await queue.add('sendTicket', { bookingId });
     } else {
-        sequence = ['resend', 'msg91', 'smtp'];
+        console.log(`[DISPATCH]: Sending ticket email directly for ${bookingId}`);
+        // Fire and forget for Vercel
+        sendTicketEmail(bookingId).catch(err => console.error('[DIRECT_SEND_FAIL]:', err));
     }
-
-    for (const provider of sequence) {
-        console.log(`[EMAIL] Attempting delivery via: ${provider.toUpperCase()}`);
-
-        // 1. Try Resend
-        if (provider === 'resend') {
-            const resend = getResend();
-            if (resend) {
-                try {
-                    const { data, error } = await resend.emails.send({
-                        from: fullFrom,
-                        to,
-                        subject,
-                        html,
-                    });
-                    if (!error) {
-                        console.log(`[EMAIL] Resend Success: ${data.id}`);
-                        return { success: true, provider: 'resend', id: data.id };
-                    }
-                    console.error(`[EMAIL] Resend Rejected:`, error);
-                } catch (err) {
-                    console.error('[EMAIL] Resend Crash:', err.message);
-                }
-            } else {
-                console.log(`[EMAIL] Resend skipped (No API Key)`);
-            }
-        }
-
-        // 2. Try MSG91
-        if (provider === 'msg91') {
-            const msg91Result = await sendViaMSG91({ to, subject, html, fromName, variables, template_id });
-            if (msg91Result && msg91Result.success) {
-                console.log(`[EMAIL] MSG91 Success: ${msg91Result.id}`);
-                return msg91Result;
-            }
-            console.log(`[EMAIL] MSG91 skipped or failed`);
-        }
-
-        // 3. Try SMTP
-        if (provider === 'smtp') {
-            const smtp = getSMTP();
-            if (smtp) {
-                try {
-                    const info = await smtp.sendMail({
-                        from: fullFrom,
-                        to,
-                        subject,
-                        html,
-                    });
-                    console.log(`[EMAIL] SMTP Success: ${info.messageId}`);
-                    return { success: true, provider: 'smtp', id: info.messageId };
-                } catch (err) {
-                    console.error('[EMAIL] SMTP Failure:', err.message);
-                }
-            } else {
-                console.log(`[EMAIL] SMTP skipped (No Config)`);
-            }
-        }
-    }
-
-    console.error(`[EMAIL] FATAL: All providers exhausted for ${to}`);
-    return { success: false, provider: 'none', message: 'All email providers failed.' };
-};
-
-/**
- * Helper for OTP Emails (MSG91 Preferred)
- */
-export const sendOTPEmail = async (to, code) => {
-    return sendEmail({ 
-        to, 
-        subject: `${code} is your code`, 
-        html: `Your code is ${code}`, // Fallback for other providers
-        preferredProvider: 'resend',
-        template_id: process.env.MSG91_OTP_TEMPLATE_ID || 'global_otp',
-        variables: {
-            otp: code,
-            company_name: 'Backstage'
-        }
-    });
-};
-
-/**
- * Helper for Ticket Emails (Resend Preferred)
- */
-export const sendTicketEmail = async (to, userName, eventName, qrCodeUrl, preferredProvider = 'resend') => {
-    const ticketHash = `#TK-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-    
-    // Escape all user-controlled data to prevent injection
-    const safeUserName = escapeHtml(userName);
-    const safeEventName = escapeHtml(eventName);
-    const safeTicketHash = escapeHtml(ticketHash);
-    
-    // Validate QR URL to ensure it's a legitimate URL before embedding
-    let safeQrUrl = 'https://api.qrserver.com/v1/create-qr-code/?data=INVALID';
-    try {
-        const urlObj = new URL(qrCodeUrl);
-        if (urlObj.protocol === 'https:' || urlObj.protocol === 'http:') {
-            safeQrUrl = qrCodeUrl;
-        }
-    } catch (e) {
-        console.warn('[EMAIL] Invalid QR URL provided:', qrCodeUrl);
-    }
-
-    const html = `
-        <div style="background-color: #000000; padding: 40px 20px; font-family: 'Inter', 'Helvetica', sans-serif;">
-            <div style="max-width: 450px; margin: 0 auto; background-color: #050507; border: 1px solid rgba(255,255,255,0.05); border-radius: 40px; overflow: hidden; color: white; text-align: center; padding: 60px 40px;">
-                <!-- Header Pill -->
-                <div style="display: inline-block; padding: 6px 16px; background-color: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.2); rounded-radius: 100px; border-radius: 100px; margin-bottom: 40px;">
-                    <span style="font-size: 8px; font-weight: 900; color: #818cf8; text-transform: uppercase; letter-spacing: 0.3em;">Official Entry Pass</span>
-                </div>
-
-                <!-- Title Section -->
-                <h1 style="font-size: 32px; font-weight: 900; text-transform: uppercase; letter-spacing: -0.02em; margin: 0 0 10px 0; color: white;">Your Ticket is Ready</h1>
-                <p style="font-size: 10px; font-weight: 800; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 40px;">
-                    Hi ${safeUserName}, see you at ${safeEventName}!
-                </p>
-
-                <!-- QR Container -->
-                <div style="background-color: white; padding: 30px; border-radius: 30px; display: inline-block; margin-bottom: 40px; box-shadow: 0 20px 40px rgba(0,0,0,0.4);">
-                    <img src="${safeQrUrl}" alt="QR Ticket" style="width: 220px; height: 220px; display: block;">
-                    <p style="font-size: 8px; font-weight: 900; color: #000000; text-transform: uppercase; letter-spacing: 0.3em; margin: 15px 0 0 0;">Scan to Enter</p>
-                </div>
-
-                <!-- Info Section -->
-                <div style="background-color: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 24px; padding: 30px; text-align: left; margin-bottom: 40px;">
-                    <div style="margin-bottom: 20px;">
-                        <p style="font-size: 7px; font-weight: 900; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.2em; margin: 0 0 8px 0;">Guest Identification</p>
-                        <p style="font-size: 14px; font-weight: 800; color: white; text-transform: uppercase; margin: 0;">${safeUserName}</p>
-                    </div>
-                    <div style="margin-bottom: 20px;">
-                        <p style="font-size: 7px; font-weight: 900; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.2em; margin: 0 0 8px 0;">Experience</p>
-                        <p style="font-size: 14px; font-weight: 800; color: #6366f1; text-transform: uppercase; margin: 0;">${safeEventName}</p>
-                    </div>
-                    <div>
-                        <p style="font-size: 7px; font-weight: 900; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.2em; margin: 0 0 8px 0;">Credential Hash</p>
-                        <p style="font-size: 14px; font-weight: 800; color: white; text-transform: uppercase; margin: 0; font-family: monospace;">${safeTicketHash}</p>
-                    </div>
-                </div>
-
-                <!-- Footer -->
-                <p style="font-size: 7px; font-weight: 800; color: rgba(255,255,255,0.2); text-transform: uppercase; letter-spacing: 0.2em; margin-bottom: 30px;">
-                    Non-Transferable &bull; Valid ID Required for Entry
-                </p>
-                <div style="font-size: 10px; font-weight: 900; color: white; text-transform: uppercase; letter-spacing: 0.5em; opacity: 0.8;">
-                    Backstage
-                </div>
-            </div>
-        </div>
-    `;
-    return sendEmail({ 
-        to, 
-        subject: `Your Admittance Pass for ${safeEventName}`, 
-        html, 
-        preferredProvider,
-        template_id: 'ticket_2', 
-        variables: {
-            user_name: safeUserName,
-            event_name: safeEventName,
-            qr_code_url: safeQrUrl,
-            ticket_hash: safeTicketHash
-        }
-    });
-};
+}

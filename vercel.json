@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "installCommand": "npm install",
   "rewrites": [
     {
       "source": "/static/:path*",
@@ -81,17 +82,17 @@
       "destination": "/apps/events/build/index.html"
     },
     {
-      "source": "/payment-:path*",
+      "source": "/payment-success",
       "has": [{ "type": "host", "value": "events.parkconscious.in" }],
       "destination": "/apps/events/build/index.html"
     },
     {
-      "source": "/payment-:path*",
+      "source": "/payment-success",
       "has": [{ "type": "host", "value": "parkconscious.in" }],
       "destination": "/apps/events/build/index.html"
     },
     {
-      "source": "/payment-:path*",
+      "source": "/payment-success",
       "has": [{ "type": "host", "value": "www.parkconscious.in" }],
       "destination": "/apps/events/build/index.html"
     },

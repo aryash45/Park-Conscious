@@ -12,6 +12,7 @@ import Razorpay from 'razorpay';
 import connectDB from './lib/mongodb.js';
 import * as models from './lib/models.js';
 import { json, setCors, getBody, normalizeEvent, verifyUser } from './lib/utils.js';
+import { dispatchTicketEmail } from './lib/email.js';
 
 const { Booking, Owner, User, Event } = models;
 const PLATFORM_FEE_PERCENT = 0.08; // 8% commission
@@ -87,7 +88,7 @@ export default async function handler(req, res) {
             // Handle FREE tickets (amount = 0) instantly bypassing Razorpay
             if (numericAmount === 0 || !amount) {
                 const ticketId = "TK-" + crypto.randomUUID().slice(0, 8).toUpperCase();
-                await Booking.create({ 
+                const newBooking = await Booking.create({ 
                     transactionId: txId, 
                     eventId: targetEventId, 
                     userId: targetUserId, 
@@ -126,6 +127,9 @@ export default async function handler(req, res) {
                 } else {
                     console.warn(`[BOOKING_DEBUG_FREE] Skipping capacity decrement for non-ObjectId: ${targetEventId}`);
                 }
+
+                // Dispatch ticket email (Smart Dual-Mode)
+                dispatchTicketEmail(newBooking._id);
 
                 return json(res, 200, { success: true, redirectUrl: `${redirectBase}/payment-success?txnId=${txId}` });
             }
@@ -230,6 +234,9 @@ export default async function handler(req, res) {
                     console.warn(`[BOOKING_DEBUG] Skipping capacity decrement for non-ObjectId: ${updatedBooking?.eventId}`);
                 }
                 
+                // Dispatch ticket email (Smart Dual-Mode)
+                dispatchTicketEmail(updatedBooking._id);
+
                 return json(res, 200, { success: true, message: "Payment verified successfully", txnId: razorpay_order_id });
             } else {
                 return json(res, 400, { success: false, message: "Invalid signature" });
