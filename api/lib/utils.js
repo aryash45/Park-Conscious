@@ -55,6 +55,9 @@ export function normalizeEvent(evt) {
     e.hosts = e.hosts || [];
     e.ticketTiers = e.ticketTiers || [];
     
+    // Ensure ID is present for frontend links
+    e.id = e._id?.toString() || e.id;
+    
     return e;
 }
 

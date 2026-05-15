@@ -222,7 +222,8 @@ export default async function handler(req, res) {
             }
 
             const host = req.headers.host || '';
-            const isAdminHost = host.startsWith('admin.');
+            // Support 'admin.parkconscious.in' AND Vercel previews like 'admin-events-xxx.vercel.app'
+            const isAdminHost = host.startsWith('admin.') || host.includes('admin-') || host.includes('.admin.');
             const filter = {};
             
             // Apply strict filters for non-GlobalAdmins
@@ -234,17 +235,20 @@ export default async function handler(req, res) {
                     name: { $not: /test/i }
                 };
 
-                // If on Admin Portal, organizers ONLY see their own events
-                if (isAdminHost && user && user.role === 'organizer') {
-                    filter.organizerId = user.id;
-                } 
-                // If on Public Site, organizers see public events PLUS their own
-                else if (user && user.role === 'organizer') {
-                    filter.$or = [
-                        publicFilter,
-                        { organizerId: user.id }
-                    ];
+                // Organizers see their own events + public ones
+                if (user && user.role === 'organizer') {
+                    if (isAdminHost) {
+                        // In Admin Panel, only show THEIR events
+                        filter.organizerId = user.id;
+                    } else {
+                        // On Public Site, show public events PLUS their own
+                        filter.$or = [
+                            publicFilter,
+                            { organizerId: user.id }
+                        ];
+                    }
                 } else {
+                    // Everyone else only sees public events
                     Object.assign(filter, publicFilter);
                 }
             }

@@ -675,7 +675,7 @@ export default async function handler(req, res) {
                 eventBreakdown: events.map(e => {
                     const eb = confirmedBookings.filter(b => String(b.eventId) === String(e._id));
                     return {
-                        id: e._id,
+                        id: String(e._id),
                         title: e.displayTitle || e.title,
                         sales: eb.length,
                         revenue: eb.reduce((acc, b) => acc + (parseFloat(b.amount) || 0), 0),
@@ -708,7 +708,7 @@ export default async function handler(req, res) {
                 events: events.map(e => {
                     const bookings = eventBookings.filter(b => String(b.eventId) === String(e._id));
                     return {
-                        eventId: e._id,
+                        eventId: String(e._id),
                         title: e.displayTitle || e.title,
                         totalTickets: bookings.length,
                         attended: bookings.filter(b => b.attended).length,
