@@ -9,6 +9,10 @@
 import jwt from 'jsonwebtoken';
 import { parse, serialize } from 'cookie';
 import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+
+dotenv.config();
+dotenv.config({ path: '.env.local', override: true });
 
 const JWT_SECRET = process.env.JWT_SECRET || "fallback_secret_65271829";
 
@@ -107,7 +111,13 @@ export const verifyUser = (req) => {
     }
 
     if (!token) return null;
-    try { return jwt.verify(token, JWT_SECRET); } catch(e) { return null; }
+
+    try { 
+        const decoded = jwt.verify(token, JWT_SECRET);
+        return decoded; 
+    } catch(e) { 
+        return null; 
+    }
 };
 
 export const issueCookie = (req, res, u) => {
@@ -189,4 +199,26 @@ export const getBody = async (req) => {
         }
     }
     return {};
+};
+
+/**
+ * logSystemError
+ * Centralized error logging to the database for observability.
+ */
+export const logSystemError = async (source, type, message, stack, metadata = {}) => {
+    try {
+        const { SystemLog } = await import('./models.js');
+        const hash = jwt.sign({ source, message }, JWT_SECRET).slice(-32); // Simple hash for deduplication
+        
+        await SystemLog.findOneAndUpdate(
+            { hash },
+            { 
+                $set: { source, type, message, stack, metadata, lastSeenAt: new Date() },
+                $inc: { count: 1 }
+            },
+            { upsert: true, new: true }
+        );
+    } catch (err) {
+        console.error('[LOGGER_FAILURE]:', err);
+    }
 };

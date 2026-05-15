@@ -8,6 +8,7 @@ import IORedis from 'ioredis';
 import dotenv from 'dotenv';
 
 dotenv.config();
+dotenv.config({ path: '.env.local', override: true });
 
 const REDIS_URL = process.env.REDIS_URL;
 

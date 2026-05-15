@@ -8,7 +8,7 @@ import * as models from '../lib/models.js';
 
 const { Booking, Event, User, Owner } = models;
 
-export async function handleAnalytics(url, method, body, user, res) {
+export async function handleAnalytics(url, method, body, user, req, res) {
     // -- Scoped Organizer Analytics & Insights (RBAC) --
     if (url.includes('organizer/insights') && method === 'GET') {
         if (!user) return json(res, 401, { message: 'Auth required' });

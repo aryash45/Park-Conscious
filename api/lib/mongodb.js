@@ -5,6 +5,10 @@
  * Uses a global cache to prevent multiple connections during cold starts.
  */
 import mongoose from "mongoose";
+import dotenv from "dotenv";
+
+dotenv.config();
+dotenv.config({ path: '.env.local', override: true });
 
 const MONGODB_URI = (process.env.MONGODB_URI || "").trim();
 
@@ -24,7 +28,14 @@ if (!cached) {
 
 async function connectToDatabase() {
     if (cached.conn) {
-        return cached.conn;
+        // Double check we are on the correct database
+        const targetDb = process.env.DB_NAME || "backstage_events";
+        if (cached.conn.connection.name === targetDb) {
+            return cached.conn;
+        }
+        console.warn(`[DB_RECONNECT]: Connection mismatch (${cached.conn.connection.name} vs ${targetDb}). Reconnecting...`);
+        cached.conn = null;
+        cached.promise = null;
     }
 
     if (!cached.promise) {

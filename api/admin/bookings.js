@@ -11,7 +11,7 @@ import * as models from '../lib/models.js';
 
 const { Booking, Event, User, Owner, Parking } = models;
 
-export async function handleBookings(url, method, body, user, res) {
+export async function handleBookings(url, method, body, user, req, res) {
     // -- Admin Attendees/Bookings List --
     if (url.includes('bookings/all') && method === 'GET') {
         if (!user) return json(res, 401, { message: 'Authentication required. Please log in again.' });

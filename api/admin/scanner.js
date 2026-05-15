@@ -8,7 +8,7 @@ import * as models from '../lib/models.js';
 
 const { Booking, Event, User, Owner } = models;
 
-export async function handleScanner(url, method, body, user, res) {
+export async function handleScanner(url, method, body, user, req, res) {
     // -- Scanner Application API --
     if (url.includes('scanner/events') && method === 'GET') {
         if (!user || (user.role !== 'scanner' && user.role !== 'superadmin')) {

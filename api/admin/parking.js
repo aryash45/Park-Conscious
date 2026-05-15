@@ -9,7 +9,7 @@ import * as models from '../lib/models.js';
 
 const { Booking, Parking } = models;
 
-export async function handleParking(url, method, body, user, res) {
+export async function handleParking(url, method, body, user, req, res) {
     // -- Owner Dashboard Stats (Parking Focused) --
     if (url.includes('/owner/') && url.includes('/dashboard') && method === 'GET') {
         const parts = url.split('/');

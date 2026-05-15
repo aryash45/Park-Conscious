@@ -8,6 +8,10 @@ import { redisConnection } from './queue.js';
 import connectDB from './mongodb.js';
 import { Resend } from 'resend';
 import * as models from './models.js';
+import dotenv from 'dotenv';
+
+dotenv.config();
+dotenv.config({ path: '.env.local', override: true });
 
 const { Booking, Event, User, Owner } = models;
 
@@ -25,24 +29,45 @@ export async function initWorker() {
 
     const worker = new Worker('TicketEmails', async (job) => {
         const { bookingId } = job.data;
-        console.log(`[WORKER]: Processing ticket for Booking ${bookingId}...`);
 
-        // 1. Fetch Booking
-        const booking = await Booking.findById(bookingId).lean();
-        if (!booking || !booking.email) {
-            console.warn(`[WORKER]: Skipping invalid booking ${bookingId}`);
-            return;
-        }
+        try {
+            // 1. Fetch Booking
+            const booking = await Booking.findById(bookingId).lean();
+            if (!booking) {
+                console.warn(`[WORKER_WARN]: Booking ${bookingId} not found in DB.`);
+                return;
+            }
+            if (!booking.email) {
+                console.warn(`[WORKER_WARN]: Booking ${bookingId} has no email address.`);
+                return;
+            }
 
-        // 2. Fetch Context (User, Event)
-        const [user, event] = await Promise.all([
-            User.findById(booking.userId).lean() || Owner.findById(booking.userId).lean(),
-            Event.findById(booking.eventId).lean()
-        ]);
 
-        const userName = user?.name || "Attendee";
-        const eventName = event?.displayTitle || event?.title || "BACKSTAGE Experience";
-        const ticketNumber = booking.ticketId || booking.transactionId || String(booking._id).slice(-8);
+            // 2. Fetch Context (User, Event)
+            let user = null;
+            const userId = String(booking.userId || '');
+            const isValidId = userId.length === 24 && /^[a-fA-F0-9]{24}$/.test(userId);
+
+            if (isValidId) {
+                user = await User.findById(userId).lean();
+                if (!user) {
+                    user = await Owner.findById(userId).lean();
+                }
+            }
+
+            const eventId = String(booking.eventId || '');
+            const isEventIdValid = eventId.length === 24 && /^[a-fA-F0-9]{24}$/.test(eventId);
+            
+            let event = null;
+            if (isEventIdValid) {
+                event = await Event.findById(eventId).lean();
+            }
+            
+            if (!event) console.warn(`[WORKER_WARN]: Event ${eventId} not found for booking ${bookingId}`);
+
+            const userName = user?.name || (!isValidId && userId ? userId : "Attendee");
+            const eventName = event?.displayTitle || event?.title || "BACKSTAGE Experience";
+            const ticketNumber = booking.ticketId || booking.transactionId || String(booking._id).slice(-8);
         const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(ticketNumber)}&ecc=L&margin=0`;
 
         // 3. Send Email via Resend
@@ -74,8 +99,11 @@ export async function initWorker() {
 
         // 4. Update Status
         await Booking.findByIdAndUpdate(bookingId, { $set: { emailSent: true } });
-        console.log(`[WORKER]: Ticket sent successfully for ${bookingId}`);
 
+        } catch (err) {
+            console.error(`[WORKER_FATAL_ERROR]: Job ${job.id} failed:`, err);
+            throw err;
+        }
     }, { 
         connection: redisConnection,
         concurrency: 5, // Process 5 emails at a time

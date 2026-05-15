@@ -10,6 +10,11 @@ import connectDB from './lib/mongodb.js';
 import * as models from './lib/models.js';
 import bcrypt from 'bcryptjs';
 import { serialize } from 'cookie';
+import dotenv from 'dotenv';
+
+dotenv.config();
+dotenv.config({ path: '.env.local', override: true });
+
 import { json, setCors, getBody, verifyUser, issueCookie } from './lib/utils.js';
 import { syncIdentity } from './lib/sync.js';
 import { sendOTPEmail } from './lib/email.js';

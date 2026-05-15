@@ -12,7 +12,7 @@ import { delCache } from '../lib/redis.js';
 
 const { Booking, Event, Owner, SystemLog } = models;
 
-export async function handleUsers(url, method, body, user, res) {
+export async function handleUsers(url, method, body, user, req, res) {
     // -- User Management (SuperAdmin Only) --
     if (url.includes('users') && method === 'GET') {
         if (!user || (user.role !== 'superadmin' && user.role !== 'admin')) return json(res, 403, { message: 'Access Denied: Administrative privileges required' });
