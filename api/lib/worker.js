@@ -6,7 +6,7 @@
 import { Worker } from 'bullmq';
 import { getRedis } from './redis.js';
 import connectDB from './mongodb.js';
-import { sendTicketEmail } from './email.js';
+import { processTicketEmail } from './email.js';
 import './env.js';
 
 export async function initWorker() {
@@ -22,7 +22,7 @@ export async function initWorker() {
         const { bookingId } = job.data;
         console.log(`[WORKER]: Processing ticket for booking ${bookingId}`);
         
-        const success = await sendTicketEmail(bookingId);
+        const success = await processTicketEmail(bookingId);
         if (!success) {
             throw new Error(`Failed to send email for booking ${bookingId}`);
         }

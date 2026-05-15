@@ -256,26 +256,23 @@ export default async function handler(req, res) {
 
             const filter = {};
             
-            // Apply strict filters for non-GlobalAdmins
-            if (!isGlobalAdmin) {
+            // Apply strict filters unless specifically on the Admin Host
+            if (!isGlobalAdmin || !isAdminHost) {
                 const publicFilter = {
                     status: { $in: ["active", "published", "Active", "Published"] },
                     isPublic: true
                 };
 
-                // Organizers see their own events + public ones
-                if (user && user.role === 'organizer') {
-                    if (isAdminHost) {
-                        // In Admin Panel, only show THEIR events
-                        filter.organizerId = user.id;
-                    } else {
-                        // On Public Site, show public events PLUS their own
-                        filter.$or = [
-                            publicFilter,
-                            { organizerId: user.id }
-                        ];
-                    }
-                } else {
+                // Organizers on the public site see public events PLUS their own (drafts included)
+                if (user && user.role === 'organizer' && !isAdminHost) {
+                    filter.$or = [
+                        publicFilter,
+                        { organizerId: user.id }
+                    ];
+                } else if (isGlobalAdmin && !isAdminHost) {
+                    // Admins on public site: Show only public events to mirror user experience
+                    Object.assign(filter, publicFilter);
+                } else if (!isGlobalAdmin) {
                     // Everyone else only sees public events
                     Object.assign(filter, publicFilter);
                 }

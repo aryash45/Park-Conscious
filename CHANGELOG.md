@@ -2,6 +2,14 @@
 
 All notable changes to the **Park Conscious** platform will be documented in this file.
 
+## [1.2.0] - 2026-05-15
+
+### 🛡️ Production Stability & Serverless Optimization
+- **Lazy Singleton Pattern:** Refactored all infrastructure connections (MongoDB, Redis, BullMQ) to use lazy-loading singletons, eliminating Vercel cold-start 500 errors.
+- **Dual-Mode Email Dispatcher:** Implemented a smart dispatcher that automatically chooses between direct Vercel-native sending (Free Tier) and BullMQ Queuing (Scale Tier).
+- **Environment Hydration:** Centralized environment variable loading to prevent race conditions during function initialization.
+- **Port Orchestration:** Standardized local development ports to resolve Turborepo and Vercel CLI collisions.
+
 ## [1.1.0] - 2026-05-13
 
 ### 🚀 Monorepo Architecture
