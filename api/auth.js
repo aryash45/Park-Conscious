@@ -201,12 +201,12 @@ export default async function handler(req, res) {
             if (!user) return json(res, 401, { authenticated: false });
             
             const host = req.headers.host || '';
-            const isAdminHost = host.includes('admin.events');
+            const isAdminHost = host.startsWith('admin.');
             
             // Firewall: Ensure the user's role matches the portal they are accessing
             const isPortalAdmin = user.role === 'admin' || user.role === 'superadmin' || user.role === 'organizer' || user.role === 'owner';
             
-            if (!isPortalAdmin && isAdminHost) {
+            if (isAdminHost && !isPortalAdmin) {
                 return json(res, 401, { authenticated: false, message: 'Public sessions not allowed on admin portal' });
             }
 
