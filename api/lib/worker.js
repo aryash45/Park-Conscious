@@ -6,6 +6,8 @@
 import { Worker } from 'bullmq';
 import { redisConnection } from './queue.js';
 import connectDB from './mongodb.js';
+import { Resend } from 'resend';
+import * as models from './models.js';
 
 const { Booking, Event, User, Owner } = models;
 
