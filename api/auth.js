@@ -98,7 +98,7 @@ export default async function handler(req, res) {
             
             let payload;
             try {
-                const googleClientId = process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+                const googleClientId = process.env.GOOGLE_CLIENT_ID;
                 if (!googleClientId) {
                     console.error('[SECURITY]: GOOGLE_CLIENT_ID is missing from environment.');
                     return json(res, 500, { message: 'Internal Server Error: Google OAuth not configured.' });

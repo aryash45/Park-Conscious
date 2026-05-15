@@ -5,15 +5,17 @@
  */
 import { Worker } from 'bullmq';
 import { redisConnection } from './queue.js';
-import { Resend } from 'resend';
-import * as models from './models.js';
+import connectDB from './mongodb.js';
 
 const { Booking, Event, User, Owner } = models;
 
 // HTML Escaper helper
 const esc = (s) => String(s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 
-export function initWorker() {
+export async function initWorker() {
+    // 0. Connect to Database (Required for worker to run queries)
+    await connectDB();
+
     if (!redisConnection) {
         console.warn('[WORKER]: Redis connection not available. Worker disabled.');
         return null;

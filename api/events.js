@@ -211,6 +211,9 @@ export default async function handler(req, res) {
             };
             const type = parsedUrl.searchParams.get("type");
             if (type) filter.type = type;
+
+            const featured = parsedUrl.searchParams.get("featured");
+            if (featured === "true") filter.isFeatured = true;
             
             const events = await Event.find(filter)
                 .sort({ startDate: 1 })
