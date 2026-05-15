@@ -42,12 +42,12 @@
     {
       "source": "/sitemap.xml",
       "has": [{ "type": "host", "value": "events.parkconscious.in" }],
-      "destination": "/apps/events/build/sitemap.xml"
+      "destination": "/api/sitemap.js"
     },
     {
       "source": "/robots.txt",
       "has": [{ "type": "host", "value": "events.parkconscious.in" }],
-      "destination": "/apps/events/build/robots.txt"
+      "destination": "/api/robots.js"
     },
     {
       "source": "/sitemap.xml",
@@ -57,7 +57,7 @@
     {
       "source": "/robots.txt",
       "has": [{ "type": "host", "value": "admin.events.parkconscious.in" }],
-      "destination": "/apps/admin/dist/robots.txt"
+      "destination": "/api/robots.js"
     },
     {
       "source": "/sitemap.xml",
@@ -67,7 +67,7 @@
     {
       "source": "/robots.txt",
       "has": [{ "type": "host", "value": "www.parkconscious.in" }],
-      "destination": "/web/robots.txt"
+      "destination": "/api/robots.js"
     },
 
     {
