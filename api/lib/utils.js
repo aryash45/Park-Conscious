@@ -1,180 +1,169 @@
 /**
  * api/lib/utils.js
  * 
- * Purpose: Utility functions for API handlers.
- * Optimized for resilience and data visibility.
+ * Purpose: General utility functions for the API.
+ * Includes data normalization (events), standard JSON response helpers, 
+ * JWT verification, cookie issuance for cross-subdomain sessions, 
+ * CORS configuration, and request body parsing.
  */
-import jwt from "jsonwebtoken";
-import { parse, serialize } from "cookie";
+import jwt from 'jsonwebtoken';
+import { parse, serialize } from 'cookie';
+import mongoose from 'mongoose';
 
-// NOTE: We no longer cache JWT_SECRET at the top level to avoid race conditions with dotenv loading.
+const JWT_SECRET = process.env.JWT_SECRET || "fallback_secret_65271829";
 
-/**
- * Standard JSON response utility.
- * Signature matches existing codebase: (res, status, data)
- */
+export function normalizeEvent(evt) {
+    if (!evt) return null;
+    const e = evt.toObject ? evt.toObject() : evt;
+    
+    // Title/Name Sync
+    e.name = e.name || e.title || "Untitled Experience";
+    e.title = e.title || e.name || "Untitled Experience";
+    
+    // Location/Venue Sync
+    const locName = e.location?.name || e.locationName || e.venue || "TBA";
+    const locAddr = e.location?.address || e.locationAddress || e.venueCity || "Delhi NCR, India";
+    
+    e.venue = locName;
+    e.locationName = locName;
+    e.locationAddress = locAddr;
+    e.venueCity = locAddr;
+    
+    if (!e.location) {
+        e.location = { 
+            name: locName, 
+            address: locAddr, 
+            coordinates: { lat: 0, lng: 0 } 
+        };
+    }
+
+    // Pricing Sync
+    e.price = e.price ?? e.regularPrice ?? 0;
+    e.regularPrice = e.regularPrice ?? e.price ?? 0;
+    
+    // Image Sync
+    e.image = e.image || (e.images && e.images[0]) || "";
+    if (e.image && (!e.images || e.images.length === 0)) e.images = [e.image];
+    
+    e.badge = e.badge || (e.status === 'published' ? 'LIVE' : '');
+    
+    // Visibility & Monetization
+    e.isPublic = e.isPublic ?? false;
+    e.listingPaid = e.listingPaid ?? false;
+    
+    // Ensure nested arrays exist
+    e.hosts = e.hosts || [];
+    e.ticketTiers = e.ticketTiers || [];
+    
+    return e;
+}
+
 export const json = (res, status, data) => {
-    res.setHeader("Content-Type", "application/json");
-    res.statusCode = status || 200;
-    res.end(JSON.stringify(data || {}));
+    res.setHeader('Content-Type', 'application/json');
+    res.statusCode = status;
+    res.end(JSON.stringify(data));
 };
 
-export const getBody = async (req) => {
-    // If Express middleware (like express.raw) already consumed the body, use it
-    if (req.body) {
-        try {
-            const raw = Buffer.isBuffer(req.body) ? req.body.toString() : 
-                        (typeof req.body === 'string' ? req.body : JSON.stringify(req.body));
-            return raw ? JSON.parse(raw) : {};
-        } catch (e) {
-            return typeof req.body === 'object' ? req.body : {};
-        }
-    }
-
-    // Immediate return for methods that shouldn't have bodies to avoid hangs
-    if (["GET", "DELETE", "HEAD", "OPTIONS"].includes(req.method)) {
-        return {};
-    }
-
-    return new Promise((resolve) => {
-        let body = "";
-        req.on("data", (chunk) => { body += chunk.toString(); });
-        req.on("end", () => {
-            try { resolve(body ? JSON.parse(body) : {}); } 
-            catch (e) { resolve({}); }
-        });
-        req.on("error", () => { resolve({}); });
-        
-        // Safety timeout for the stream
-        setTimeout(() => resolve({}), 5000);
-    });
+export const normalizeUrl = (url) => {
+    // Force lowercase, remove trailing slash, and collapse multiple slashes
+    let cleaned = (url || '/').toLowerCase().split('?')[0].replace(/\/+/g, '/');
+    if (cleaned.endsWith('/') && cleaned.length > 1) cleaned = cleaned.slice(0, -1);
+    return cleaned;
 };
 
 export const verifyUser = (req) => {
-    try {
-        const cookies = parse(req.headers.cookie || "");
-        let token = cookies.token;
-
-        // Fallback: Check Authorization header (used by some Admin clients)
-        const authHeader = req.headers.authorization;
-        if (!token && authHeader && authHeader.startsWith("Bearer ")) {
-            token = authHeader.split(" ")[1];
+    const cookies = parse(req.headers.cookie || '');
+    let token = cookies.token;
+    
+    // Fallback: Check Authorization header (used by AdminPanel)
+    if (!token && req.headers.authorization) {
+        const parts = req.headers.authorization.split(' ');
+        if (parts.length === 2 && parts[0] === 'Bearer') {
+            token = parts[1];
         }
-
-        if (!token) return null;
-        const secret = process.env.JWT_SECRET;
-        if (!secret) throw new Error("CRITICAL_SECURITY_ERROR: JWT_SECRET environment variable is missing.");
-        return jwt.verify(token, secret);
-    } catch (e) {
-        console.error("[AUTH_VERIFY_ERROR]:", e.message);
-        return null;
     }
+
+    if (!token) return null;
+    try { return jwt.verify(token, JWT_SECRET); } catch(e) { return null; }
 };
 
-export const issueCookie = (req, res, payload) => {
-    const secret = process.env.JWT_SECRET;
-    if (!secret) throw new Error("CRITICAL_SECURITY_ERROR: JWT_SECRET environment variable is missing.");
-    const token = jwt.sign(payload, secret, { expiresIn: "7d" });
-    
-    // Set the cookie globally, with conditional Domain/Secure for localhost testing
+export const issueCookie = (req, res, u) => {
     const host = req.headers.host || '';
-    const isLocalhost = host.includes('localhost') || host.includes('127.0.0.1');
-    const domain = isLocalhost ? undefined : '.parkconscious.in';
-    const secure = !isLocalhost;
     
-    res.setHeader("Set-Cookie", serialize("token", token, {
-        httpOnly: true,
-        secure,
-        sameSite: "lax",
-        domain,
-        maxAge: 7 * 24 * 60 * 60,
-        path: "/"
+    // Core payload stabilization: Ensure both id and uid exist
+    const payload = { 
+        ...u, 
+        id: u.id || u._id, 
+        uid: u.uid || u.id || u._id 
+    };
+
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+    
+    // Unified domain strategy: Use '.parkconscious.in' to share session across all subdomains
+    let domainPattern = undefined;
+    if (host.includes('parkconscious.in')) {
+        domainPattern = '.parkconscious.in';
+    }
+
+    res.setHeader('Set-Cookie', serialize('token', token, {
+        httpOnly: true, 
+        secure: true, 
+        sameSite: 'lax', 
+        domain: domainPattern, 
+        maxAge: 7 * 24 * 60 * 60, 
+        path: '/'
     }));
-    
     return token;
 };
 
-export const normalizeEvent = (event) => {
-    if (!event) return null;
-    const obj = event.toObject ? event.toObject() : event;
-    return {
-        ...obj,
-        id: obj._id?.toString() || obj.id,
-    };
-};
-
-/**
- * Prune sensitive internal fields but KEEP all functional data 
- * required by the frontend (like customForms, hosts, etc.)
- */
-export const pruneEvent = (event) => {
-    if (!event) return null;
-    const obj = event.toObject ? event.toObject() : event;
-    
-    // We only remove true internal overhead, NOT functional fields
-    const { 
-        __v, 
-        ...rest 
-    } = obj;
-    
-    return {
-        ...rest,
-        id: obj._id?.toString() || obj.id
-    };
-};
-
-export const logSystemError = async (source, type, message, stack, metadata = {}) => {
-    try {
-        const { SystemLog } = await import("./models.js");
-        const crypto = await import('crypto');
-        
-        // Create a unique hash for this specific error from this source
-        const hash = crypto.default.createHash('md5').update(`${source}:${message}`).digest('hex');
-
-        await SystemLog.findOneAndUpdate(
-            { hash, resolved: false },
-            { 
-                $inc: { count: 1 },
-                $set: { 
-                    source, 
-                    type, 
-                    message, 
-                    stack, 
-                    metadata,
-                    lastSeenAt: new Date()
-                },
-                $setOnInsert: { createdAt: new Date() }
-            },
-            { upsert: true, new: true }
-        );
-    } catch (e) {
-        console.error('[LOGGER_CRASH]:', e.message);
-    }
-};
-
 export const setCors = (req, res) => {
-    const origin = req.headers.origin;
-    const allowedOrigins = [
-        'https://events.parkconscious.in',
-        'https://admin.events.parkconscious.in',
+    const allowed = [
+        'https://events.parkconscious.in', 
+        'https://admin.events.parkconscious.in', 
         'https://parkconscious.in',
         'https://www.parkconscious.in',
-        'http://localhost:3000',
-        'http://localhost:3001',
         'http://localhost:5173',
-        'http://localhost:5174',
-        'http://localhost:5175'
+        'http://localhost:3000'
     ];
+    const origin = req.headers.origin;
+    const isAllowed = origin && (
+        allowed.some(a => origin.startsWith(a)) || 
+        origin.endsWith('.parkconscious.in') || 
+        origin.endsWith('.vercel.app') ||
+        origin.includes('localhost')
+    );
 
-    // For local development, be permissive with localhost origins to support dynamic port assignment
-    if (origin && (allowedOrigins.includes(origin) || origin.includes('localhost') || origin.includes('127.0.0.1'))) {
-        res.setHeader("Access-Control-Allow-Origin", origin);
+    if (isAllowed) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
     } else {
-        // Fallback to primary production domain. Never reflect untrusted origins.
-        res.setHeader("Access-Control-Allow-Origin", allowedOrigins[0]);
+        res.setHeader('Access-Control-Allow-Origin', allowed[0]);
+    }
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS,PUT,PATCH,DELETE');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+};
+
+export const getBody = async (req) => {
+    if (req.body) {
+        if (typeof req.body === 'object' && !Buffer.isBuffer(req.body) && Object.keys(req.body).length > 0) return req.body;
+        if (Buffer.isBuffer(req.body) && req.body.length > 0) {
+            const raw = req.body.toString('utf-8');
+            try { return JSON.parse(raw); } catch(e) { return {}; }
+        }
+        if (typeof req.body === 'string' && req.body.trim().length > 0) {
+            try { return JSON.parse(req.body); } catch(e) { return {}; }
+        }
     }
 
-    res.setHeader("Access-Control-Allow-Credentials", "true");
-    res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS,PUT,PATCH,DELETE");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+    const contentType = req.headers['content-type'] || '';
+    const method = req.method || 'GET';
+    if ((method === 'POST' || method === 'PUT') && !contentType.includes('multipart/form-data')) {
+        const chunks = [];
+        for await (const chunk of req) chunks.push(chunk);
+        const raw = Buffer.concat(chunks).toString();
+        if (raw) {
+            try { return JSON.parse(raw); } catch(e) { return {}; }
+        }
+    }
+    return {};
 };
