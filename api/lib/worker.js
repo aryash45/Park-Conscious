@@ -8,12 +8,7 @@ import { redisConnection } from './queue.js';
 import connectDB from './mongodb.js';
 import { Resend } from 'resend';
 import * as models from './models.js';
-import dotenv from 'dotenv';
-
-if (process.env.NODE_ENV !== 'production') {
-    dotenv.config();
-    dotenv.config({ path: '.env.local', override: true });
-}
+import './env.js';
 
 const { Booking, Event, User, Owner } = models;
 

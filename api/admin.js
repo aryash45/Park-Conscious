@@ -4,6 +4,7 @@
  * Purpose: Multi-purpose Administrative API handler. 
  * Routes requests to dedicated sub-modules for scalability.
  */
+import './lib/env.js';
 import connectDB from './lib/mongodb.js';
 import { json, setCors, getBody, verifyUser } from './lib/utils.js';
 

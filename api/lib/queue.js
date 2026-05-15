@@ -1,61 +1,28 @@
 /**
  * api/lib/queue.js
  * 
- * Purpose: BullMQ Queue configuration and shared Redis connection.
+ * Purpose: Vercel-optimized BullMQ Queue management.
+ * Leverages the shared global Redis connection to prevent connection flooding.
  */
-import Redis from 'ioredis';
 import { Queue } from 'bullmq';
-import dotenv from 'dotenv';
+import { getRedis } from './redis.js';
 
-if (process.env.NODE_ENV !== 'production') {
-    dotenv.config();
-    dotenv.config({ path: '.env.local', override: true });
-}
-
-const REDIS_URL = process.env.REDIS_URL;
-
-let cachedRedis = null;
-let cachedQueue = null;
-
-/**
- * Lazy getter for Redis connection
- */
-export function getRedisConnection() {
-    if (cachedRedis) return cachedRedis;
-    if (!REDIS_URL) return null;
-
-    try {
-        cachedRedis = new Redis(REDIS_URL, {
-            maxRetriesPerRequest: null,
-            connectTimeout: 10000,
-            enableReadyCheck: false,
-            ...(REDIS_URL.startsWith('rediss://') ? { 
-                tls: { rejectUnauthorized: false } 
-            } : {})
-        });
-
-        cachedRedis.on('error', (err) => {
-            console.error('[REDIS_ERROR]:', err.message);
-        });
-
-        return cachedRedis;
-    } catch (err) {
-        console.error('[REDIS_INIT_FAILED]:', err.message);
-        return null;
-    }
+// Global singleton for the Queue instance
+if (!global._queues) {
+    global._queues = { ticketQueue: null };
 }
 
 /**
- * Lazy getter for Ticket Queue
+ * Lazy getter for the Ticket Queue
  */
 export function getTicketQueue() {
-    if (cachedQueue) return cachedQueue;
+    if (global._queues.ticketQueue) return global._queues.ticketQueue;
     
-    const connection = getRedisConnection();
+    const connection = getRedis();
     if (!connection) return null;
 
     try {
-        cachedQueue = new Queue('TicketEmails', { 
+        global._queues.ticketQueue = new Queue('TicketEmails', { 
             connection,
             defaultJobOptions: {
                 attempts: 3,
@@ -65,14 +32,17 @@ export function getTicketQueue() {
             }
         });
 
-        cachedQueue.on('error', (err) => console.error('[QUEUE_ERROR]:', err.message));
-        return cachedQueue;
+        global._queues.ticketQueue.on('error', (err) => {
+            console.error('[QUEUE_ERROR]:', err.message);
+        });
+
+        return global._queues.ticketQueue;
     } catch (err) {
         console.error('[QUEUE_INIT_FAILED]:', err.message);
         return null;
     }
 }
 
-// Export connection references (initialized lazily when imported)
-export const redisConnection = getRedisConnection();
+// Backward compatibility exports
+export const redisConnection = getRedis();
 export const ticketQueue = getTicketQueue();

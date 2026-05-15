@@ -10,12 +10,7 @@ import connectDB from './lib/mongodb.js';
 import * as models from './lib/models.js';
 import bcrypt from 'bcryptjs';
 import { serialize } from 'cookie';
-import dotenv from 'dotenv';
-
-if (process.env.NODE_ENV !== 'production') {
-    dotenv.config();
-    dotenv.config({ path: '.env.local', override: true });
-}
+import './lib/env.js';
 
 import { json, setCors, getBody, verifyUser, issueCookie } from './lib/utils.js';
 import { syncIdentity } from './lib/sync.js';

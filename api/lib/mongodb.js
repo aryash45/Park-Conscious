@@ -5,12 +5,7 @@
  * Uses a global cache to prevent multiple connections during cold starts.
  */
 import mongoose from "mongoose";
-import dotenv from "dotenv";
-
-if (process.env.NODE_ENV !== 'production') {
-    dotenv.config();
-    dotenv.config({ path: '.env.local', override: true });
-}
+import './env.js';
 
 const MONGODB_URI = (process.env.MONGODB_URI || "").trim();
 

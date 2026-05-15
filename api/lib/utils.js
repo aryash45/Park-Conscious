@@ -9,12 +9,7 @@
 import jwt from 'jsonwebtoken';
 import { parse, serialize } from 'cookie';
 import mongoose from 'mongoose';
-import dotenv from 'dotenv';
-
-if (process.env.NODE_ENV !== 'production') {
-    dotenv.config();
-    dotenv.config({ path: '.env.local', override: true });
-}
+import './env.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || "fallback_secret_65271829";
 

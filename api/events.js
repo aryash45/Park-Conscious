@@ -4,6 +4,7 @@
  * Main handler for event-related operations.
  * Proxied from events.parkconscious.in and admin.parkconscious.in
  */
+import './lib/env.js';
 import mongoose from "mongoose";
 import connectDB from "./lib/mongodb.js";
 import * as models from "./lib/models.js";
