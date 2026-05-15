@@ -48,6 +48,10 @@ export default async function handler(req, res) {
                     name: dbName || "none",
                     uri_found: !!process.env.MONGODB_URI,
                     target_db: process.env.MONGODB_URI ? process.env.MONGODB_URI.split('/').pop().split('?')[0] : 'missing'
+                },
+                security: {
+                    hasJwtSecret: !!process.env.JWT_SECRET,
+                    hasGoogleId: !!(process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID)
                 }
             });
         }
