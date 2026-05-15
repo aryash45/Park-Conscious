@@ -193,11 +193,17 @@ export default async function handler(req, res) {
             const isGlobalAdmin = user && ['admin', 'superadmin', 'owner'].includes(user.role);
 
             if (eventId) {
+                // NITPICK: Fast-path for public users (hits cache before DB fetch)
+                if (!user && !isGlobalAdmin) {
+                    const publicCached = await getCache(`event:${eventId}:public`);
+                    if (publicCached) return json(res, 200, publicCached);
+                }
+
                 // Fetch first to determine ownership and status before caching/returning
                 const event = await Event.findById(eventId);
                 if (!event) return json(res, 404, { error: "Event not found" });
 
-                const isOwner = user && (String(event.organizerUid) === String(user.id));
+                const isOwner = user && (String(event.organizerId) === String(user.id));
                 const canSeePrivate = isGlobalAdmin || isOwner;
                 
                 // Enforce visibility: Non-admins/non-owners only see public published events
@@ -230,13 +236,13 @@ export default async function handler(req, res) {
 
                 // If on Admin Portal, organizers ONLY see their own events
                 if (isAdminHost && user && user.role === 'organizer') {
-                    filter.organizerUid = user.id;
+                    filter.organizerId = user.id;
                 } 
                 // If on Public Site, organizers see public events PLUS their own
                 else if (user && user.role === 'organizer') {
                     filter.$or = [
                         publicFilter,
-                        { organizerUid: user.id }
+                        { organizerId: user.id }
                     ];
                 } else {
                     Object.assign(filter, publicFilter);
@@ -253,7 +259,7 @@ export default async function handler(req, res) {
                 .limit(50);
 
             return json(res, 200, events.map(e => {
-                const isOwner = user && (String(e.organizerUid) === String(user.id));
+                const isOwner = user && (String(e.organizerId) === String(user.id));
                 return pruneEvent(e, isGlobalAdmin || isOwner);
             }));
         }

@@ -25,7 +25,7 @@ export const getRedisConnection = () => {
     connectionName: `park-conscious-${process.env.VERCEL_ENV || 'dev'}`,
     ...(REDIS_URL.startsWith('rediss://') ? { 
         tls: { 
-            rejectUnauthorized: process.env.NODE_ENV !== 'production' // Only allow self-signed in dev/preview
+            rejectUnauthorized: process.env.NODE_ENV === 'production' // Validate certs in prod, allow self-signed in dev/preview
         } 
     } : {})
 });
