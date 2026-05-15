@@ -12,8 +12,9 @@ import bcrypt from 'bcryptjs';
 import { serialize } from 'cookie';
 import { json, setCors, getBody, verifyUser, issueCookie } from './lib/utils.js';
 import { syncIdentity } from './lib/sync.js';
+import { sendOTPEmail } from './lib/email.js';
 
-const { User, Owner } = models;
+const { User, Owner, VerificationCode } = models;
 
 export default async function handler(req, res) {
     setCors(req, res);
@@ -24,6 +25,7 @@ export default async function handler(req, res) {
     const url = pathPart.replace(/\/+/g, '/').replace(/\/$/, '') || '/';
     const method = req.method || 'GET';
     const body = await getBody(req);
+    const user = verifyUser(req);
 
     try {
         await connectDB();
@@ -36,6 +38,7 @@ export default async function handler(req, res) {
             // Priority: Check Primary Database
             let u = await Owner.findOne({ email: search });
             let isOwner = !!u;
+            console.log(`[AUTH_DEBUG]: Search for ${search} | Found in Primary: ${!!u}`);
             
             if (!u) {
                 u = await User.findOne({ email: search });
@@ -68,6 +71,10 @@ export default async function handler(req, res) {
                 role: isOwner ? (u.role || 'organizer').toLowerCase() : 'user' 
             };
             const token = issueCookie(req, res, payload);
+
+            // Sync identity in the background (Non-blocking)
+            syncIdentity(u, isOwner);
+
             return json(res, 200, { user: payload, token });
         }
 
@@ -86,9 +93,34 @@ export default async function handler(req, res) {
 
         // -- Google Auth --
         if (url.includes('/google') && method === 'POST') {
-            const { email, name, googleId, picture } = body;
-            if (!email) return json(res, 400, { message: 'Email required for Google Auth' });
+            const { credential } = body;
+            if (!credential) return json(res, 400, { message: 'Credential (ID Token) required' });
             
+            let payload;
+            try {
+                const googleClientId = process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+                if (!googleClientId) {
+                    console.error('[SECURITY]: GOOGLE_CLIENT_ID is missing from environment.');
+                    return json(res, 500, { message: 'Internal Server Error: Google OAuth not configured.' });
+                }
+
+                const { OAuth2Client } = await import('google-auth-library');
+                const client = new OAuth2Client(googleClientId);
+                const ticket = await client.verifyIdToken({
+                    idToken: credential,
+                    audience: googleClientId
+                });
+                payload = ticket.getPayload();
+                
+                if (!payload || !payload.email) {
+                    return json(res, 401, { message: 'Invalid Google Credential: Email missing' });
+                }
+            } catch (err) {
+                console.error('[GOOGLE_VERIFY_ERROR]:', err.message);
+                return json(res, 401, { message: 'Invalid Google Credential' });
+            }
+
+            const { email, name, sub: googleId, picture } = payload;
             const search = email.toLowerCase();
             
             // Step 1: Try Primary
@@ -118,12 +150,25 @@ export default async function handler(req, res) {
                 u = await User.create({ name, email: search, googleId, picture });
                 isOwner = false;
             } else {
-                let changed = false;
-                if (!u.googleId) {
-                    u.googleId = googleId;
-                    changed = true;
+                // SECURITY: Prevent unauthorized account binding/hijacking
+                if (u.googleId && u.googleId !== googleId) {
+                    console.warn(`[AUTH_HIJACK_ATTEMPT]: User ${search} attempted Google login with different googleId.`);
+                    return json(res, 403, { 
+                        message: 'This account is already linked to a different Google identity. Please log in with your password or contact support.' 
+                    });
                 }
-                // Unconditional name sync - force "Piyush" over placeholder names
+
+                if (!u.googleId) {
+                    // REQUIRE VERIFICATION for binding Google to an existing password-based account
+                    // For now, we reject to prevent auto-binding without a verification flow
+                    console.info(`[AUTH_BIND_REQUIRED]: User ${search} attempted Google login but account is password-only.`);
+                    return json(res, 401, { 
+                        message: 'This account was created with a password. Please sign in using your email and password, or contact support if you wish to link your Google account.' 
+                    });
+                }
+
+                let changed = false;
+                // Unconditional name sync
                 if (u.name !== name) {
                     u.name = name;
                     changed = true;
@@ -136,10 +181,10 @@ export default async function handler(req, res) {
                 if (changed) await u.save();
             }
 
-            // Sync identity to Park Conscious database in the background
-            await syncIdentity(u, isOwner);
+            // Sync identity in the background (Non-blocking)
+            syncIdentity(u, isOwner);
 
-            const payload = { 
+            const userPayload = { 
                 id: String(u._id), 
                 uid: String(u._id), 
                 name: u.name, 
@@ -147,34 +192,80 @@ export default async function handler(req, res) {
                 picture: u.picture || "",
                 role: isOwner ? (u.role || 'organizer').toLowerCase() : 'user' 
             };
-            const token = issueCookie(req, res, payload);
-            return json(res, 200, { user: payload, token, message: 'Logged in with Google' });
+            const token = issueCookie(req, res, userPayload);
+            return json(res, 200, { user: userPayload, token, message: 'Logged in with Google (Verified)' });
         }
 
         // -- Session Check --
         if (url.includes('/me') && method === 'GET') {
-            const decoded = verifyUser(req);
-            if (!decoded) return json(res, 401, { authenticated: false });
+            if (!user) return json(res, 401, { authenticated: false });
             
             const host = req.headers.host || '';
             const isAdminHost = host.includes('admin.events');
             
             // Firewall: Ensure the user's role matches the portal they are accessing
-            const isPortalAdmin = decoded.role === 'admin' || decoded.role === 'superadmin' || decoded.role === 'organizer' || decoded.role === 'owner';
+            const isPortalAdmin = user.role === 'admin' || user.role === 'superadmin' || user.role === 'organizer' || user.role === 'owner';
             
             if (!isPortalAdmin && isAdminHost) {
                 return json(res, 401, { authenticated: false, message: 'Public sessions not allowed on admin portal' });
             }
 
-            return json(res, 200, { authenticated: true, user: decoded });
+            return json(res, 200, { authenticated: true, user });
         }
 
-        // -- Organizer Registration (Self-Service) --
-        if (url.includes('/register/organizer') && method === 'POST') {
-            const { name, email, password } = body;
-            if (!name || !email || !password) return json(res, 400, { message: 'Missing required fields' });
+        // -- Organizer Registration (Self-Service with OTP) --
+        if (url.includes('/register/send-otp') && method === 'POST') {
+            const { email } = body;
+            if (!email) return json(res, 400, { message: 'Email required' });
 
             const search = email.toLowerCase().trim();
+            const existing = await Owner.findOne({ email: search });
+            if (existing) {
+                // Prevent email enumeration by returning a generic success message
+                return json(res, 200, { success: true, message: 'If the email is valid, an OTP has been sent.' });
+            }
+
+            // Generate 6-digit OTP
+            const code = Math.floor(100000 + Math.random() * 900000).toString();
+            const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+            await VerificationCode.findOneAndUpdate(
+                { email: search },
+                { code, expiresAt },
+                { upsert: true, new: true }
+            );
+
+            // SEND OTP EMAIL (Multi-Provider)
+            await sendOTPEmail(search, code);
+            
+            return json(res, 200, { success: true, message: 'Verification code sent.' });
+        }
+
+        if (url.includes('/register/verify-otp') && method === 'POST') {
+            const { email, code } = body;
+            if (!email || !code) return json(res, 400, { message: 'Missing email or code' });
+
+            const search = email.toLowerCase().trim();
+            const verification = await VerificationCode.findOne({ email: search, code });
+            
+            if (!verification) return json(res, 400, { message: 'Invalid or expired verification code' });
+            if (verification.expiresAt < new Date()) return json(res, 400, { message: 'Verification code expired' });
+
+            return json(res, 200, { success: true, message: 'OTP verified successfully.' });
+        }
+
+        if (url.includes('/register/organizer') && method === 'POST') {
+            const { name, email, password, code } = body;
+            if (!name || !email || !password || !code) return json(res, 400, { message: 'Missing required fields' });
+
+            const search = email.toLowerCase().trim();
+            
+            // Validate OTP
+            const verification = await VerificationCode.findOne({ email: search, code });
+            if (!verification || verification.expiresAt < new Date()) {
+                return json(res, 400, { message: 'Invalid or expired verification code' });
+            }
+
             const existing = await Owner.findOne({ email: search });
             if (existing) return json(res, 400, { message: 'Account with this email already exists' });
 
@@ -185,6 +276,9 @@ export default async function handler(req, res) {
                 password: hashedPassword,
                 role: 'organizer'
             });
+
+            // Cleanup OTP
+            await VerificationCode.deleteOne({ _id: verification._id });
 
             // Sync identity to Park Conscious database
             await syncIdentity(newOrganizer, true);
