@@ -68,8 +68,9 @@ export const AuthProvider = ({ children }) => {
         setLoading(true);
         const params = new URLSearchParams(hash.substring(1));
         const accessToken = params.get("access_token");
+        const idToken = params.get("id_token");
 
-        if (accessToken) {
+        if (accessToken || idToken) {
           try {
             // Clean the URL hash without reloading the page
             window.history.replaceState(null, null, window.location.pathname);
@@ -81,7 +82,7 @@ export const AuthProvider = ({ children }) => {
 
             if (response.ok) {
               const userInfo = await response.json();
-              await signInWithGoogle(accessToken, userInfo);
+              await signInWithGoogle(accessToken, userInfo, idToken);
             }
           } catch (err) {
             console.error("Auth redirect error:", err);
@@ -95,7 +96,7 @@ export const AuthProvider = ({ children }) => {
     handleGoogleRedirect();
   }, []);
 
-  const signInWithGoogle = async (accessToken, userInfo) => {
+  const signInWithGoogle = async (accessToken, userInfo, idToken) => {
     try {
       let info = userInfo;
       if (!info && accessToken) {
@@ -110,6 +111,7 @@ export const AuthProvider = ({ children }) => {
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
+          credential: idToken,
           email: info.email,
           name: info.name,
           googleId: info.sub,

@@ -18,7 +18,8 @@ const CustomModal = () => {
   const handleGoogleLogin = () => {
     const scope = encodeURIComponent("profile email openid");
     const redirectUri = encodeURIComponent(window.location.origin + "/");
-    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${redirectUri}&response_type=token&scope=${scope}`;
+    const nonce = Math.random().toString(36).substring(2);
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${redirectUri}&response_type=id_token+token&scope=${scope}&nonce=${nonce}`;
     
     // Perform full page redirect
     window.location.assign(authUrl);
