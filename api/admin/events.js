@@ -8,7 +8,7 @@ import * as models from '../lib/models.js';
 
 const { Contact, EventRequest } = models;
 
-export async function handleEvents(url, method, body, user, res) {
+export async function handleEvents(url, method, body, user, req, res) {
     // -- Inquiries Management (SuperAdmin Only) --
     if (url.includes('inquiries')) {
         if (!user || (user.role !== 'superadmin' && user.role !== 'admin')) {

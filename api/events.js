@@ -4,6 +4,7 @@
  * Main handler for event-related operations.
  * Proxied from events.parkconscious.in and admin.parkconscious.in
  */
+import './lib/env.js';
 import mongoose from "mongoose";
 import connectDB from "./lib/mongodb.js";
 import * as models from "./lib/models.js";
@@ -31,13 +32,16 @@ export default async function handler(req, res) {
     // 2. Main Logic wrapper
     try {
         await connectDB();
-        const { Event, Discussion, Comment } = models;
+        const Event = mongoose.connection.model('Event', models.eventSchema);
+        const Discussion = mongoose.connection.model('Discussion', models.discussionSchema);
+        const Comment = mongoose.connection.model('Comment', models.commentSchema);
 
         // Health check (Now accurately reflects the connection)
         const fullUrl = req.url || "/";
         if (fullUrl.includes("/health")) {
             const dbStatus = mongoose.connection.readyState;
             const dbName = mongoose.connection.name;
+            const isConnected = dbStatus === 1;
             return json(res, 200, { 
                 status: "ONLINE", 
                 timestamp: new Date().toISOString(),
@@ -46,6 +50,11 @@ export default async function handler(req, res) {
                     connected: dbStatus === 1,
                     readyState: dbStatus, // 0=disc, 1=conn, 2=connecting, 3=disconnecting
                     name: dbName || "none",
+                    counts: {
+                        events: isConnected ? await mongoose.connection.db?.collection('events').countDocuments() : 0,
+                        discussions: isConnected ? await mongoose.connection.db?.collection('discussions').countDocuments() : 0
+                    },
+                    active_db: mongoose.connection.db?.databaseName || "none",
                     uri_found: !!process.env.MONGODB_URI,
                     target_db: process.env.MONGODB_URI ? process.env.MONGODB_URI.split('/').pop().split('?')[0] : 'missing'
                 },
@@ -89,6 +98,8 @@ export default async function handler(req, res) {
                     .skip(skip)
                     .limit(limit)
                     .lean();
+
+                console.log(`[DIAGNOSTIC]: Discussions query. Total in DB: ${total}, Found in this page: ${discussions.length}`);
 
                 return json(res, 200, { 
                     discussions, 
@@ -188,41 +199,113 @@ export default async function handler(req, res) {
                 }
             }
 
-            if (eventId) {
-                // Try cache first
-                const cached = await getCache(`event:${eventId}`);
-                if (cached) return json(res, 200, cached);
+            const user = verifyUser(req);
+            const isConnected = mongoose.connection.readyState === 1;
+            console.log(`[AUTH_DEBUG]: Active Session User:`, JSON.stringify(user));
+            
+            // Global Admin roles (can see everything)
+            const isGlobalAdmin = user && ['admin', 'superadmin', 'owner'].includes(user.role);
 
+            if (eventId) {
+                // NITPICK: Fast-path for public users (hits cache before DB fetch)
+                if (!user && !isGlobalAdmin) {
+                    const publicCached = await getCache(`event:${eventId}:public`);
+                    if (publicCached) return json(res, 200, publicCached);
+                }
+
+                // Fetch first to determine ownership and status before caching/returning
                 const event = await Event.findById(eventId);
-                if (!event) {
+                if (!event) return json(res, 404, { error: "Event not found" });
+
+                const isOwner = user && (String(event.organizerId) === String(user.id));
+                const canSeePrivate = isGlobalAdmin || isOwner;
+                
+                // Enforce visibility: Non-admins/non-owners only see public published events
+                const isPublished = ['active', 'published', 'Active', 'Published'].includes(event.status);
+                if (!canSeePrivate && (!isPublished || !event.isPublic)) {
                     return json(res, 404, { error: "Event not found" });
                 }
 
-                const data = pruneEvent(event);
-                await setCache(`event:${eventId}`, data, 300); // 5 min cache
+                const cacheKey = `event:${eventId}:${canSeePrivate ? 'privileged' : 'public'}`;
+                const cached = await getCache(cacheKey);
+                if (cached) return json(res, 200, cached);
+
+                const data = pruneEvent(event, canSeePrivate);
+                await setCache(cacheKey, data, 300); // 5 min cache
                 return json(res, 200, data);
             }
 
-            // List Filtered Events
-            const filter = { 
-                status: { $in: ["active", "published"] },
-                isPublic: true,
-                title: { $not: /test/i } // Case-insensitive filter to hide "Test", "TEST", "test 1", etc.
-            };
+            const host = req.headers.host || '';
+            // Support 'admin.parkconscious.in' AND Vercel previews like 'admin-events-xxx.vercel.app'
+            const isAdminHost = host.startsWith('admin.') || host.includes('admin-') || host.includes('.admin.');
+            
+            // -- Administrative List (Full access or Organizer scoped) --
+            if (urlPath.includes('/admin/all')) {
+                if (!user) return json(res, 401, { message: 'Authentication required' });
+                
+                let query = {};
+                if (!isGlobalAdmin && user.role !== 'organizer') {
+                    query.organizerId = user.id;
+                }
+
+                console.log(`[ADMIN_DEBUG]: Fetching all events. User: ${user.email}, Role: ${user.role}, Query:`, JSON.stringify(query));
+                const events = await Event.find(query).sort({ createdAt: -1 }).lean();
+                console.log(`[ADMIN_DEBUG]: Found ${events.length} events.`);
+                return json(res, 200, events.map(e => normalizeEvent(e)));
+            }
+
+            const filter = {};
+            
+            // Apply strict filters unless specifically on the Admin Host
+            if (!isGlobalAdmin || !isAdminHost) {
+                const publicFilter = {
+                    status: { $in: ["active", "published", "Active", "Published"] },
+                    isPublic: true
+                };
+
+                // Organizers on the public site see public events PLUS their own (drafts included)
+                if (user && user.role === 'organizer' && !isAdminHost) {
+                    filter.$or = [
+                        publicFilter,
+                        { organizerId: user.id }
+                    ];
+                } else if (isGlobalAdmin && !isAdminHost) {
+                    // Admins on public site: Show only public events to mirror user experience
+                    Object.assign(filter, publicFilter);
+                } else if (!isGlobalAdmin) {
+                    // Everyone else only sees public events
+                    Object.assign(filter, publicFilter);
+                }
+            }
             const type = parsedUrl.searchParams.get("type");
             if (type) filter.type = type;
 
             const featured = parsedUrl.searchParams.get("featured");
             if (featured === "true") filter.isFeatured = true;
             
+            console.log(`[DEBUG_API]: Querying Event model. DB: ${Event.db.name}, Filter:`, JSON.stringify(filter));
+            
+            const rawCount = isConnected ? await mongoose.connection.db?.collection('events').countDocuments() : 'N/A';
+            const modelCount = await Event.countDocuments(filter);
+            
+            console.log(`[DIAGNOSTIC]: Event Listing. Raw Count: ${rawCount}, Model Count (filtered): ${modelCount}, DB Name: ${Event.db.name}`);
+            
             const events = await Event.find(filter)
-                .sort({ startDate: 1 })
+                .sort({ date: 1 })
                 .limit(50);
 
-            return json(res, 200, events.map(pruneEvent));
+            if (events.length === 0) {
+                const anyEvent = await Event.findOne({});
+                console.log(`[DIAGNOSTIC]: Filter returned 0 events. Total events in collection: ${await Event.countDocuments()}, Sample ID: ${anyEvent?._id}`);
+            }
+
+            return json(res, 200, events.map(e => {
+                const isOwner = user && (String(e.organizerId) === String(user.id));
+                return pruneEvent(e, isGlobalAdmin || isOwner);
+            }));
         }
 
-        // POST: Create or Update (Requires Auth)
+        // POST: Create Event or Razorpay Order
         if (req.method === "POST") {
             const user = verifyUser(req);
             if (!user) return json(res, 401, { error: "Unauthorized" });
@@ -231,9 +314,7 @@ export default async function handler(req, res) {
             
             // Handle Razorpay Order Creation (if requested)
             if (body.action === "create_order") {
-                // Dynamic import to prevent initialization crashes
                 const { default: Razorpay } = await import("razorpay");
-                
                 if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
                     return json(res, 500, { error: "Payment gateway misconfigured" });
                 }
@@ -252,9 +333,80 @@ export default async function handler(req, res) {
                 return json(res, 200, order);
             }
 
-            // Standard Event Create/Update logic...
-            // (Placeholder for brevity, assuming standard CRUD)
-            return json(res, 200, { message: "Action processed" });
+            // Create Event
+            const newEvent = await Event.create({
+                ...body,
+                organizerId: body.organizerId || user.id, // Use provided or default to creator
+                status: body.status || 'draft'
+            });
+
+            // Invalidate list caches
+            await delCache(`events:public`);
+            await delCache(`events:featured`);
+
+            return json(res, 201, normalizeEvent(newEvent));
+        }
+
+        // PUT: Update Event
+        if (req.method === "PUT") {
+            const user = verifyUser(req);
+            if (!user) return json(res, 401, { error: "Unauthorized" });
+
+            const eventId = parsedUrl.searchParams.get("id") || urlPath.split('/').pop();
+            const body = await getBody(req);
+
+            const event = await Event.findById(eventId);
+            if (!event) return json(res, 404, { error: "Event not found" });
+
+            // RBAC: Only owner or Global Admin can update
+            const isOwner = String(event.organizerId) === String(user.id);
+            const isGlobalAdmin = ['admin', 'superadmin', 'owner'].includes(user.role);
+
+            if (!isOwner && !isGlobalAdmin) {
+                return json(res, 403, { error: "Permission denied" });
+            }
+
+            // Perform Update
+            const updatedEvent = await Event.findByIdAndUpdate(
+                eventId,
+                { $set: body },
+                { new: true, runValidators: true }
+            );
+
+            // Invalidate caches
+            await delCache(`event:${eventId}:public`);
+            await delCache(`event:${eventId}:privileged`);
+            await delCache(`events:public`);
+            await delCache(`events:featured`);
+
+            return json(res, 200, normalizeEvent(updatedEvent));
+        }
+
+        // DELETE: Remove Event
+        if (req.method === "DELETE") {
+            const user = verifyUser(req);
+            if (!user) return json(res, 401, { error: "Unauthorized" });
+
+            const eventId = parsedUrl.searchParams.get("id") || urlPath.split('/').pop();
+            const event = await Event.findById(eventId);
+            if (!event) return json(res, 404, { error: "Event not found" });
+
+            const isOwner = String(event.organizerId) === String(user.id);
+            const isGlobalAdmin = ['admin', 'superadmin', 'owner'].includes(user.role);
+
+            if (!isOwner && !isGlobalAdmin) {
+                return json(res, 403, { error: "Permission denied" });
+            }
+
+            await Event.findByIdAndDelete(eventId);
+
+            // Invalidate caches
+            await delCache(`event:${eventId}:public`);
+            await delCache(`event:${eventId}:privileged`);
+            await delCache(`events:public`);
+            await delCache(`events:featured`);
+
+            return json(res, 200, { success: true, message: "Event terminated" });
         }
 
         return json(res, 405, { error: "Method not allowed" });

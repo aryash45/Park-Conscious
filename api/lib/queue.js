@@ -1,50 +1,48 @@
 /**
  * api/lib/queue.js
  * 
- * Purpose: BullMQ Queue configuration and shared Redis connection.
+ * Purpose: Vercel-optimized BullMQ Queue management.
+ * Leverages the shared global Redis connection to prevent connection flooding.
  */
 import { Queue } from 'bullmq';
-import IORedis from 'ioredis';
-import dotenv from 'dotenv';
+import { getRedis } from './redis.js';
 
-dotenv.config();
-
-const REDIS_URL = process.env.REDIS_URL;
-
-// Connection options optimized for BullMQ and Upstash
-export const redisConnection = REDIS_URL ? new IORedis(REDIS_URL, {
-    maxRetriesPerRequest: null, // Required by BullMQ
-    enableReadyCheck: false,
-    staleIdentifier: 'bullmq',
-    // Upstash specific: sometimes requires family: 6 or tls
-    ...(REDIS_URL.startsWith('rediss://') ? { tls: { rejectUnauthorized: false } } : {})
-}) : null;
-
-if (redisConnection) {
-    redisConnection.on('error', (err) => {
-        console.error('[BULLMQ_REDIS_ERROR]:', err.message);
-    });
+// Global singleton for the Queue instance
+if (!global._queues) {
+    global._queues = { ticketQueue: null };
 }
 
-// Define our specific queues with safety check
-export const ticketQueue = redisConnection ? new Queue('TicketEmails', { 
-    connection: redisConnection,
-    defaultJobOptions: {
-        attempts: 3,
-        backoff: {
-            type: 'exponential',
-            delay: 1000,
-        },
-        removeOnComplete: true,
-        removeOnFail: 1000, // Keep failed jobs for a while for debugging
+/**
+ * Lazy getter for the Ticket Queue
+ */
+export function getTicketQueue() {
+    if (global._queues.ticketQueue) return global._queues.ticketQueue;
+    
+    const connection = getRedis();
+    if (!connection) return null;
+
+    try {
+        global._queues.ticketQueue = new Queue('TicketEmails', { 
+            connection,
+            defaultJobOptions: {
+                attempts: 3,
+                backoff: { type: 'exponential', delay: 1000 },
+                removeOnComplete: true,
+                removeOnFail: { count: 100 }
+            }
+        });
+
+        global._queues.ticketQueue.on('error', (err) => {
+            console.error('[QUEUE_ERROR]:', err.message);
+        });
+
+        return global._queues.ticketQueue;
+    } catch (err) {
+        console.error('[QUEUE_INIT_FAILED]:', err.message);
+        return null;
     }
-}) : null;
-
-// Safe wrapper for queue initialization to prevent production crashes if Redis fails
-if (ticketQueue) {
-    ticketQueue.on('error', (err) => {
-        console.error('[BULLMQ_QUEUE_ERROR]:', err.message);
-    });
 }
 
-console.log(`[QUEUE_INIT]: TicketQueue ${ticketQueue ? 'READY' : 'DISABLED (No REDIS_URL)'}`);
+// Backward compatibility exports
+export const redisConnection = getRedis();
+export const ticketQueue = getTicketQueue();

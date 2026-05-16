@@ -1,284 +1,151 @@
+/**
+ * api/lib/email.js
+ * 
+ * Purpose: Centralized, multi-provider email dispatcher.
+ * Restores original OTP logic and integrates smart dual-mode ticket sending.
+ */
 import { Resend } from 'resend';
 import nodemailer from 'nodemailer';
 import axios from 'axios';
+import * as models from './models.js';
+import { getTicketQueue } from './queue.js';
+import './env.js';
 
-// Providers
-let resendClient;
-let smtpClient;
+const { Booking, Event, User, Owner } = models;
 
-/**
- * Basic HTML escaping to prevent injection
- */
-const escapeHtml = (text) => {
-    if (!text) return "";
-    return String(text)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-};
+// HTML Escaper
+const esc = (s) => String(s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 
 /**
- * Initialize Resend if API key is present
- */
-const getResend = () => {
-    if (resendClient) return resendClient;
-    if (process.env.RESEND_API_KEY) {
-        resendClient = new Resend(process.env.RESEND_API_KEY);
-        return resendClient;
-    }
-    return null;
-};
-
-/**
- * Initialize SMTP (Gmail/Outlook/etc) if credentials are present
- */
-const getSMTP = () => {
-    if (smtpClient) return smtpClient;
-    if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-        const port = parseInt(process.env.SMTP_PORT) || 587;
-        smtpClient = nodemailer.createTransport({
-            host: process.env.SMTP_HOST,
-            port: port,
-            secure: port === 465,
-            auth: {
-                user: process.env.SMTP_USER,
-                pass: process.env.SMTP_PASS,
-            },
-        });
-        return smtpClient;
-    }
-    return null;
-};
-
-/**
- * MSG91 Email Provider
- */
-const sendViaMSG91 = async ({ to, subject, html, fromName, variables, template_id }) => {
-    if (!process.env.MSG91_AUTH_KEY) return null;
-    
-    try {
-        const domain = process.env.MSG91_DOMAIN || 'otp.parkconscious.in';
-        const fromEmail = process.env.MSG91_FROM_EMAIL || `no-reply@${domain}`;
-
-        const payload = {
-            recipients: [
-                {
-                    to: [{ email: to, name: to.split('@')[0] }],
-                    variables: variables || {}
-                }
-            ],
-            from: { 
-                name: fromName, 
-                email: fromEmail 
-            },
-            domain: domain,
-        };
-
-        // If a template ID is provided, use it
-        const finalTemplateId = template_id || process.env.MSG91_TEMPLATE_ID;
-        if (finalTemplateId) {
-            payload.template_id = finalTemplateId;
-        } else {
-            payload.subject = subject;
-            payload.body = {
-                type: 'text/html',
-                data: html
-            };
-        }
-
-        const response = await axios.post('https://control.msg91.com/api/v5/email/send', payload, {
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'authkey': process.env.MSG91_AUTH_KEY
-            },
-            timeout: parseInt(process.env.MSG91_TIMEOUT) || 8000
-        });
-        
-        return { success: true, provider: 'msg91', id: response.data?.request_id || response.data?.data?.unique_id };
-    } catch (err) {
-        console.error('[EMAIL] MSG91 Failure:', err.response?.data || err.message);
-        return null;
-    }
-};
-
-/**
- * Core Send Function
+ * Core Send Function (Restored Multi-Provider Logic)
  */
 export const sendEmail = async ({ to, subject, html, fromName = 'Backstage', preferredProvider = 'resend', variables, template_id }) => {
     const domain = process.env.MSG91_DOMAIN || 'otp.parkconscious.in';
     const fromAddress = process.env.EMAIL_FROM || `no-reply@${domain}`;
     const fullFrom = `${fromName} <${fromAddress}>`;
 
-    // Define the provider sequence based on preference
-    let sequence = [];
-    if (preferredProvider === 'msg91') {
-        sequence = ['msg91', 'resend', 'smtp'];
-    } else {
-        sequence = ['resend', 'msg91', 'smtp'];
-    }
+    let sequence = (preferredProvider === 'msg91') ? ['msg91', 'resend', 'smtp'] : ['resend', 'msg91', 'smtp'];
 
     for (const provider of sequence) {
-        console.log(`[EMAIL] Attempting delivery via: ${provider.toUpperCase()}`);
+        try {
+            // 1. Resend
+            if (provider === 'resend' && process.env.RESEND_API_KEY) {
+                const resend = new Resend(process.env.RESEND_API_KEY);
+                const { data, error } = await resend.emails.send({ from: fullFrom, to, subject, html });
+                if (!error) return { success: true, provider: 'resend', id: data.id };
+            }
 
-        // 1. Try Resend
-        if (provider === 'resend') {
-            const resend = getResend();
-            if (resend) {
-                try {
-                    const { data, error } = await resend.emails.send({
-                        from: fullFrom,
-                        to,
-                        subject,
-                        html,
-                    });
-                    if (!error) {
-                        console.log(`[EMAIL] Resend Success: ${data.id}`);
-                        return { success: true, provider: 'resend', id: data.id };
-                    }
-                    console.error(`[EMAIL] Resend Rejected:`, error);
-                } catch (err) {
-                    console.error('[EMAIL] Resend Crash:', err.message);
+            // 2. MSG91
+            if (provider === 'msg91' && process.env.MSG91_AUTH_KEY) {
+                const payload = {
+                    recipients: [{ to: [{ email: to }], variables: variables || {} }],
+                    from: { name: fromName, email: fromAddress },
+                    domain: domain,
+                };
+                if (template_id || process.env.MSG91_TEMPLATE_ID) {
+                    payload.template_id = template_id || process.env.MSG91_TEMPLATE_ID;
+                } else {
+                    payload.subject = subject;
+                    payload.body = { type: 'text/html', data: html };
                 }
-            } else {
-                console.log(`[EMAIL] Resend skipped (No API Key)`);
+                const response = await axios.post('https://control.msg91.com/api/v5/email/send', payload, {
+                    headers: { 'authkey': process.env.MSG91_AUTH_KEY }
+                });
+                return { success: true, provider: 'msg91', id: response.data?.request_id };
             }
-        }
 
-        // 2. Try MSG91
-        if (provider === 'msg91') {
-            const msg91Result = await sendViaMSG91({ to, subject, html, fromName, variables, template_id });
-            if (msg91Result && msg91Result.success) {
-                console.log(`[EMAIL] MSG91 Success: ${msg91Result.id}`);
-                return msg91Result;
+            // 3. SMTP
+            if (provider === 'smtp' && process.env.SMTP_HOST) {
+                const transporter = nodemailer.createTransport({
+                    host: process.env.SMTP_HOST,
+                    port: parseInt(process.env.SMTP_PORT) || 587,
+                    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+                });
+                const info = await transporter.sendMail({ from: fullFrom, to, subject, html });
+                return { success: true, provider: 'smtp', id: info.messageId };
             }
-            console.log(`[EMAIL] MSG91 skipped or failed`);
-        }
-
-        // 3. Try SMTP
-        if (provider === 'smtp') {
-            const smtp = getSMTP();
-            if (smtp) {
-                try {
-                    const info = await smtp.sendMail({
-                        from: fullFrom,
-                        to,
-                        subject,
-                        html,
-                    });
-                    console.log(`[EMAIL] SMTP Success: ${info.messageId}`);
-                    return { success: true, provider: 'smtp', id: info.messageId };
-                } catch (err) {
-                    console.error('[EMAIL] SMTP Failure:', err.message);
-                }
-            } else {
-                console.log(`[EMAIL] SMTP skipped (No Config)`);
-            }
+        } catch (err) {
+            console.error(`[EMAIL] Provider ${provider} failed:`, err.message);
         }
     }
-
-    console.error(`[EMAIL] FATAL: All providers exhausted for ${to}`);
-    return { success: false, provider: 'none', message: 'All email providers failed.' };
+    return { success: false, message: 'All providers failed' };
 };
 
 /**
- * Helper for OTP Emails (MSG91 Preferred)
+ * RESTORED: Helper for OTP Emails
  */
 export const sendOTPEmail = async (to, code) => {
     return sendEmail({ 
         to, 
         subject: `${code} is your code`, 
-        html: `Your code is ${code}`, // Fallback for other providers
+        html: `Your code is ${code}`,
         preferredProvider: 'resend',
         template_id: process.env.MSG91_OTP_TEMPLATE_ID || 'global_otp',
-        variables: {
-            otp: code,
-            company_name: 'Backstage'
-        }
+        variables: { otp: code, company_name: 'Backstage' }
     });
 };
 
 /**
- * Helper for Ticket Emails (Resend Preferred)
+ * NEW: Smart Ticket Dispatcher (Processes data then calls sendEmail)
  */
-export const sendTicketEmail = async (to, userName, eventName, qrCodeUrl, preferredProvider = 'resend') => {
-    const ticketHash = `#TK-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-    
-    // Escape all user-controlled data to prevent injection
-    const safeUserName = escapeHtml(userName);
-    const safeEventName = escapeHtml(eventName);
-    const safeTicketHash = escapeHtml(ticketHash);
-    
-    // Validate QR URL to ensure it's a legitimate URL before embedding
-    let safeQrUrl = 'https://api.qrserver.com/v1/create-qr-code/?data=INVALID';
+export async function processTicketEmail(bookingId) {
     try {
-        const urlObj = new URL(qrCodeUrl);
-        if (urlObj.protocol === 'https:' || urlObj.protocol === 'http:') {
-            safeQrUrl = qrCodeUrl;
-        }
-    } catch (e) {
-        console.warn('[EMAIL] Invalid QR URL provided:', qrCodeUrl);
-    }
+        const booking = await Booking.findById(bookingId).lean();
+        if (!booking || !booking.email) return false;
 
-    const html = `
-        <div style="background-color: #000000; padding: 40px 20px; font-family: 'Inter', 'Helvetica', sans-serif;">
-            <div style="max-width: 450px; margin: 0 auto; background-color: #050507; border: 1px solid rgba(255,255,255,0.05); border-radius: 40px; overflow: hidden; color: white; text-align: center; padding: 60px 40px;">
-                <!-- Header Pill -->
-                <div style="display: inline-block; padding: 6px 16px; background-color: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.2); rounded-radius: 100px; border-radius: 100px; margin-bottom: 40px;">
-                    <span style="font-size: 8px; font-weight: 900; color: #818cf8; text-transform: uppercase; letter-spacing: 0.3em;">Official Entry Pass</span>
-                </div>
+        const userId = String(booking.userId || '');
+        const isValidId = userId.length === 24 && /^[a-fA-F0-9]{24}$/.test(userId);
+        let user = isValidId ? (await User.findById(userId).lean() || await Owner.findById(userId).lean()) : null;
+        const event = await Event.findById(booking.eventId).lean();
+        
+        const userName = user?.name || (!isValidId && userId ? userId : "Attendee");
+        const eventName = event?.displayTitle || event?.title || "BACKSTAGE Experience";
+        const ticketNumber = booking.ticketId || booking.transactionId || String(booking._id).slice(-8);
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(ticketNumber)}&ecc=L&margin=0`;
 
-                <!-- Title Section -->
-                <h1 style="font-size: 32px; font-weight: 900; text-transform: uppercase; letter-spacing: -0.02em; margin: 0 0 10px 0; color: white;">Your Ticket is Ready</h1>
-                <p style="font-size: 10px; font-weight: 800; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 40px;">
-                    Hi ${safeUserName}, see you at ${safeEventName}!
-                </p>
-
-                <!-- QR Container -->
-                <div style="background-color: white; padding: 30px; border-radius: 30px; display: inline-block; margin-bottom: 40px; box-shadow: 0 20px 40px rgba(0,0,0,0.4);">
-                    <img src="${safeQrUrl}" alt="QR Ticket" style="width: 220px; height: 220px; display: block;">
-                    <p style="font-size: 8px; font-weight: 900; color: #000000; text-transform: uppercase; letter-spacing: 0.3em; margin: 15px 0 0 0;">Scan to Enter</p>
-                </div>
-
-                <!-- Info Section -->
-                <div style="background-color: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 24px; padding: 30px; text-align: left; margin-bottom: 40px;">
-                    <div style="margin-bottom: 20px;">
-                        <p style="font-size: 7px; font-weight: 900; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.2em; margin: 0 0 8px 0;">Guest Identification</p>
-                        <p style="font-size: 14px; font-weight: 800; color: white; text-transform: uppercase; margin: 0;">${safeUserName}</p>
+        const html = `
+            <div style="background-color: #000000; padding: 40px 20px; font-family: 'Inter', sans-serif;">
+                <div style="max-width: 450px; margin: 0 auto; background-color: #050507; border: 1px solid rgba(255,255,255,0.05); border-radius: 40px; overflow: hidden; color: white; text-align: center; padding: 60px 40px;">
+                    <h1 style="font-size: 32px; font-weight: 900; text-transform: uppercase; margin: 0 0 10px 0;">Your Ticket</h1>
+                    <p style="color: rgba(255,255,255,0.5); margin-bottom: 40px;">Hi ${esc(userName)}, see you at ${esc(eventName)}!</p>
+                    <div style="background-color: white; padding: 30px; border-radius: 30px; display: inline-block; margin-bottom: 40px;">
+                        <img src="${qrUrl}" width="220" height="220" />
                     </div>
-                    <div style="margin-bottom: 20px;">
-                        <p style="font-size: 7px; font-weight: 900; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.2em; margin: 0 0 8px 0;">Experience</p>
-                        <p style="font-size: 14px; font-weight: 800; color: #6366f1; text-transform: uppercase; margin: 0;">${safeEventName}</p>
+                    <div style="background-color: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 24px; padding: 30px; text-align: left;">
+                        <p style="font-size: 14px; font-weight: 800; color: #6366f1;">#${esc(ticketNumber)}</p>
                     </div>
-                    <div>
-                        <p style="font-size: 7px; font-weight: 900; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.2em; margin: 0 0 8px 0;">Credential Hash</p>
-                        <p style="font-size: 14px; font-weight: 800; color: white; text-transform: uppercase; margin: 0; font-family: monospace;">${safeTicketHash}</p>
-                    </div>
-                </div>
-
-                <!-- Footer -->
-                <p style="font-size: 7px; font-weight: 800; color: rgba(255,255,255,0.2); text-transform: uppercase; letter-spacing: 0.2em; margin-bottom: 30px;">
-                    Non-Transferable &bull; Valid ID Required for Entry
-                </p>
-                <div style="font-size: 10px; font-weight: 900; color: white; text-transform: uppercase; letter-spacing: 0.5em; opacity: 0.8;">
-                    Backstage
                 </div>
             </div>
-        </div>
-    `;
-    return sendEmail({ 
-        to, 
-        subject: `Your Admittance Pass for ${safeEventName}`, 
-        html, 
-        preferredProvider,
-        template_id: 'ticket_2', 
-        variables: {
-            user_name: safeUserName,
-            event_name: safeEventName,
-            qr_code_url: safeQrUrl,
-            ticket_hash: safeTicketHash
+        `;
+
+        const result = await sendEmail({ 
+            to: booking.email, 
+            subject: `Your Admittance Pass for ${eventName}`, 
+            html,
+            variables: { user_name: userName, event_name: eventName, ticket_hash: ticketNumber, qr_code_url: qrUrl }
+        });
+
+        if (result.success) {
+            await Booking.findByIdAndUpdate(bookingId, { $set: { emailSent: true } });
+            return true;
         }
-    });
-};
+        return false;
+    } catch (err) {
+        console.error('[PROCESS_EMAIL_ERROR]:', err.message);
+        return false;
+    }
+}
+
+/**
+ * Smart dispatcher hook
+ */
+export async function dispatchTicketEmail(bookingId) {
+    const queue = getTicketQueue();
+    const useQueue = process.env.USE_QUEUE === 'true';
+
+    if (queue && useQueue) {
+        await queue.add('sendTicket', { bookingId });
+    } else {
+        processTicketEmail(bookingId).catch(err => console.error('[DIRECT_SEND_FAIL]:', err));
+    }
+}

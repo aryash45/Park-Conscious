@@ -1,95 +1,86 @@
 /**
  * api/lib/redis.js
  * 
- * Purpose: Redis connection management and caching utilities.
- * Implements a fail-safe wrapper that allows the app to function 
- * even if Redis is unavailable or unconfigured.
+ * Purpose: Vercel-optimized Redis connection management and caching.
+ * Uses a global singleton pattern to reuse connections across serverless invocations.
  */
 import Redis from 'ioredis';
-import dotenv from 'dotenv';
-
-dotenv.config();
+import './env.js'; // Ensure env is loaded
 
 const REDIS_URL = process.env.REDIS_URL;
-let redis = null;
 
-if (REDIS_URL) {
-    try {
-        redis = new Redis(REDIS_URL, {
-            maxRetriesPerRequest: 1,
-            connectTimeout: 5000,
-            // Prevent the app from crashing if Redis connection fails
-            retryStrategy(times) {
-                const delay = Math.min(times * 50, 2000);
-                if (times > 3) {
-                    console.warn(`[REDIS] Connection failed after ${times} attempts. Disabling cache for this instance.`);
-                    return null; // Stop retrying
-                }
-                return delay;
-            }
-        });
-
-        redis.on('error', (err) => {
-            console.warn('[REDIS] Connection Error:', err.message);
-        });
-
-        redis.on('connect', () => {
-            console.log('[REDIS] Connected successfully.');
-        });
-    } catch (e) {
-        console.warn('[REDIS] Initialization failed:', e.message);
-        redis = null;
-    }
-} else {
-    console.warn('[REDIS] No REDIS_URL found. Caching is disabled.');
+// Global singleton for serverless connection reuse
+if (!global._redis) {
+    global._redis = { conn: null, promise: null };
 }
 
 /**
- * Get a value from the cache
- * @param {string} key 
+ * Lazy getter for the Redis instance
  */
-export async function getCache(key) {
-    if (!redis) return null;
+export function getRedis() {
+    if (global._redis.conn) return global._redis.conn;
+    if (!REDIS_URL) return null;
+
     try {
-        const data = await redis.get(key);
-        return data ? JSON.parse(data) : null;
-    } catch (e) {
-        console.error('[REDIS] Get Error:', e.message);
+        // new Redis does not connect immediately if lazyConnect is true
+        global._redis.conn = new Redis(REDIS_URL, {
+            maxRetriesPerRequest: null, // Required for compatibility with BullMQ shared connections
+            connectTimeout: 5000,
+            lazyConnect: true,
+            retryStrategy(times) {
+                if (times > 3) return null; // Kill connection attempt after 3 failures
+                return Math.min(times * 100, 2000);
+            },
+            ...(REDIS_URL.startsWith('rediss://') ? { 
+                tls: { rejectUnauthorized: false } 
+            } : {})
+        });
+
+        global._redis.conn.on('error', (err) => {
+            console.error('[REDIS_ERROR]:', err.message);
+        });
+
+        return global._redis.conn;
+    } catch (err) {
+        console.error('[REDIS_INIT_FAILED]:', err.message);
         return null;
     }
 }
 
 /**
- * Set a value in the cache with a TTL (Time To Live)
- * @param {string} key 
- * @param {any} value 
- * @param {number} ttl Seconds (default 300 / 5 mins)
+ * Caching Utilities (Fail-Safe)
  */
+export async function getCache(key) {
+    const redis = getRedis();
+    if (!redis) return null;
+    try {
+        const data = await redis.get(key);
+        return data ? JSON.parse(data) : null;
+    } catch (err) {
+        return null;
+    }
+}
+
 export async function setCache(key, value, ttl = 300) {
+    const redis = getRedis();
     if (!redis) return false;
     try {
-        const stringified = JSON.stringify(value);
-        await redis.set(key, stringified, 'EX', ttl);
+        await redis.set(key, JSON.stringify(value), 'EX', ttl);
         return true;
-    } catch (e) {
-        console.error('[REDIS] Set Error:', e.message);
+    } catch (err) {
         return false;
     }
 }
 
-/**
- * Delete a value from the cache (Invalidation)
- * @param {string} key 
- */
 export async function delCache(key) {
+    const redis = getRedis();
     if (!redis) return false;
     try {
         await redis.del(key);
         return true;
-    } catch (e) {
-        console.error('[REDIS] Del Error:', e.message);
+    } catch (err) {
         return false;
     }
 }
 
-export default redis;
+export default getRedis();

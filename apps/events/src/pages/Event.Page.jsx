@@ -114,6 +114,55 @@ const EventPage = () => {
   const textBodyClass = displayMode === 'dark' ? 'text-slate-300' : 'text-slate-700';
   const cardBgClass = displayMode === 'dark' ? 'bg-black/40 border border-white/10 backdrop-blur-xl' : 'glass-card-light';
 
+  // -- SEO: JSON-LD Schema Generation --
+  const generateEventSchema = () => {
+    const schema = {
+      "@context": "https://schema.org",
+      "@type": "Event",
+      "name": event.displayTitle,
+      "description": event.displayDescription,
+      "image": clUrl(event.images?.[0] || event.image),
+      "startDate": event.displayDate,
+      "eventStatus": "https://schema.org/EventScheduled",
+      "eventAttendanceMode": event.isOnline ? "https://schema.org/OnlineEventAttendanceMode" : "https://schema.org/OfflineEventAttendanceMode",
+      "location": event.isOnline ? {
+        "@type": "VirtualLocation",
+        "url": window.location.href
+      } : {
+        "@type": "Place",
+        "name": event.displayLocation,
+        "address": {
+          "@type": "PostalAddress",
+          "streetAddress": event.displayAddress || event.displayLocation,
+          "addressCountry": "IN"
+        }
+      }
+    };
+
+    if (event.ticketTiers?.length > 0) {
+      const minPrice = Math.min(...event.ticketTiers.map(t => t.price));
+      const maxPrice = Math.max(...event.ticketTiers.map(t => t.price));
+      schema.offers = {
+        "@type": "AggregateOffer",
+        "lowPrice": minPrice,
+        "highPrice": maxPrice,
+        "priceCurrency": "INR",
+        "availability": "https://schema.org/InStock",
+        "url": window.location.href
+      };
+    }
+
+    if (event.hosts?.length > 0) {
+      schema.organizer = {
+        "@type": "Organization",
+        "name": event.hosts[0].name,
+        "url": event.hosts[0].socialLink
+      };
+    }
+
+    return JSON.stringify(schema);
+  };
+
   return (
     <PremiumBackground themeConfig={liveTheme}>
       <Helmet>
@@ -126,6 +175,11 @@ const EventPage = () => {
         <meta name="twitter:title" content={event.displayTitle} />
         <meta name="twitter:description" content={event.displayDescription?.substring(0, 160) || "Join us for an exclusive event experience."} />
         <meta name="twitter:image" content={clUrl(event.images?.[0] || event.image)} />
+        
+        {/* JSON-LD Schema for Events */}
+        <script type="application/ld+json">
+          {generateEventSchema()}
+        </script>
       </Helmet>
       <div className={`pb-32 font-['Inter'] ${displayMode === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>
         <div className="container mx-auto px-6 md:px-12 lg:px-32 pt-24 lg:pt-32">
@@ -331,13 +385,13 @@ const EventPage = () => {
                 {event.mediaGallery && event.mediaGallery.length > 0 && (
                   <div className="space-y-6 pt-12 border-t border-black/5">
                     <h3 className={`text-[11px] font-medium uppercase tracking-[0.2em] ${textSubtitleClass}`}>Experience Gallery</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div className="columns-1 sm:columns-2 gap-6 space-y-6">
                       {event.mediaGallery.map((item, idx) => (
-                        <div key={idx} className="relative rounded-[2rem] overflow-hidden glass-card-light aspect-video group p-1">
-                          <div className="w-full h-full rounded-[1.5rem] overflow-hidden">
+                        <div key={idx} className="relative rounded-[2rem] overflow-hidden glass-card-light group p-1 bg-black/20 break-inside-avoid shadow-lg transition-all hover:shadow-2xl">
+                          <div className="w-full h-full rounded-[1.5rem] overflow-hidden relative">
                             {item.type === 'video' ? (
                               <video 
-                                className="w-full h-full object-cover"
+                                className="w-full h-auto object-cover z-10"
                                 controls
                                 playsInline
                                 preload="none"
@@ -351,13 +405,13 @@ const EventPage = () => {
                             ) : (
                               <img 
                                 src={clUrl(item.url)} 
-                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                                className="w-full h-auto object-cover z-10 transition-transform duration-700 group-hover:scale-[1.03]" 
                                 alt={`Gallery item ${idx + 1}`} 
                               />
                             )}
                           </div>
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-6 pointer-events-none rounded-[2rem]">
-                             <span className="text-[10px] font-black uppercase tracking-widest text-white/90 drop-shadow-md">View Full {item.type === 'video' ? 'Video' : 'Image'}</span>
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-6 pointer-events-none rounded-[2rem] z-20">
+                             <span className="text-[10px] font-black uppercase tracking-widest text-white/90 drop-shadow-md">View {item.type === 'video' ? 'Video' : 'Image'}</span>
                           </div>
                         </div>
                       ))}

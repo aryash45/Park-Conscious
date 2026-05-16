@@ -7,7 +7,7 @@
  */
 import mongoose from "mongoose";
 
-const userSchema = new mongoose.Schema(
+export const userSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true, lowercase: true },
@@ -19,7 +19,7 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const ownerSchema = new mongoose.Schema(
+export const ownerSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true, lowercase: true },
@@ -32,7 +32,7 @@ const ownerSchema = new mongoose.Schema(
 
 ownerSchema.index({ role: 1 });
 
-const eventSchema = new mongoose.Schema(
+export const eventSchema = new mongoose.Schema(
   {
     title: { type: String, required: true },
     description: String,
@@ -251,7 +251,7 @@ const systemLogSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const commentSchema = new mongoose.Schema(
+export const commentSchema = new mongoose.Schema(
   {
     discussionId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -273,7 +273,7 @@ const commentSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const discussionSchema = new mongoose.Schema(
+export const discussionSchema = new mongoose.Schema(
   {
     eventTitle: { type: String, required: true },
     eventId: { type: String },

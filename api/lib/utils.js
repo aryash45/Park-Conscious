@@ -9,6 +9,7 @@
 import jwt from 'jsonwebtoken';
 import { parse, serialize } from 'cookie';
 import mongoose from 'mongoose';
+import './env.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || "fallback_secret_65271829";
 
@@ -55,8 +56,31 @@ export function normalizeEvent(evt) {
     e.hosts = e.hosts || [];
     e.ticketTiers = e.ticketTiers || [];
     
+    // Ensure ID is present for frontend links
+    e.id = e._id?.toString() || e.id;
+    
     return e;
 }
+
+/**
+ * pruneEvent
+ * Security wrapper to remove sensitive fields before sending to client.
+ */
+export const pruneEvent = (event, isAdmin = false) => {
+    if (!event) return null;
+    const e = event.toObject ? event.toObject() : JSON.parse(JSON.stringify(event));
+    
+    // Optimization for public views: Keep IDs for navigation
+    if (!isAdmin) {
+        delete e.bankDetails;
+        delete e.payouts;
+        delete e.organizerPayout;
+        delete e.platformFee;
+        // Don't delete _id or id! The frontend needs them for links.
+    }
+    
+    return normalizeEvent(e);
+};
 
 export const json = (res, status, data) => {
     res.setHeader('Content-Type', 'application/json');
@@ -84,7 +108,13 @@ export const verifyUser = (req) => {
     }
 
     if (!token) return null;
-    try { return jwt.verify(token, JWT_SECRET); } catch(e) { return null; }
+
+    try { 
+        const decoded = jwt.verify(token, JWT_SECRET);
+        return decoded; 
+    } catch(e) { 
+        return null; 
+    }
 };
 
 export const issueCookie = (req, res, u) => {
@@ -166,4 +196,26 @@ export const getBody = async (req) => {
         }
     }
     return {};
+};
+
+/**
+ * logSystemError
+ * Centralized error logging to the database for observability.
+ */
+export const logSystemError = async (source, type, message, stack, metadata = {}) => {
+    try {
+        const { SystemLog } = await import('./models.js');
+        const hash = jwt.sign({ source, message }, JWT_SECRET).slice(-32); // Simple hash for deduplication
+        
+        await SystemLog.findOneAndUpdate(
+            { hash },
+            { 
+                $set: { source, type, message, stack, metadata, lastSeenAt: new Date() },
+                $inc: { count: 1 }
+            },
+            { upsert: true, new: true }
+        );
+    } catch (err) {
+        console.error('[LOGGER_FAILURE]:', err);
+    }
 };
