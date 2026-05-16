@@ -51,7 +51,7 @@ export default async function handler(req, res) {
         const canonicalUrl = `https://events.parkconscious.in/event/${id}`;
 
         // Fetch the actual index.html from the build
-        const host = req.headers.host || 'events.parkconscious.in';
+        const host = req.headers['x-forwarded-host'] || req.headers.host || 'events.parkconscious.in';
         const protocol = host.includes('localhost') ? 'http' : 'https';
         
         let html = '';
