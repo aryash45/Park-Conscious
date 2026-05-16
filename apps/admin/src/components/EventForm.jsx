@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { uploadToCloudinary, uploadVideoToCloudinary } from '../utils/cloudinary';
 import axios from 'axios';
+import { normalizeApiUrl } from '../utils/apiUtils';
 
 const SessionIdDisplay = () => {
   const [sessionId] = useState(() => Math.random().toString(36).substring(7).toUpperCase());
@@ -208,8 +209,7 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
   };
 
   const handlePromotePayment = async () => {
-    let API_BASE = (import.meta.env.VITE_API_URL || "").trim().replace(/^https?:\/\/(?:www\.)?(?:admin\.)?(?:events\.)?parkconscious\.in/, '').replace(/\/+/g, '/').replace(/\/$/, '');
-    if (API_BASE === '/api' || API_BASE === 'api') API_BASE = '';
+    let API_BASE = normalizeApiUrl(import.meta.env.VITE_API_URL);
     
     if (!initialData?._id) {
       console.warn("[PAYMENT_ERROR] No Event ID found in initialData");
