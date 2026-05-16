@@ -27,9 +27,7 @@ export default async function handler(req, res) {
     // 2. Main Logic wrapper
     try {
         await connectDB();
-        const Event = mongoose.connection.model('Event', models.eventSchema);
-        const Discussion = mongoose.connection.model('Discussion', models.discussionSchema);
-        const Comment = mongoose.connection.model('Comment', models.commentSchema);
+        const { Event, Discussion, Comment } = models;
 
         // Health check (Now accurately reflects the connection)
         const fullUrl = req.url || "/";
