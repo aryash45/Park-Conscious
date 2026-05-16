@@ -96,15 +96,18 @@ export const normalizeUrl = (url) => {
 };
 
 export const verifyUser = (req) => {
-    const cookies = parse(req.headers.cookie || '');
-    let token = cookies.token;
-    
-    // Fallback: Check Authorization header (used by AdminPanel)
-    if (!token && req.headers.authorization) {
+    // 1. Prioritize Authorization header (explicit client session)
+    if (req.headers.authorization) {
         const parts = req.headers.authorization.split(' ');
         if (parts.length === 2 && parts[0] === 'Bearer') {
             token = parts[1];
         }
+    }
+
+    // 2. Fallback to cookies
+    if (!token) {
+        const cookies = parse(req.headers.cookie || '');
+        token = cookies.token;
     }
 
     if (!token) return null;
