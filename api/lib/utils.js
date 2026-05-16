@@ -118,7 +118,7 @@ export const verifyUser = (req) => {
 };
 
 export const issueCookie = (req, res, u) => {
-    const host = req.headers.host || '';
+    const host = req.headers['x-forwarded-host'] || req.headers.host || '';
     
     // Core payload stabilization: Ensure both id and uid exist
     const payload = { 

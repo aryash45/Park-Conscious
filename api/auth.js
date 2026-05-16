@@ -202,7 +202,7 @@ export default async function handler(req, res) {
         if (url.includes('/me') && method === 'GET') {
             if (!user) return json(res, 401, { authenticated: false });
             
-            const host = req.headers.host || '';
+            const host = req.headers['x-forwarded-host'] || req.headers.host || '';
             const isAdminHost = host.startsWith('admin.');
             
             // Firewall: Ensure the user's role matches the portal they are accessing

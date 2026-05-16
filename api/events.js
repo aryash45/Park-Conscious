@@ -235,7 +235,7 @@ export default async function handler(req, res) {
                 return json(res, 200, data);
             }
 
-            const host = req.headers.host || '';
+            const host = req.headers['x-forwarded-host'] || req.headers.host || '';
             // Support 'admin.parkconscious.in' AND Vercel previews like 'admin-events-xxx.vercel.app'
             const isAdminHost = host.startsWith('admin.') || host.includes('admin-') || host.includes('.admin.');
             
