@@ -48,7 +48,7 @@ const NewPostForm = ({ onClose, onSuccess, preselectedEvent = null }) => {
     setError("");
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/discussions`, {
+      const res = await fetch(`${API_BASE_URL}/api/events?action=discussions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

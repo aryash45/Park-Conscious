@@ -191,7 +191,7 @@ const MyBookingsPage = () => {
          try {
             const id = user.uid || user.id;
             if (!id) return setLoading(false);
-            const { data } = await backendAxios.get(`/api/bookings/${id}`);
+            const { data } = await backendAxios.get(`/api/pay?action=bookings&userId=${id}`);
             setBookings(Array.isArray(data) ? data : []);
          } catch (err) {
             console.error("Error fetching bookings:", err);

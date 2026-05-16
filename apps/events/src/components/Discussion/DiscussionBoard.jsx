@@ -102,7 +102,7 @@ const DiscussionBoard = () => {
   const fetchDiscussions = useCallback(async (p = 1) => {
     setLoadingDiscussions(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/discussions?page=${p}&limit=6`);
+      const res = await fetch(`${API_BASE_URL}/api/events?action=discussions&page=${p}&limit=6`);
       const data = await res.json();
       if (p === 1) setDiscussions(data.discussions || []);
       else setDiscussions((prev) => [...prev, ...(data.discussions || [])]);
@@ -140,7 +140,7 @@ const DiscussionBoard = () => {
   const handleVote = async (postId, action) => {
     if (!user) return googleLogin();
     try {
-      const res = await fetch(`${API_BASE_URL}/api/discussions/details?id=${postId}`, {
+      const res = await fetch(`${API_BASE_URL}/api/events?action=discussions_details&id=${postId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

@@ -15,7 +15,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "fallback_secret_65271829";
 
 export function normalizeEvent(evt) {
     if (!evt) return null;
-    const e = evt.toObject ? evt.toObject() : evt;
+    const e = typeof evt.toObject === 'function' ? evt.toObject() : JSON.parse(JSON.stringify(evt));
     
     // Title/Name Sync
     e.name = e.name || e.title || "Untitled Experience";
@@ -68,7 +68,7 @@ export function normalizeEvent(evt) {
  */
 export const pruneEvent = (event, isAdmin = false) => {
     if (!event) return null;
-    const e = event.toObject ? event.toObject() : JSON.parse(JSON.stringify(event));
+    const e = typeof event.toObject === 'function' ? event.toObject() : JSON.parse(JSON.stringify(event));
     
     // Optimization for public views: Keep IDs for navigation
     if (!isAdmin) {
@@ -96,6 +96,8 @@ export const normalizeUrl = (url) => {
 };
 
 export const verifyUser = (req) => {
+    let token = null;
+    
     // 1. Prioritize Authorization header (explicit client session)
     if (req.headers.authorization) {
         const parts = req.headers.authorization.split(' ');

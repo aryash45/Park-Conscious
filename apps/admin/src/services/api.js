@@ -8,13 +8,10 @@
  */
 import axios from 'axios';
 
+import { normalizeApiUrl } from '../utils/apiUtils';
+
 // Force relative paths in production and robustly normalize the path to avoid malformed URLs
-const rawUrl = (import.meta.env.VITE_API_URL || "").trim();
-const API_URL = rawUrl
-  .replace(/^https?:\/\/[^/]+/, '') // Strip protocol and host
-  .replace(/\/+/g, '/') // Collapse repeated slashes
-  .replace(/\/$/, '') // Strip trailing slash
-  .replace(/^\/?api$/, ''); // Normalize /api to empty to prevent /api/api
+const API_URL = normalizeApiUrl(import.meta.env.VITE_API_URL);
 console.log('%c[ADMIN_NEXUS] Primary Logic Link:', 'color: #0ea5e9; font-weight: bold;', API_URL);
 console.log('%c[BUILD_VERSION] v2.0.9-DIAGNOSTIC-FIX', 'color: #10b981; font-weight: bold;');
 

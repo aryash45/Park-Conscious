@@ -11,20 +11,21 @@ import crypto from 'crypto';
 import Razorpay from 'razorpay';
 import connectDB from './lib/mongodb.js';
 import * as models from './lib/models.js';
-import { json, setCors, getBody, normalizeEvent, verifyUser } from './lib/utils.js';
+import { json, setupCors, getBody, normalizeEvent, verifyUser } from './lib/utils.js';
 import { dispatchTicketEmail } from './lib/email.js';
 
 const { Booking, Owner, User, Event } = models;
 const PLATFORM_FEE_PERCENT = 0.08; // 8% commission
 
 export default async function handler(req, res) {
-    setCors(req, res);
-    if (req.method === 'OPTIONS') { res.statusCode = 200; res.end(); return; }
+    if (setupCors(req, res)) return;
 
     const fullUrl = req.url || '/';
+    const parsedUrl = new URL(fullUrl, `http://${req.headers.host || 'localhost'}`);
     const [pathPart, queryPart] = fullUrl.split('?');
     const url = pathPart.replace(/\/+/g, '/').replace(/\/$/, '') || '/';
     const method = req.method || 'GET';
+    const action = parsedUrl.searchParams.get('action');
     const body = await getBody(req);
 
     try {
@@ -274,8 +275,8 @@ export default async function handler(req, res) {
         }
 
         // -- Booking Status Check --
-        if (url.includes('/booking/status/') && method === 'GET') {
-            const txnId = url.split('/').pop();
+        if ((url.includes('/booking/status/') || action === 'status') && method === 'GET') {
+            const txnId = parsedUrl.searchParams.get('txnId') || url.split('/').pop();
             if (!txnId) return json(res, 400, { message: 'Transaction ID missing' });
             
             // Try Events DB first
@@ -302,8 +303,8 @@ export default async function handler(req, res) {
         }
 
         // -- User's Personal Bookings (My Tickets) --
-        if (url.includes('/bookings/') && !url.includes('/status') && method === 'GET') {
-            const userId = url.split('/').pop();
+        if ((url.includes('/bookings/') || action === 'bookings') && !url.includes('/status') && method === 'GET') {
+            const userId = parsedUrl.searchParams.get('userId') || url.split('/').pop();
             // Secure Solution: Extract the user's email directly from their session for truth
             const authUser = verifyUser(req);
             let targetEmail = authUser?.email?.toLowerCase()?.trim();

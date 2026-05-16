@@ -34,7 +34,7 @@ const SuccessPage = () => {
     if (txnId) {
       const fetchBooking = async () => {
         try {
-          const res = await backendAxios.get(`/api/booking/status/${txnId}`);
+          const res = await backendAxios.get(`/api/pay?action=status&txnId=${txnId}`);
           setBooking(res.data);
         } catch (err) {
           console.error("Error fetching booking:", err);

@@ -50,7 +50,7 @@ const EventPage = () => {
     const fetchEvent = async () => {
       try {
         setLoading(true);
-        const { data } = await backendAxios.get(`/api/events/${id}`);
+        const { data } = await backendAxios.get(`/api/events?id=${id}`);
 
         const normalized = {
           ...data,

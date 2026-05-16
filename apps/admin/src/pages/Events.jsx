@@ -12,6 +12,7 @@ import {
   Archive, FileEdit, ExternalLink, RefreshCw
 } from 'lucide-react';
 import { eventService } from '../services/api';
+import { normalizeApiUrl } from '../utils/apiUtils';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import axios from 'axios';
@@ -79,8 +80,7 @@ const Events = () => {
   };
 
   const handlePromotePayment = async (event) => {
-    let API_BASE = (import.meta.env.VITE_API_URL || "").trim().replace(/^https?:\/\/[^/]+/, '').replace(/\/+/g, '/').replace(/\/$/, '');
-    if (API_BASE === '/api' || API_BASE === 'api') API_BASE = '';
+    let API_BASE = normalizeApiUrl(import.meta.env.VITE_API_URL);
     setLoading(true);
     try {
       const { data: orderData } = await axios.post(`${API_BASE}/api/events/promote/order`, {

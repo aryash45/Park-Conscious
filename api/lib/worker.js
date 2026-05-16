@@ -36,7 +36,16 @@ export async function initWorker() {
     });
 
     worker.on('failed', (job, err) => {
-        console.error(`[WORKER_JOB_FAILED]: Job ${job.id} failed: ${err.message}`);
+        console.error(`[WORKER_JOB_FAILED]: Job ${job?.id} failed: ${err.message}`);
+    });
+
+    worker.on('error', (err) => {
+        if (err.message && err.message.includes('limit exceeded')) {
+            console.error(`[WORKER_REDIS_ERROR]: Upstash Redis quota exceeded. Pausing worker.`);
+            worker.pause().catch(e => console.error('Failed to pause worker:', e.message));
+        } else {
+            console.error(`[WORKER_ERROR]:`, err.message);
+        }
     });
 
     console.log('[WORKER_INIT]: Ticket Worker ACTIVE');

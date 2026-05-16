@@ -6,13 +6,12 @@
  */
 import connectDB from './lib/mongodb.js';
 import * as models from './lib/models.js';
-import { json, setCors, getBody } from './lib/utils.js';
+import { json, setupCors, getBody } from './lib/utils.js';
 
 const { Contact } = models;
 
 export default async function handler(req, res) {
-    setCors(req, res);
-    if (req.method === 'OPTIONS') { res.statusCode = 200; res.end(); return; }
+    if (setupCors(req, res)) return;
 
     if (req.method !== 'POST') {
         return json(res, 405, { message: 'Method Not Allowed' });

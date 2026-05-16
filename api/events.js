@@ -10,7 +10,6 @@ import connectDB from "./lib/mongodb.js";
 import * as models from "./lib/models.js";
 import { 
     json, 
-    setCors, 
     getBody, 
     setupCors,
     verifyUser, 
@@ -68,8 +67,10 @@ export default async function handler(req, res) {
         const urlPath = pathPart.replace(/\/+/g, '/').replace(/\/$/, '') || '/';
         const method = req.method || 'GET';
 
+        const action = parsedUrl.searchParams.get('action');
+
         // -- Discussions & Comments --
-        if (urlPath.includes('/discussions')) {
+        if (urlPath.includes('/discussions') || (action && action.startsWith('discussions'))) {
             const id = parsedUrl.searchParams.get('id'); // Discussion ID
             
             if (method === 'GET') {
@@ -110,7 +111,7 @@ export default async function handler(req, res) {
                 const body = await getBody(req);
                 
                 // Create Comment with guards
-                if (urlPath.includes('/comments')) {
+                if (urlPath.includes('/comments') || action === 'discussions_comments') {
                     if (!id) return json(res, 400, { message: 'Discussion ID required for comments' });
                     
                     const exists = await Discussion.findById(id);
@@ -129,7 +130,7 @@ export default async function handler(req, res) {
                 }
                 
                 // Ensure Discussion creation doesn't collide with Comment path
-                if (urlPath.endsWith('/discussions')) {
+                if (urlPath.endsWith('/discussions') || action === 'discussions') {
                     // Logic for Discussion.create would go here if matched
                 }
                 const disc = await Discussion.create({ 
@@ -147,32 +148,32 @@ export default async function handler(req, res) {
                 const body = await getBody(req);
                 
                 // Vote Discussion
-                if (urlPath.includes('/details') && id) {
-                    const { action } = body;
+                if ((urlPath.includes('/details') || action === 'discussions_details') && id) {
+                    const { action: voteAction } = body;
                     const disc = await Discussion.findById(id);
                     if (!disc) return json(res, 404, { message: 'Not found' });
                     
                     disc.upvotes = disc.upvotes.filter(uid => uid !== user.id);
                     disc.downvotes = disc.downvotes.filter(uid => uid !== user.id);
                     
-                    if (action === 'upvote') disc.upvotes.push(user.id);
-                    else if (action === 'downvote') disc.downvotes.push(user.id);
+                    if (voteAction === 'upvote') disc.upvotes.push(user.id);
+                    else if (voteAction === 'downvote') disc.downvotes.push(user.id);
                     
                     await disc.save();
                     return json(res, 200, { upvotes: disc.upvotes, downvotes: disc.downvotes });
                 }
                 
                 // Vote Comment
-                if (urlPath.includes('/comments') && id) {
-                    const { commentId, action } = body;
+                if ((urlPath.includes('/comments') || action === 'discussions_comments') && id) {
+                    const { commentId, action: voteAction } = body;
                     const comment = await Comment.findById(commentId);
                     if (!comment) return json(res, 404, { message: 'Not found' });
                     
                     comment.upvotes = comment.upvotes.filter(uid => uid !== user.id);
                     comment.downvotes = comment.downvotes.filter(uid => uid !== user.id);
                     
-                    if (action === 'upvote') comment.upvotes.push(user.id);
-                    else if (action === 'downvote') comment.downvotes.push(user.id);
+                    if (voteAction === 'upvote') comment.upvotes.push(user.id);
+                    else if (voteAction === 'downvote') comment.downvotes.push(user.id);
                     
                     await comment.save();
                     return json(res, 200, { upvotes: comment.upvotes, downvotes: comment.downvotes });
@@ -210,7 +211,7 @@ export default async function handler(req, res) {
                 }
 
                 // Fetch first to determine ownership and status before caching/returning
-                const event = await Event.findById(eventId);
+                const event = await Event.findById(eventId).lean();
                 if (!event) return json(res, 404, { error: "Event not found" });
 
                 const isOwner = user && (String(event.organizerId) === String(user.id));
@@ -281,18 +282,15 @@ export default async function handler(req, res) {
             
             console.log(`[DEBUG_API]: Querying Event model. DB: ${Event.db.name}, Filter:`, JSON.stringify(filter));
             
-            const rawCount = isConnected ? await mongoose.connection.db?.collection('events').countDocuments() : 'N/A';
-            const modelCount = await Event.countDocuments(filter);
-            
-            console.log(`[DIAGNOSTIC]: Event Listing. Raw Count: ${rawCount}, Model Count (filtered): ${modelCount}, DB Name: ${Event.db.name}`);
+            // OPTIMIZATION: Skipped counting all documents to avoid blocking the main public event feed
             
             const events = await Event.find(filter)
                 .sort({ date: 1 })
-                .limit(50);
+                .limit(50)
+                .lean();
 
             if (events.length === 0) {
-                const anyEvent = await Event.findOne({});
-                console.log(`[DIAGNOSTIC]: Filter returned 0 events. Total events in collection: ${await Event.countDocuments()}, Sample ID: ${anyEvent?._id}`);
+                console.log(`[DIAGNOSTIC]: Filter returned 0 events.`);
             }
 
             return json(res, 200, events.map(e => {

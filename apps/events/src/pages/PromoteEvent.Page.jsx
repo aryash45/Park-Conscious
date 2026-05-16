@@ -25,7 +25,7 @@ const PromoteEventPage = () => {
   useEffect(() => {
     const fetchEvent = async () => {
       try {
-        const { data } = await backendAxios.get(`/api/events/${id}`);
+        const { data } = await backendAxios.get(`/api/events?id=${id}`);
         setEvent(data);
       } catch (err) {
         setError("Failed to load event details.");
