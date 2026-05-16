@@ -3,19 +3,19 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://parkconscious.in/api/:path*"
+      "destination": "https://www.parkconscious.in/api/:path*"
     },
     {
       "source": "/sitemap.xml",
-      "destination": "https://parkconscious.in/api/sitemap.js"
+      "destination": "https://www.parkconscious.in/api/sitemap.js"
     },
     {
       "source": "/robots.txt",
-      "destination": "https://parkconscious.in/api/robots.js"
+      "destination": "https://www.parkconscious.in/api/robots.js"
     },
     {
       "source": "/event/:id",
-      "destination": "https://parkconscious.in/api/render-event.js?id=:id"
+      "destination": "https://www.parkconscious.in/api/render-event.js?id=:id"
     },
     {
       "source": "/((?!api/|static/|sitemap\\.xml|robots\\.txt).*)",
