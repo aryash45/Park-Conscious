@@ -12,15 +12,14 @@ import bcrypt from 'bcryptjs';
 import { serialize } from 'cookie';
 import './lib/env.js';
 
-import { json, setCors, getBody, verifyUser, issueCookie } from './lib/utils.js';
+import { json, setupCors, getBody, verifyUser, issueCookie } from './lib/utils.js';
 import { syncIdentity } from './lib/sync.js';
 import { sendOTPEmail } from './lib/email.js';
 
 const { User, Owner, VerificationCode } = models;
 
 export default async function handler(req, res) {
-    setCors(req, res);
-    if (req.method === 'OPTIONS') { res.statusCode = 200; res.end(); return; }
+    if (setupCors(req, res)) return;
 
     const fullUrl = req.url || '/';
     const [pathPart, queryPart] = fullUrl.split('?');

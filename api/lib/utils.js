@@ -146,7 +146,7 @@ export const issueCookie = (req, res, u) => {
     return token;
 };
 
-export const setCors = (req, res) => {
+export const setupCors = (req, res) => {
     const allowed = [
         'https://events.parkconscious.in', 
         'https://admin.events.parkconscious.in', 
@@ -169,8 +169,15 @@ export const setCors = (req, res) => {
         res.setHeader('Access-Control-Allow-Origin', allowed[0]);
     }
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS,PUT,PATCH,DELETE');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Date, X-Api-Version');
     res.setHeader('Access-Control-Allow-Credentials', 'true');
+
+    if (req.method === 'OPTIONS') {
+        res.statusCode = 200;
+        res.end();
+        return true;
+    }
+    return false;
 };
 
 export const getBody = async (req) => {

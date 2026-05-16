@@ -6,7 +6,7 @@
  */
 import './lib/env.js';
 import connectDB from './lib/mongodb.js';
-import { json, setCors, getBody, verifyUser } from './lib/utils.js';
+import { json, setupCors, getBody, verifyUser } from './lib/utils.js';
 
 import { handleEvents } from './admin/events.js';
 import { handleUsers } from './admin/users.js';
@@ -17,8 +17,7 @@ import { handleScanner } from './admin/scanner.js';
 import { handleParking } from './admin/parking.js';
 
 export default async function handler(req, res) {
-    setCors(req, res);
-    if (req.method === 'OPTIONS') { res.statusCode = 200; res.end(); return; }
+    if (setupCors(req, res)) return;
 
     const fullUrl = req.url || '/';
     const url = fullUrl.split('?')[0].replace(/\/+/g, '/').replace(/\/$/, '') || '/';

@@ -12,6 +12,7 @@ import {
     json, 
     setCors, 
     getBody, 
+    setupCors,
     verifyUser, 
     normalizeEvent, 
     pruneEvent, 
@@ -22,12 +23,7 @@ import { getCache, setCache, delCache } from "./lib/redis.js";
 
 export default async function handler(req, res) {
     // 1. Initial configuration
-    setCors(req, res);
-    if (req.method === "OPTIONS") {
-        res.statusCode = 200;
-        res.end();
-        return;
-    }
+    if (setupCors(req, res)) return;
 
     // 2. Main Logic wrapper
     try {
