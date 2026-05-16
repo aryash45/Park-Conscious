@@ -1,0 +1,26 @@
+{
+  "//": "Vercel config for standalone events app. Proxies API/SEO to parkconscious.in root backend.",
+  "version": 2,
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://parkconscious.in/api/:path*"
+    },
+    {
+      "source": "/sitemap.xml",
+      "destination": "https://parkconscious.in/api/sitemap.js"
+    },
+    {
+      "source": "/robots.txt",
+      "destination": "https://parkconscious.in/api/robots.js"
+    },
+    {
+      "source": "/event/:id",
+      "destination": "https://parkconscious.in/api/render-event.js?id=:id"
+    },
+    {
+      "source": "/((?!api/|static/|sitemap\\.xml|robots\\.txt).*)",
+      "destination": "/index.html"
+    }
+  ]
+}
