@@ -29,3 +29,16 @@ Vercel cannot run the worker 24/7. You need a separate Node.js process.
 
 ### Step C: Monitor
 Once active, you can monitor your queue via the Redis dashboard (Upstash). If a job fails, BullMQ will automatically retry it 3 times with exponential backoff.
+
+---
+
+## 4. Monorepo Network Bridge (Multi-Project Setup)
+
+Because the **Events App** is deployed as a standalone project on Vercel (pointed to `apps/events`), it cannot natively see the root `/api` folder. We use a **Proxy Bridge** to solve this:
+
+### How it works:
+1. **Internal Proxy:** `apps/events/vercel.json` rewrites all `/api/*` requests to the main domain (`https://parkconscious.in/api/*`).
+2. **Host Preservation:** A dedicated middleware in `apps/events/middleware.js` captures the original host (e.g., `events.parkconscious.in`) and passes it to the backend via the `x-public-host` header.
+3. **Identity Mapping:** The root `vercel.json` contains explicit "Identity Rewrites" to ensure specific handlers like `sitemap.js` and `render-event.js` aren't swallowed by the global API catch-all.
+
+**Troubleshooting:** If the events site shows a 404 for API requests, ensure the `apps/events/vercel.json` file exists and is pointing to the correct main production domain.
