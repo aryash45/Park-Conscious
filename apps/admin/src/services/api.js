@@ -8,7 +8,8 @@
  */
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || ""; // Use env variable for local dev
+// Force relative paths in production to bypass CORS and preflight redirect issues
+const API_URL = (import.meta.env.VITE_API_URL || "").replace('https://events.parkconscious.in', '');
 console.log('%c[ADMIN_NEXUS] Primary Logic Link:', 'color: #0ea5e9; font-weight: bold;', API_URL);
 console.log('%c[BUILD_VERSION] v2.0.9-DIAGNOSTIC-FIX', 'color: #10b981; font-weight: bold;');
 

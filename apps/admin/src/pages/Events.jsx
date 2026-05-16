@@ -79,7 +79,7 @@ const Events = () => {
   };
 
   const handlePromotePayment = async (event) => {
-    const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5050";
+    const API_BASE = (import.meta.env.VITE_API_URL || "").replace('https://events.parkconscious.in', '');
     setLoading(true);
     try {
       const { data: orderData } = await axios.post(`${API_BASE}/api/events/promote/order`, {

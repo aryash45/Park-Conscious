@@ -15,7 +15,7 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const checkSession = async () => {
       try {
-        const API_URL = import.meta.env.VITE_API_URL || "";
+        const API_URL = (import.meta.env.VITE_API_URL || "").replace('https://events.parkconscious.in', '');
         const response = await fetch(`${API_URL}/api/auth/me`, {
           headers: {
             'Authorization': `Bearer ${JSON.parse(localStorage.getItem('adminUser') || '{}').token || ''}`

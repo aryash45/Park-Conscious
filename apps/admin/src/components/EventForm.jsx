@@ -208,7 +208,7 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
   };
 
   const handlePromotePayment = async () => {
-    const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5050";
+    const API_BASE = (import.meta.env.VITE_API_URL || "").replace('https://events.parkconscious.in', '');
     
     if (!initialData?._id) {
       console.warn("[PAYMENT_ERROR] No Event ID found in initialData");
