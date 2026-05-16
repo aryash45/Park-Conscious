@@ -79,7 +79,7 @@ const Events = () => {
   };
 
   const handlePromotePayment = async (event) => {
-    let API_BASE = (import.meta.env.VITE_API_URL || "").trim().replace(/^https?:\/\/[^/]+/, '').replace(/\/+/g, '/').replace(/\/$/, '');
+    let API_BASE = (import.meta.env.VITE_API_URL || "").trim().replace(/^https?:\/\/(?:www\.)?(?:admin\.)?(?:events\.)?parkconscious\.in/, '').replace(/\/+/g, '/').replace(/\/$/, '');
     if (API_BASE === '/api' || API_BASE === 'api') API_BASE = '';
     setLoading(true);
     try {

@@ -15,7 +15,7 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const checkSession = async () => {
       try {
-        let API_URL = (import.meta.env.VITE_API_URL || "").trim().replace(/^https?:\/\/[^/]+/, '').replace(/\/+/g, '/').replace(/\/$/, '');
+        let API_URL = (import.meta.env.VITE_API_URL || "").trim().replace(/^https?:\/\/(?:www\.)?(?:admin\.)?(?:events\.)?parkconscious\.in/, '').replace(/\/+/g, '/').replace(/\/$/, '');
         if (API_URL === '/api' || API_URL === 'api') API_URL = '';
         const response = await fetch(`${API_URL}/api/auth/me`, {
           headers: {

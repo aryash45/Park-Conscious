@@ -11,7 +11,7 @@ import axios from 'axios';
 // Force relative paths in production and robustly normalize the path to avoid malformed URLs
 const rawUrl = (import.meta.env.VITE_API_URL || "").trim();
 const API_URL = rawUrl
-  .replace(/^https?:\/\/[^/]+/, '') // Strip protocol and host
+  .replace(/^https?:\/\/(?:www\.)?(?:admin\.)?(?:events\.)?parkconscious\.in/, '') // Strip production host, preserve localhost
   .replace(/\/+/g, '/') // Collapse repeated slashes
   .replace(/\/$/, '') // Strip trailing slash
   .replace(/^\/?api$/, ''); // Normalize /api to empty to prevent /api/api
