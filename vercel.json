@@ -38,8 +38,6 @@
     { "source": "/api/booking/status/:path*", "destination": "/api/pay.js" },
     { "source": "/api/bookings/:path*", "destination": "/api/pay.js" },
     { "source": "/api/engine/allocator", "destination": "/api/engine/allocator.py" },
-    // Identity rewrites: These prevent the /api/:path* catch-all from capturing 
-    // specific SEO/Rendering handlers that need their own unique logic.
     { "source": "/api/sitemap.js", "destination": "/api/sitemap.js" },
     { "source": "/api/robots.js", "destination": "/api/robots.js" },
     { "source": "/api/render-event.js", "destination": "/api/render-event.js" },
