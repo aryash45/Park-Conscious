@@ -208,7 +208,8 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
   };
 
   const handlePromotePayment = async () => {
-    const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5050";
+    let API_BASE = (import.meta.env.VITE_API_URL || "").trim().replace(/^https?:\/\/[^/]+/, '').replace(/\/+/g, '/').replace(/\/$/, '');
+    if (API_BASE === '/api' || API_BASE === 'api') API_BASE = '';
     
     if (!initialData?._id) {
       console.warn("[PAYMENT_ERROR] No Event ID found in initialData");

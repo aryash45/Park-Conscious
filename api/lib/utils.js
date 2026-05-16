@@ -96,15 +96,18 @@ export const normalizeUrl = (url) => {
 };
 
 export const verifyUser = (req) => {
-    const cookies = parse(req.headers.cookie || '');
-    let token = cookies.token;
-    
-    // Fallback: Check Authorization header (used by AdminPanel)
-    if (!token && req.headers.authorization) {
+    // 1. Prioritize Authorization header (explicit client session)
+    if (req.headers.authorization) {
         const parts = req.headers.authorization.split(' ');
         if (parts.length === 2 && parts[0] === 'Bearer') {
             token = parts[1];
         }
+    }
+
+    // 2. Fallback to cookies
+    if (!token) {
+        const cookies = parse(req.headers.cookie || '');
+        token = cookies.token;
     }
 
     if (!token) return null;
@@ -118,7 +121,7 @@ export const verifyUser = (req) => {
 };
 
 export const issueCookie = (req, res, u) => {
-    const host = req.headers.host || '';
+    const host = req.headers['x-forwarded-host'] || req.headers.host || '';
     
     // Core payload stabilization: Ensure both id and uid exist
     const payload = { 
@@ -146,7 +149,7 @@ export const issueCookie = (req, res, u) => {
     return token;
 };
 
-export const setCors = (req, res) => {
+export const setupCors = (req, res) => {
     const allowed = [
         'https://events.parkconscious.in', 
         'https://admin.events.parkconscious.in', 
@@ -169,8 +172,15 @@ export const setCors = (req, res) => {
         res.setHeader('Access-Control-Allow-Origin', allowed[0]);
     }
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS,PUT,PATCH,DELETE');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Date, X-Api-Version');
     res.setHeader('Access-Control-Allow-Credentials', 'true');
+
+    if (req.method === 'OPTIONS') {
+        res.statusCode = 200;
+        res.end();
+        return true;
+    }
+    return false;
 };
 
 export const getBody = async (req) => {

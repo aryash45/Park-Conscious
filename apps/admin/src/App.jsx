@@ -67,7 +67,7 @@ class AppErrorBoundary extends React.Component {
     console.error('CRITICAL ADMIN CRASH:', error, errorInfo); 
     
     // Automatically report to centralized system log
-    const API_URL = import.meta.env.VITE_API_URL || "";
+    const API_URL = (import.meta.env.VITE_API_URL || "").replace('https://events.parkconscious.in', '');
     fetch(`${API_URL}/api/admin/logs`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
