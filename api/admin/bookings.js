@@ -77,7 +77,15 @@ export async function handleBookings(url, method, body, user, req, res) {
         
         const { bookingIds } = body;
         if (!Array.isArray(bookingIds) || bookingIds.length === 0) return json(res, 400, { message: 'bookingIds array required' });
-        if (!process.env.RESEND_API_KEY) return json(res, 500, { success: false, message: 'RESEND_API_KEY not configured.' });
+
+        // Provider-agnostic preflight: pass if ANY email provider is configured.
+        // processTicketEmail handles the fallback chain (Resend → MSG91 → SMTP) internally.
+        const hasEmailProvider = !!(
+            process.env.RESEND_API_KEY ||
+            process.env.MSG91_AUTH_KEY ||
+            process.env.SMTP_HOST
+        );
+        if (!hasEmailProvider) return json(res, 500, { success: false, message: 'No email provider configured. Set RESEND_API_KEY, MSG91_AUTH_KEY, or SMTP_HOST.' });
 
         const role = (user.role || '').toLowerCase();
         let bookingQuery = { _id: { $in: bookingIds }, emailSent: { $ne: true }, status: { $in: ["Confirmed", "confirmed"] } };
@@ -91,13 +99,19 @@ export async function handleBookings(url, method, body, user, req, res) {
         const bookings = await Booking.find(bookingQuery).lean();
         if (bookings.length === 0) return json(res, 200, { success: true, sent: 0, message: 'No eligible bookings found.' });
 
-        // Send directly — no Redis/queue dependency so it works regardless of quota
-        const results = await Promise.allSettled(
-            bookings.map(b => processTicketEmail(String(b._id)))
-        );
-
-        const sent = results.filter(r => r.status === 'fulfilled' && r.value === true).length;
-        const failed = results.length - sent;
+        // Process in chunks of 5 to avoid overwhelming the email provider on large batches.
+        // No external dependency — plain async chunked loop.
+        const CHUNK_SIZE = 5;
+        let sent = 0;
+        let failed = 0;
+        for (let i = 0; i < bookings.length; i += CHUNK_SIZE) {
+            const chunk = bookings.slice(i, i + CHUNK_SIZE);
+            const chunkResults = await Promise.allSettled(
+                chunk.map(b => processTicketEmail(String(b._id)))
+            );
+            sent  += chunkResults.filter(r => r.status === 'fulfilled' && r.value === true).length;
+            failed += chunkResults.filter(r => r.status !== 'fulfilled' || r.value !== true).length;
+        }
 
         return json(res, 200, {
             success: true,
