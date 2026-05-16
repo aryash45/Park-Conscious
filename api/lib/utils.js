@@ -96,6 +96,8 @@ export const normalizeUrl = (url) => {
 };
 
 export const verifyUser = (req) => {
+    let token = null;
+    
     // 1. Prioritize Authorization header (explicit client session)
     if (req.headers.authorization) {
         const parts = req.headers.authorization.split(' ');
