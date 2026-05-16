@@ -19,7 +19,7 @@ export default async function handler(req, res) {
             isPublic: true 
         }).select('_id updatedAt').lean();
 
-        const host = req.headers['x-forwarded-host'] || req.headers.host || 'events.parkconscious.in';
+        const host = req.headers['x-public-host'] || req.headers['x-forwarded-host'] || req.headers.host || 'events.parkconscious.in';
         const protocol = req.headers['x-forwarded-proto'] || 'https';
         const baseUrl = `${protocol}://${host}`;
 

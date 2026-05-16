@@ -48,25 +48,33 @@ export default async function handler(req, res) {
             absoluteImageUrl = absoluteImageUrl.replace(/\/v\d+\//, '/').replace('/upload/', '/upload/q_auto,f_auto,w_1200,h_630,c_pad,b_black/');
         }
 
-        const canonicalUrl = `https://events.parkconscious.in/event/${id}`;
+        const host = req.headers['x-public-host'] || req.headers['x-forwarded-host'] || req.headers.host || 'events.parkconscious.in';
+        const protocol = host.includes('localhost') ? 'http' : 'https';
+        const canonicalUrl = `${protocol}://${host}/event/${id}`;
 
         // Fetch the actual index.html from the build
-        const host = req.headers['x-forwarded-host'] || req.headers.host || 'events.parkconscious.in';
-        const protocol = host.includes('localhost') ? 'http' : 'https';
-        
         let html = '';
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+
         try {
             const indexUrl = `${protocol}://${host}/index.html`;
             console.log(`[RENDERER]: Fetching index from ${indexUrl}`);
             const indexResponse = await fetch(indexUrl, { 
                 headers: { 'User-Agent': 'Backstage-SEO-Renderer' },
-                timeout: 3000
+                signal: controller.signal
             });
             if (indexResponse.ok) {
                 html = await indexResponse.text();
             }
         } catch (fetchErr) {
-            console.error('[RENDERER] Fetch index.html failed:', fetchErr.message);
+            if (fetchErr.name === 'AbortError') {
+                console.error('[RENDERER] Fetch index.html timed out after 3000ms');
+            } else {
+                console.error('[RENDERER] Fetch index.html failed:', fetchErr.message);
+            }
+        } finally {
+            clearTimeout(timeoutId);
         }
 
         // Fallback HTML if fetching index.html failed (avoids the "Logo-only" redirect)
