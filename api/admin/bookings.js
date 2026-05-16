@@ -5,9 +5,9 @@
  */
 import crypto from 'crypto';
 import axios from 'axios';
-import { Resend } from 'resend';
 import { json, normalizeEvent } from '../lib/utils.js';
 import * as models from '../lib/models.js';
+import { processTicketEmail } from '../lib/email.js';
 
 const { Booking, Event, User, Owner, Parking } = models;
 
@@ -77,11 +77,8 @@ export async function handleBookings(url, method, body, user, req, res) {
         
         const { bookingIds } = body;
         if (!Array.isArray(bookingIds) || bookingIds.length === 0) return json(res, 400, { message: 'bookingIds array required' });
+        if (!process.env.RESEND_API_KEY) return json(res, 500, { success: false, message: 'RESEND_API_KEY not configured.' });
 
-        const RESEND_API_KEY = process.env.RESEND_API_KEY;
-        if (!RESEND_API_KEY) return json(res, 500, { success: false, message: 'RESEND_API_KEY not configured.' });
-
-        const resend = new Resend(RESEND_API_KEY);
         const role = (user.role || '').toLowerCase();
         let bookingQuery = { _id: { $in: bookingIds }, emailSent: { $ne: true }, status: { $in: ["Confirmed", "confirmed"] } };
         
@@ -94,46 +91,20 @@ export async function handleBookings(url, method, body, user, req, res) {
         const bookings = await Booking.find(bookingQuery).lean();
         if (bookings.length === 0) return json(res, 200, { success: true, sent: 0, message: 'No eligible bookings found.' });
 
-        const uids = [...new Set(bookings.map(b => b.userId).filter(id => id && id.length === 24))];
-        const eids = [...new Set(bookings.map(b => String(b.eventId || '')).filter(id => id && id.length === 24))];
-        
-        const [usersList, ownersList, eventsList] = await Promise.all([
-            User.find({ _id: { $in: uids } }).lean(),
-            Owner.find({ _id: { $in: uids } }).lean(),
-            Event.find({ _id: { $in: eids } }).lean()
-        ]);
+        // Send directly — no Redis/queue dependency so it works regardless of quota
+        const results = await Promise.allSettled(
+            bookings.map(b => processTicketEmail(String(b._id)))
+        );
 
-        const userMap = {};
-        usersList.forEach(u => userMap[String(u._id)] = u.name);
-        ownersList.forEach(o => userMap[String(o._id)] = o.name);
+        const sent = results.filter(r => r.status === 'fulfilled' && r.value === true).length;
+        const failed = results.length - sent;
 
-        const eventMap = {};
-        eventsList.forEach(e => eventMap[String(e._id)] = e.displayTitle || e.title);
-
-        const esc = (s) => String(s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-
-        // Refactored: Instead of sending emails here, we push them to the BullMQ queue
-        try {
-           const { ticketQueue } = await import('../lib/queue.js');
-           if (!ticketQueue) return json(res, 500, { success: false, message: 'Queue system is not available (Check Redis connection).' });
-
-           // Push each booking as a separate job for better granularity and retries
-           const jobs = bookings.map(b => ({
-               name: 'send-ticket',
-               data: { bookingId: String(b._id) },
-               opts: { jobId: `ticket-${b._id}` } // Prevent duplicate jobs for the same booking
-           }));
-
-           await ticketQueue.addBulk(jobs);
-
-           return json(res, 200, { 
-               success: true, 
-               queued: jobs.length, 
-               message: `${jobs.length} ticket(s) added to background queue for delivery.` 
-           });
-        } catch (err) {
-           return json(res, 500, { success: false, message: 'Error queuing batch', error: String(err) });
-        }
+        return json(res, 200, {
+            success: true,
+            sent,
+            failed,
+            message: `${sent} ticket(s) sent successfully${failed > 0 ? `, ${failed} failed` : ''}.`
+        });
     }
 
     // -- Delete Booking (Admin Only) --
