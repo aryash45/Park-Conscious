@@ -144,8 +144,8 @@ const DiscussionPage = () => {
   const fetchData = useCallback(async () => {
     try {
       const [disRes, comRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/discussions/details?id=${id}`),
-        fetch(`${API_BASE_URL}/api/discussions/comments?id=${id}`),
+        fetch(`${API_BASE_URL}/api/events?action=discussions_details&id=${id}`),
+        fetch(`${API_BASE_URL}/api/events?action=discussions_comments&id=${id}`),
       ]);
       
       if (!disRes.ok) {
@@ -173,7 +173,7 @@ const DiscussionPage = () => {
   const handlePostVote = async (action) => {
     if (!user) return googleLogin();
     try {
-      const res = await fetch(`${API_BASE_URL}/api/discussions/details?id=${id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/events?action=discussions_details&id=${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -191,7 +191,7 @@ const DiscussionPage = () => {
   const handleCommentVote = async (commentId, action) => {
     if (!user) return googleLogin();
     try {
-      const res = await fetch(`${API_BASE_URL}/api/discussions/comments?id=${id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/events?action=discussions_comments&id=${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -216,7 +216,7 @@ const DiscussionPage = () => {
     if (!commentText.trim()) return;
     setSubmitting(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/discussions/comments?id=${id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/events?action=discussions_comments&id=${id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -238,7 +238,7 @@ const DiscussionPage = () => {
   const handleReply = async (parentId, text) => {
     if (!user) return googleLogin();
     try {
-      const res = await fetch(`${API_BASE_URL}/api/discussions/comments?id=${id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/events?action=discussions_comments&id=${id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
