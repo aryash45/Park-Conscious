@@ -1,5 +1,4 @@
 {
-  "//": "Vercel config for standalone events app. Proxies API/SEO to parkconscious.in root backend.",
   "version": 2,
   "rewrites": [
     {
