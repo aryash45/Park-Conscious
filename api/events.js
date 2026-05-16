@@ -10,7 +10,6 @@ import connectDB from "./lib/mongodb.js";
 import * as models from "./lib/models.js";
 import { 
     json, 
-    setCors, 
     getBody, 
     setupCors,
     verifyUser, 

@@ -11,15 +11,14 @@ import crypto from 'crypto';
 import Razorpay from 'razorpay';
 import connectDB from './lib/mongodb.js';
 import * as models from './lib/models.js';
-import { json, setCors, getBody, normalizeEvent, verifyUser } from './lib/utils.js';
+import { json, setupCors, getBody, normalizeEvent, verifyUser } from './lib/utils.js';
 import { dispatchTicketEmail } from './lib/email.js';
 
 const { Booking, Owner, User, Event } = models;
 const PLATFORM_FEE_PERCENT = 0.08; // 8% commission
 
 export default async function handler(req, res) {
-    setCors(req, res);
-    if (req.method === 'OPTIONS') { res.statusCode = 200; res.end(); return; }
+    if (setupCors(req, res)) return;
 
     const fullUrl = req.url || '/';
     const [pathPart, queryPart] = fullUrl.split('?');
