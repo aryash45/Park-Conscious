@@ -103,16 +103,58 @@ export async function processTicketEmail(bookingId) {
         const ticketNumber = booking.ticketId || booking.transactionId || String(booking._id).slice(-8);
         const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(ticketNumber)}&ecc=L&margin=0`;
 
+        const venueName = event?.venue ? `${event.venue}${event.venueCity ? `, ${event.venueCity}` : ''}` : (event?.venueCity || "Venue details inside your Backstage app");
+        const safeUserName = esc(userName);
+        const safeEventName = esc(eventName);
+        const safeVenueName = esc(venueName);
+        const safeTicketNumber = esc(ticketNumber);
+
         const html = `
-            <div style="background-color: #000000; padding: 40px 20px; font-family: 'Inter', sans-serif;">
+            <div style="background-color: #000000; padding: 40px 20px; font-family: 'Inter', 'Helvetica', sans-serif;">
                 <div style="max-width: 450px; margin: 0 auto; background-color: #050507; border: 1px solid rgba(255,255,255,0.05); border-radius: 40px; overflow: hidden; color: white; text-align: center; padding: 60px 40px;">
-                    <h1 style="font-size: 32px; font-weight: 900; text-transform: uppercase; margin: 0 0 10px 0;">Your Ticket</h1>
-                    <p style="color: rgba(255,255,255,0.5); margin-bottom: 40px;">Hi ${esc(userName)}, see you at ${esc(eventName)}!</p>
-                    <div style="background-color: white; padding: 30px; border-radius: 30px; display: inline-block; margin-bottom: 40px;">
-                        <img src="${qrUrl}" width="220" height="220" />
+                    <!-- Header Pill -->
+                    <div style="display: inline-block; padding: 6px 16px; background-color: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 100px; margin-bottom: 40px;">
+                        <span style="font-size: 8px; font-weight: 900; color: #818cf8; text-transform: uppercase; letter-spacing: 0.3em;">Official Entry Pass</span>
                     </div>
-                    <div style="background-color: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 24px; padding: 30px; text-align: left;">
-                        <p style="font-size: 14px; font-weight: 800; color: #6366f1;">#${esc(ticketNumber)}</p>
+
+                    <!-- Title Section -->
+                    <h1 style="font-size: 32px; font-weight: 900; text-transform: uppercase; letter-spacing: -0.02em; margin: 0 0 10px 0; color: white;">Your Ticket is Ready</h1>
+                    <p style="font-size: 10px; font-weight: 800; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 40px;">
+                        Hi ${safeUserName}, see you at ${safeEventName}!
+                    </p>
+
+                    <!-- QR Container -->
+                    <div style="background-color: white; padding: 30px; border-radius: 30px; display: inline-block; margin-bottom: 40px; box-shadow: 0 20px 40px rgba(0,0,0,0.4);">
+                        <img src="${qrUrl}" alt="QR Ticket" style="width: 220px; height: 220px; display: block;">
+                        <p style="font-size: 8px; font-weight: 900; color: #000000; text-transform: uppercase; letter-spacing: 0.3em; margin: 15px 0 0 0;">Scan to Enter</p>
+                    </div>
+
+                    <!-- Info Section -->
+                    <div style="background-color: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 24px; padding: 30px; text-align: left; margin-bottom: 40px;">
+                        <div style="margin-bottom: 20px;">
+                            <p style="font-size: 7px; font-weight: 900; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.2em; margin: 0 0 8px 0;">Guest Identification</p>
+                            <p style="font-size: 14px; font-weight: 800; color: white; text-transform: uppercase; margin: 0;">${safeUserName}</p>
+                        </div>
+                        <div style="margin-bottom: 20px;">
+                            <p style="font-size: 7px; font-weight: 900; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.2em; margin: 0 0 8px 0;">Experience</p>
+                            <p style="font-size: 14px; font-weight: 800; color: #6366f1; text-transform: uppercase; margin: 0;">${safeEventName}</p>
+                        </div>
+                        <div style="margin-bottom: 20px;">
+                            <p style="font-size: 7px; font-weight: 900; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.2em; margin: 0 0 8px 0;">Venue</p>
+                            <p style="font-size: 14px; font-weight: 800; color: white; text-transform: uppercase; margin: 0;">${safeVenueName}</p>
+                        </div>
+                        <div>
+                            <p style="font-size: 7px; font-weight: 900; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.2em; margin: 0 0 8px 0;">Credential Hash</p>
+                            <p style="font-size: 14px; font-weight: 800; color: white; text-transform: uppercase; margin: 0; font-family: monospace;">#TK-${safeTicketNumber}</p>
+                        </div>
+                    </div>
+
+                    <!-- Footer -->
+                    <p style="font-size: 7px; font-weight: 800; color: rgba(255,255,255,0.2); text-transform: uppercase; letter-spacing: 0.2em; margin-bottom: 30px;">
+                        Non-Transferable &bull; Valid ID Required for Entry
+                    </p>
+                    <div style="font-size: 10px; font-weight: 900; color: white; text-transform: uppercase; letter-spacing: 0.5em; opacity: 0.8;">
+                        Backstage
                     </div>
                 </div>
             </div>
