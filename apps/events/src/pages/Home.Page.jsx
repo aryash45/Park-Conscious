@@ -7,6 +7,7 @@
  */
 import React, { useEffect, useState, useMemo, Suspense, lazy } from "react";
 import { useNavigate } from "react-router-dom";
+import useSWR from "swr";
 import { backendAxios } from "../axios";
 import { Helmet } from "react-helmet";
 import { ArrowRight, Calendar, Zap } from 'lucide-react';
@@ -27,48 +28,48 @@ const DiscussionBoard = lazy(() => import("../components/Discussion/DiscussionBo
 const HomePage = () => {
     const navigate = useNavigate();
     
-    const PLATFORM_VERSION = "v2.1-visibility";
-    
-    // State Management
-    const [premierMovies, setpremierMovies] = useState(() => {
-        try {
-            const cachedVersion = localStorage.getItem('__cached_version__');
-            if (cachedVersion !== PLATFORM_VERSION) {
-                localStorage.removeItem('__cached_events__');
-                localStorage.removeItem('__cached_featured_events__');
-                localStorage.setItem('__cached_version__', PLATFORM_VERSION);
-                return [];
-            }
-            const cached = localStorage.getItem('__cached_events__');
-            if (!cached) return [];
-            const parsed = JSON.parse(cached);
-            return Array.isArray(parsed) ? parsed : [];
-        } catch (e) {
-            localStorage.removeItem('__cached_events__');
-            return [];
-        }
+    // Fetcher for SWR
+    const fetcher = url => backendAxios.get(url).then(res => res.data);
+
+    // SWR Data Fetching (Replaces manual localStorage + useEffect)
+    const { data: allEventsData, isLoading: isLoadingAll } = useSWR('/api/events', fetcher, {
+        fallbackData: [], // Optional: can be hydrated with initial data
+        revalidateOnFocus: false, // Don't spam API on tab switch
+        dedupingInterval: 60000 // Dedupe requests within 1 minute
     });
     
-    const [featuredEvents, setFeaturedEvents] = useState(() => {
-        try {
-            const cached = localStorage.getItem('__cached_featured_events__');
-            if (!cached) return [];
-            const parsed = JSON.parse(cached);
-            return Array.isArray(parsed) ? parsed : [];
-        } catch (e) {
-            localStorage.removeItem('__cached_featured_events__');
-            return [];
-        }
+    const { data: featuredData } = useSWR('/api/events?featured=true', fetcher, {
+        fallbackData: [],
+        revalidateOnFocus: false,
+        dedupingInterval: 60000
     });
-    
-    const [isInitialLoading, setIsInitialLoading] = useState(() => {
-        return !localStorage.getItem('__cached_events__');
-    });
+
+    const premierMovies = useMemo(() => {
+        if (!allEventsData || allEventsData.missingConfig) return [];
+        return allEventsData.map(event => ({
+            ...event,
+            original_title: event.title || event.name || 'Untitled Event',
+            poster_path: (event.images && event.images[0]) || event.image || 'https://images.unsplash.com/photo-1540039155733-5bb30b53aa14',
+        }));
+    }, [allEventsData]);
+
+    const featuredEvents = useMemo(() => {
+        return Array.isArray(featuredData) ? featuredData : [];
+    }, [featuredData]);
+
+    const isInitialLoading = isLoadingAll && !allEventsData?.length;
     
     const [currentAd, setCurrentAd] = useState(0);
     const [selectedCategory, setSelectedCategory] = useState("All Events");
     const [missingConfig, setMissingConfig] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
+
+    // Detect missing config
+    useEffect(() => {
+        if (allEventsData?.missingConfig) {
+            setMissingConfig(true);
+        }
+    }, [allEventsData]);
 
     // Ticker Rotation
     useEffect(() => {
@@ -76,45 +77,6 @@ const HomePage = () => {
         setCurrentAd((prev) => (prev + 1) % adCopies.length);
       }, 7000);
       return () => clearInterval(interval);
-    }, []);
-  
-    // Data Orchestration
-    useEffect(() => {
-      const timer = setTimeout(() => setIsInitialLoading(false), 5000);
-
-      const loadData = async () => {
-        try {
-          const { data } = await backendAxios.get(`/api/events`);
-          
-          if (data?.missingConfig) {
-             setMissingConfig(true);
-             return;
-          }
-
-          const mappedEvents = (data || []).map(event => ({
-              ...event,
-              original_title: event.title || event.name || 'Untitled Event',
-              poster_path: (event.images && event.images[0]) || event.image || 'https://images.unsplash.com/photo-1540039155733-5bb30b53aa14',
-          }));
-          
-          setpremierMovies(mappedEvents);
-          localStorage.setItem('__cached_events__', JSON.stringify(mappedEvents));
-          
-          const { data: featuredData } = await backendAxios.get(`/api/events?featured=true`);
-          if (Array.isArray(featuredData)) {
-              setFeaturedEvents(featuredData);
-              localStorage.setItem('__cached_featured_events__', JSON.stringify(featuredData));
-          }
-        } catch (err) {
-          console.error("Critical error fetching events:", err);
-        } finally {
-          setIsInitialLoading(false);
-          clearTimeout(timer);
-        }
-      };
-
-      loadData();
-      return () => clearTimeout(timer);
     }, []);
   
     const filteredEvents = useMemo(() => {

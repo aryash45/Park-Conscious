@@ -1,10 +1,25 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { Calendar, MapPin } from 'lucide-react';
+import { preload } from "swr";
+import { backendAxios } from "../../axios";
 
 const Poster = (props) => {
+  const eventId = props._id || props.id;
+  
+  const prefetchEvent = () => {
+    if (eventId) {
+      preload(`/api/events?id=${eventId}`, url => backendAxios.get(url).then(res => res.data));
+    }
+  };
+
   return (
-    <Link to={`/event/${props._id || props.id}`} className="group block px-2">
+    <Link 
+      to={`/event/${eventId}`} 
+      onMouseEnter={prefetchEvent}
+      onFocus={prefetchEvent}
+      className="group block px-2"
+    >
       <div className="relative flex flex-col bg-[#0E0E10] border border-white/5 rounded-[1.5rem] overflow-hidden hover:border-white/15 transition-all duration-500 shadow-xl hover:shadow-indigo-500/5">
 
         {/* Poster Image */}

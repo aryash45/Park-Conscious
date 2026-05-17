@@ -5,8 +5,9 @@
  * Displays all event information including hosts, media gallery, and booking options.
  * Integrates the BookingModal for the end-user ticket checkout flow.
  */
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import useSWR from "swr";
 import { backendAxios } from "../axios";
 import DefaultlayoutHoc from "../layout/Default.layout";
 import BookingModal from "../components/Booking/BookingModal.jsx";
@@ -46,42 +47,55 @@ const EventPage = () => {
     return () => window.removeEventListener('message', handleMessage);
   }, []);
 
+  // SWR Fetcher
+  const fetcher = url => backendAxios.get(url).then(res => res.data);
+
+  // SWR Hook for zero-latency loading if preloaded
+  const { data: rawEvent, error, isLoading } = useSWR(`/api/events?id=${id}`, fetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 60000
+  });
+
+  // Handle Fetch Errors
   useEffect(() => {
-    const fetchEvent = async () => {
-      try {
-        setLoading(true);
-        const { data } = await backendAxios.get(`/api/events?id=${id}`);
+    if (error) {
+      console.error("Error fetching event:", error);
+      navigate("/");
+    }
+  }, [error, navigate]);
 
-        const normalized = {
-          ...data,
-          displayTitle: data.title || data.name || "Untitled",
-          displayDate: data.date || data.createdAt,
-          displayLocation: data.location?.name || data.locationName || data.venue || "TBA",
-          displayAddress: data.location?.address || data.locationAddress || "",
-          displayDescription: data.description || "",
-          hosts: Array.isArray(data.hosts) ? data.hosts : [],
-          ticketTiers: Array.isArray(data.ticketTiers) ? data.ticketTiers : [],
-          mediaGallery: Array.isArray(data.mediaGallery) ? data.mediaGallery : []
-        };
+  // Normalize Data when rawEvent arrives
+  useEffect(() => {
+    if (rawEvent) {
+      const normalized = {
+        ...rawEvent,
+        displayTitle: rawEvent.title || rawEvent.name || "Untitled",
+        displayDate: rawEvent.date || rawEvent.createdAt,
+        displayLocation: rawEvent.location?.name || rawEvent.locationName || rawEvent.venue || "TBA",
+        displayAddress: rawEvent.location?.address || rawEvent.locationAddress || "",
+        displayDescription: rawEvent.description || "",
+        hosts: Array.isArray(rawEvent.hosts) ? rawEvent.hosts : [],
+        ticketTiers: Array.isArray(rawEvent.ticketTiers) ? rawEvent.ticketTiers : [],
+        mediaGallery: Array.isArray(rawEvent.mediaGallery) ? rawEvent.mediaGallery : []
+      };
 
-        setEvent(normalized);
-        if (normalized.themeConfig) setLiveTheme(normalized.themeConfig);
-        
-        if (normalized.ticketTiers.length > 0) {
-          setSelectedTier(normalized.ticketTiers[0]);
-        }
-      } catch (err) {
-        console.error("Error fetching event:", err);
-        navigate("/");
-      } finally {
-        setLoading(false);
+      setEvent(normalized);
+      
+      // Only set initial theme and tier if they haven't been set yet
+      setLiveTheme(prev => prev || normalized.themeConfig);
+      
+      if (normalized.ticketTiers.length > 0) {
+        setSelectedTier(prev => prev || normalized.ticketTiers[0]);
       }
-    };
-    fetchEvent();
-    window.scrollTo(0, 0);
-  }, [id, navigate]);
+    }
+  }, [rawEvent]);
 
-  if (loading || !event) {
+  // Scroll to top on page load
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [id]);
+
+  if (isLoading || !event) {
     return (
       <div className="bg-[#050507] min-h-screen flex items-center justify-center">
         <div className="w-12 h-12 border-2 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
