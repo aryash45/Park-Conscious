@@ -19,6 +19,7 @@ import {
 } from "./lib/utils.js";
 import crypto from "crypto";
 import { getCache, setCache, delCache } from "./lib/redis.js";
+import { getMemoryCache, setMemoryCache } from "./lib/memoryCache.js";
 
 export default async function handler(req, res) {
     // 1. Initial configuration
@@ -221,12 +222,26 @@ export default async function handler(req, res) {
                     return json(res, 404, { error: "Event not found" });
                 }
 
+                // OPTIMIZATION: Check In-Memory Cache First
+                const memCacheKey = `event_${eventId}_${canSeePrivate ? 'privileged' : 'public'}`;
+                const memCachedEvent = getMemoryCache(memCacheKey);
+                
+                if (memCachedEvent) {
+                    console.log(`[PERF]: Serving single event from warm memory cache (0ms)`);
+                    return json(res, 200, memCachedEvent);
+                }
+
                 const cacheKey = `event:${eventId}:${canSeePrivate ? 'privileged' : 'public'}`;
                 const cached = await getCache(cacheKey);
-                if (cached) return json(res, 200, cached);
+                if (cached) {
+                    setMemoryCache(memCacheKey, cached, 60); // Store in memory cache too
+                    return json(res, 200, cached);
+                }
 
                 const data = pruneEvent(event, canSeePrivate);
                 await setCache(cacheKey, data, 300); // 5 min cache
+                setMemoryCache(memCacheKey, data, 60); // 1 min memory cache
+                
                 return json(res, 200, data);
             }
 
@@ -280,9 +295,21 @@ export default async function handler(req, res) {
             
             console.log(`[DEBUG_API]: Querying Event model. DB: ${Event.db.name}, Filter:`, JSON.stringify(filter));
             
-            // OPTIMIZATION: Skipped counting all documents to avoid blocking the main public event feed
+            // OPTIMIZATION: Check In-Memory Cache First
+            const memCacheKey = `events_feed_${JSON.stringify(filter)}`;
+            const memCachedEvents = getMemoryCache(memCacheKey);
             
+            if (memCachedEvents) {
+                console.log(`[PERF]: Serving events feed from warm memory cache (0ms)`);
+                return json(res, 200, memCachedEvents.map(e => {
+                    const isOwner = user && (String(e.organizerId) === String(user.id));
+                    return pruneEvent(e, isGlobalAdmin || isOwner);
+                }));
+            }
+            
+            // OPTIMIZATION: Projection excludes large text fields for list views
             const events = await Event.find(filter)
+                .select('-description -requiredFields -customForms -faqs')
                 .sort({ date: 1 })
                 .limit(50)
                 .lean();
@@ -290,6 +317,9 @@ export default async function handler(req, res) {
             if (events.length === 0) {
                 console.log(`[DIAGNOSTIC]: Filter returned 0 events.`);
             }
+
+            // Save to memory cache for 60 seconds
+            setMemoryCache(memCacheKey, events, 60);
 
             return json(res, 200, events.map(e => {
                 const isOwner = user && (String(e.organizerId) === String(user.id));

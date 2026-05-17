@@ -13,6 +13,7 @@
     "build": "mkdir -p public && cp web/*.html web/favicon.ico web/favicon.png web/sitemap.xml web/robots.txt public/ 2>/dev/null || true && cp -r web/assets web/scripts web/styles public/ 2>/dev/null || true && cp -r web/owner public/ 2>/dev/null || true && node -e \"const fs=require('fs'); const fn='public/scripts/config.js'; let c=fs.readFileSync(fn,'utf8'); c=c.replace('__MAPS_API_KEY__', process.env.GOOGLE_MAPS_API_KEY || '').replace('__ROUTING_API_URL__', process.env.ROUTING_API_URL || 'http://localhost:8000'); fs.writeFileSync(fn, c);\" && turbo build",
     "lint": "turbo lint",
     "dev:backend": "node --watch local-server.js",
+    "dev:local": "concurrently --names \"API,FRONT\" --prefix-colors \"cyan,green\" \"npm run dev:backend\" \"turbo dev\"",
     "test:events": "turbo test --filter=@parkconscious/events"
   },
   "devDependencies": {

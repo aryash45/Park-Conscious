@@ -19,6 +19,11 @@ if (!global._redis) {
  */
 export function getRedis() {
     if (global._redis.conn) return global._redis.conn;
+    // Fast fail if explicitly disabled (e.g., due to quota exhaustion)
+    if (process.env.USE_REDIS === 'false') {
+        console.warn('[REDIS_BYPASS]: Redis is disabled via USE_REDIS=false. Falling back to in-memory/DB.');
+        return null;
+    }
     if (!REDIS_URL) return null;
 
     try {
