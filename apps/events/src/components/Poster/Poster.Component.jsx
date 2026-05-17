@@ -5,7 +5,7 @@ import { preload } from "swr";
 import { backendAxios } from "../../axios";
 
 const Poster = (props) => {
-  const eventId = props._id || props.id;
+  const eventId = props.slug || props._id || props.id;
   
   const prefetchEvent = () => {
     if (eventId) {

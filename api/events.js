@@ -21,6 +21,21 @@ import crypto from "crypto";
 import { getCache, setCache, delCache } from "./lib/redis.js";
 import { getMemoryCache, setMemoryCache } from "./lib/memoryCache.js";
 
+async function getUniqueSlug(titleOrSlug, EventModel, excludeId = null) {
+    let sanitized = titleOrSlug ? titleOrSlug.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') : '';
+    let baseSlug = sanitized || 'event';
+    let slug = baseSlug;
+    let slugCount = 1;
+    while (true) {
+        const query = { slug };
+        if (excludeId) query._id = { $ne: excludeId };
+        const exists = await EventModel.exists(query);
+        if (!exists) break;
+        slug = `${baseSlug}-${slugCount++}`;
+    }
+    return slug;
+}
+
 export default async function handler(req, res) {
     // 1. Initial configuration
     if (setupCors(req, res)) return;
@@ -189,9 +204,15 @@ export default async function handler(req, res) {
             // Extract from path if not in query (Vercel rewrite scenario)
             if (!eventId) {
                 const pathParts = urlPath.split('/');
-                const lastPart = pathParts[pathParts.length - 1];
-                if (lastPart && lastPart !== 'events' && lastPart.length >= 20) {
-                    eventId = lastPart;
+                // Exact match: ['', 'events', '<id>'] OR ['', 'api', 'events', '<id>']
+                const isExactEventsPath = 
+                    (pathParts.length === 3 && pathParts[1] === 'events') ||
+                    (pathParts.length === 4 && pathParts[1] === 'api' && pathParts[2] === 'events');
+                if (isExactEventsPath) {
+                    const lastPart = pathParts[pathParts.length - 1];
+                    if (lastPart && lastPart !== '') {
+                        eventId = lastPart;
+                    }
                 }
             }
 
@@ -209,9 +230,15 @@ export default async function handler(req, res) {
                     if (publicCached) return json(res, 200, publicCached);
                 }
 
-                // Fetch first to determine ownership and status before caching/returning
-                const event = await Event.findById(eventId).lean();
+                // Prefer slug lookup first, then fallback to _id lookup if no match is found
+                let event = await Event.findOne({ slug: eventId }).lean();
+                if (!event && mongoose.Types.ObjectId.isValid(eventId)) {
+                    event = await Event.findOne({ _id: eventId }).lean();
+                }
                 if (!event) return json(res, 404, { error: "Event not found" });
+
+                // Normalize eventId to the actual document ID for cache keys to prevent cache duplication
+                const actualId = event._id.toString();
 
                 const isOwner = user && (String(event.organizerId) === String(user.id));
                 const canSeePrivate = isGlobalAdmin || isOwner;
@@ -223,7 +250,7 @@ export default async function handler(req, res) {
                 }
 
                 // OPTIMIZATION: Check In-Memory Cache First
-                const memCacheKey = `event_${eventId}_${canSeePrivate ? 'privileged' : 'public'}`;
+                const memCacheKey = `event_${actualId}_${canSeePrivate ? 'privileged' : 'public'}`;
                 const memCachedEvent = getMemoryCache(memCacheKey);
                 
                 if (memCachedEvent) {
@@ -231,7 +258,7 @@ export default async function handler(req, res) {
                     return json(res, 200, memCachedEvent);
                 }
 
-                const cacheKey = `event:${eventId}:${canSeePrivate ? 'privileged' : 'public'}`;
+                const cacheKey = `event:${actualId}:${canSeePrivate ? 'privileged' : 'public'}`;
                 const cached = await getCache(cacheKey);
                 if (cached) {
                     setMemoryCache(memCacheKey, cached, 60); // Store in memory cache too
@@ -355,12 +382,48 @@ export default async function handler(req, res) {
                 return json(res, 200, order);
             }
 
-            // Create Event
-            const newEvent = await Event.create({
-                ...body,
-                organizerId: body.organizerId || user.id, // Use provided or default to creator
-                status: body.status || 'draft'
-            });
+            // RBAC: Validate organizerId mapping to prevent spoofing/claiming other organizers
+            let organizerId = user.id;
+            if (body.organizerId && body.organizerId !== user.id) {
+                const isGlobalAdmin = user && ['admin', 'superadmin', 'owner'].includes(user.role);
+                if (!isGlobalAdmin) {
+                    return json(res, 403, { error: "Permission denied: only admins can assign events to other organizers" });
+                }
+                organizerId = body.organizerId;
+            }
+
+            // Generate unique SEO slug with retry-on-duplicate safety
+            let sanitized = body.title ? body.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') : '';
+            let baseSlug = sanitized || 'event';
+            let slugCount = 0;
+
+            // Create Event with retry-on-duplicate-key handling
+            let newEvent;
+            let retries = 10;
+            while (retries > 0) {
+                // Generate next candidate at the top of the loop to ensure every computed slug is attempted
+                let slug = slugCount === 0 ? baseSlug : `${baseSlug}-${slugCount}`;
+                try {
+                    newEvent = await Event.create({
+                        ...body,
+                        slug,
+                        organizerId,
+                        status: body.status || 'draft'
+                    });
+                    break;
+                } catch (err) {
+                    if (err.code === 11000 && (err.message.includes('slug') || JSON.stringify(err.keyValue || {}).includes('slug'))) {
+                        slugCount++;
+                        retries--;
+                    } else {
+                        throw err;
+                    }
+                }
+            }
+
+            if (!newEvent) {
+                return json(res, 500, { error: "Failed to generate unique slug after multiple attempts" });
+            }
 
             // Invalidate list caches
             await delCache(`events:public`);
@@ -386,6 +449,11 @@ export default async function handler(req, res) {
 
             if (!isOwner && !isGlobalAdmin) {
                 return json(res, 403, { error: "Permission denied" });
+            }
+
+            // Clean/sanitize slug if updated (including if set to an empty string)
+            if (body.hasOwnProperty('slug')) {
+                body.slug = await getUniqueSlug(body.slug, Event, eventId);
             }
 
             // Perform Update
