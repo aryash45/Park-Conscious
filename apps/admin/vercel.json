@@ -3,7 +3,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://www.parkconscious.in/api/:path*"
+      "destination": "https://events.parkconscious.in/api/:path*"
     },
     {
       "source": "/((?!api/|assets/|static/).*)",
