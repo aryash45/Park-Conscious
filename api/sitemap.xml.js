@@ -38,7 +38,8 @@ export default async function handler(req, res) {
             isPublic: true 
         }).select('_id slug updatedAt').lean();
 
-        const baseUrl = process.env.CANONICAL_ORIGIN || process.env.NEXT_PUBLIC_CANONICAL_ORIGIN || 'https://events.parkconscious.in';
+        const rawBaseUrl = process.env.CANONICAL_ORIGIN || process.env.NEXT_PUBLIC_CANONICAL_ORIGIN || 'https://events.parkconscious.in';
+        const baseUrl = rawBaseUrl.replace(/\/+$/, '');
 
         let xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">

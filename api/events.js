@@ -230,12 +230,11 @@ export default async function handler(req, res) {
                     if (publicCached) return json(res, 200, publicCached);
                 }
 
-                // Determine if eventId is a Mongo ObjectId or a slug
-                const isObjectId = mongoose.Types.ObjectId.isValid(eventId);
-                const query = isObjectId ? { _id: eventId } : { slug: eventId };
-
-                // Fetch first to determine ownership and status before caching/returning
-                const event = await Event.findOne(query).lean();
+                // Prefer slug lookup first, then fallback to _id lookup if no match is found
+                let event = await Event.findOne({ slug: eventId }).lean();
+                if (!event && mongoose.Types.ObjectId.isValid(eventId)) {
+                    event = await Event.findOne({ _id: eventId }).lean();
+                }
                 if (!event) return json(res, 404, { error: "Event not found" });
 
                 // Normalize eventId to the actual document ID for cache keys to prevent cache duplication
@@ -452,8 +451,8 @@ export default async function handler(req, res) {
                 return json(res, 403, { error: "Permission denied" });
             }
 
-            // Clean/sanitize slug if updated
-            if (body.slug) {
+            // Clean/sanitize slug if updated (including if set to an empty string)
+            if (body.hasOwnProperty('slug')) {
                 body.slug = await getUniqueSlug(body.slug, Event, eventId);
             }
 
