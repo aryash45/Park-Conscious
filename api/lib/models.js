@@ -35,6 +35,7 @@ ownerSchema.index({ role: 1 });
 export const eventSchema = new mongoose.Schema(
   {
     title: { type: String, required: true },
+    slug: { type: String, unique: true, sparse: true, index: true },
     description: String,
     date: { type: String, required: false },
     isTBA: { type: Boolean, default: false },

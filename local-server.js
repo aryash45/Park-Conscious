@@ -11,6 +11,7 @@ import payHandler from './api/pay.js';
 import authHandler from './api/auth.js';
 import adminHandler from './api/admin.js';
 import contactHandler from './api/contact.js';
+import sitemapHandler from './api/sitemap.xml.js';
 
 // BullMQ & Monitoring
 import { createBullBoard } from '@bull-board/api';
@@ -92,6 +93,7 @@ app.use((req, res, next) => {
     if (req.path.startsWith('/api/pay') || req.path.startsWith('/api/booking')) return vercelWrapper(payHandler)(req, res);
     if (req.path.startsWith('/api/auth')) return vercelWrapper(authHandler)(req, res);
     if (req.path.startsWith('/api/admin')) return vercelWrapper(adminHandler)(req, res);
+    if (req.path.startsWith('/api/sitemap.xml')) return vercelWrapper(sitemapHandler)(req, res);
     next();
 });
 

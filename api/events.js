@@ -209,9 +209,16 @@ export default async function handler(req, res) {
                     if (publicCached) return json(res, 200, publicCached);
                 }
 
+                // Determine if eventId is a Mongo ObjectId or a slug
+                const isObjectId = mongoose.Types.ObjectId.isValid(eventId);
+                const query = isObjectId ? { _id: eventId } : { slug: eventId };
+
                 // Fetch first to determine ownership and status before caching/returning
-                const event = await Event.findById(eventId).lean();
+                const event = await Event.findOne(query).lean();
                 if (!event) return json(res, 404, { error: "Event not found" });
+
+                // Normalize eventId to the actual document ID for cache keys to prevent cache duplication
+                const actualId = event._id.toString();
 
                 const isOwner = user && (String(event.organizerId) === String(user.id));
                 const canSeePrivate = isGlobalAdmin || isOwner;
@@ -223,7 +230,7 @@ export default async function handler(req, res) {
                 }
 
                 // OPTIMIZATION: Check In-Memory Cache First
-                const memCacheKey = `event_${eventId}_${canSeePrivate ? 'privileged' : 'public'}`;
+                const memCacheKey = `event_${actualId}_${canSeePrivate ? 'privileged' : 'public'}`;
                 const memCachedEvent = getMemoryCache(memCacheKey);
                 
                 if (memCachedEvent) {
@@ -231,7 +238,7 @@ export default async function handler(req, res) {
                     return json(res, 200, memCachedEvent);
                 }
 
-                const cacheKey = `event:${eventId}:${canSeePrivate ? 'privileged' : 'public'}`;
+                const cacheKey = `event:${actualId}:${canSeePrivate ? 'privileged' : 'public'}`;
                 const cached = await getCache(cacheKey);
                 if (cached) {
                     setMemoryCache(memCacheKey, cached, 60); // Store in memory cache too
@@ -355,9 +362,18 @@ export default async function handler(req, res) {
                 return json(res, 200, order);
             }
 
+            // Generate unique SEO slug
+            let baseSlug = body.title ? body.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') : 'event';
+            let slug = baseSlug;
+            let slugCount = 1;
+            while (await Event.exists({ slug })) {
+                slug = `${baseSlug}-${slugCount++}`;
+            }
+
             // Create Event
             const newEvent = await Event.create({
                 ...body,
+                slug,
                 organizerId: body.organizerId || user.id, // Use provided or default to creator
                 status: body.status || 'draft'
             });
