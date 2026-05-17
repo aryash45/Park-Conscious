@@ -38,9 +38,7 @@ export default async function handler(req, res) {
             isPublic: true 
         }).select('_id slug updatedAt').lean();
 
-        const host = req.headers['x-public-host'] || req.headers['x-forwarded-host'] || req.headers.host || 'events.parkconscious.in';
-        const protocol = req.headers['x-forwarded-proto'] || 'https';
-        const baseUrl = `${protocol}://${host}`;
+        const baseUrl = process.env.CANONICAL_ORIGIN || process.env.NEXT_PUBLIC_CANONICAL_ORIGIN || 'https://events.parkconscious.in';
 
         let xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">

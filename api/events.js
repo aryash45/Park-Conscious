@@ -204,9 +204,15 @@ export default async function handler(req, res) {
             // Extract from path if not in query (Vercel rewrite scenario)
             if (!eventId) {
                 const pathParts = urlPath.split('/');
-                const lastPart = pathParts[pathParts.length - 1];
-                if (lastPart && lastPart !== 'events' && lastPart !== '') {
-                    eventId = lastPart;
+                // Exact match: ['', 'events', '<id>'] OR ['', 'api', 'events', '<id>']
+                const isExactEventsPath = 
+                    (pathParts.length === 3 && pathParts[1] === 'events') ||
+                    (pathParts.length === 4 && pathParts[1] === 'api' && pathParts[2] === 'events');
+                if (isExactEventsPath) {
+                    const lastPart = pathParts[pathParts.length - 1];
+                    if (lastPart && lastPart !== '') {
+                        eventId = lastPart;
+                    }
                 }
             }
 
@@ -377,27 +383,38 @@ export default async function handler(req, res) {
                 return json(res, 200, order);
             }
 
+            // RBAC: Validate organizerId mapping to prevent spoofing/claiming other organizers
+            let organizerId = user.id;
+            if (body.organizerId && body.organizerId !== user.id) {
+                const isGlobalAdmin = user && ['admin', 'superadmin', 'owner'].includes(user.role);
+                if (!isGlobalAdmin) {
+                    return json(res, 403, { error: "Permission denied: only admins can assign events to other organizers" });
+                }
+                organizerId = body.organizerId;
+            }
+
             // Generate unique SEO slug with retry-on-duplicate safety
             let sanitized = body.title ? body.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') : '';
             let baseSlug = sanitized || 'event';
-            let slug = baseSlug;
-            let slugCount = 1;
+            let slugCount = 0;
 
             // Create Event with retry-on-duplicate-key handling
             let newEvent;
             let retries = 10;
             while (retries > 0) {
+                // Generate next candidate at the top of the loop to ensure every computed slug is attempted
+                let slug = slugCount === 0 ? baseSlug : `${baseSlug}-${slugCount}`;
                 try {
                     newEvent = await Event.create({
                         ...body,
                         slug,
-                        organizerId: body.organizerId || user.id, // Use provided or default to creator
+                        organizerId,
                         status: body.status || 'draft'
                     });
                     break;
                 } catch (err) {
                     if (err.code === 11000 && (err.message.includes('slug') || JSON.stringify(err.keyValue || {}).includes('slug'))) {
-                        slug = `${baseSlug}-${slugCount++}`;
+                        slugCount++;
                         retries--;
                     } else {
                         throw err;
