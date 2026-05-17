@@ -90,8 +90,10 @@ const EventPage = () => {
     }
   }, [rawEvent]);
 
-  // Scroll to top on page load
+  // Scroll to top and reset derived state on route change
   useEffect(() => {
+    setLiveTheme(null);
+    setSelectedTier(null);
     window.scrollTo(0, 0);
   }, [id]);
 

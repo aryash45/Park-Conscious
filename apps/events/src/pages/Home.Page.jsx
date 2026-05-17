@@ -33,13 +33,11 @@ const HomePage = () => {
 
     // SWR Data Fetching (Replaces manual localStorage + useEffect)
     const { data: allEventsData, isLoading: isLoadingAll } = useSWR('/api/events', fetcher, {
-        fallbackData: [], // Optional: can be hydrated with initial data
         revalidateOnFocus: false, // Don't spam API on tab switch
         dedupingInterval: 60000 // Dedupe requests within 1 minute
     });
     
     const { data: featuredData } = useSWR('/api/events?featured=true', fetcher, {
-        fallbackData: [],
         revalidateOnFocus: false,
         dedupingInterval: 60000
     });
