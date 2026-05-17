@@ -93,7 +93,7 @@ app.use((req, res, next) => {
     if (req.path.startsWith('/api/pay') || req.path.startsWith('/api/booking')) return vercelWrapper(payHandler)(req, res);
     if (req.path.startsWith('/api/auth')) return vercelWrapper(authHandler)(req, res);
     if (req.path.startsWith('/api/admin')) return vercelWrapper(adminHandler)(req, res);
-    if (req.path.startsWith('/api/sitemap.xml')) return vercelWrapper(sitemapHandler)(req, res);
+    if (req.path === '/api/sitemap.xml' || req.path === '/api/sitemap.xml/') return vercelWrapper(sitemapHandler)(req, res);
     next();
 });
 

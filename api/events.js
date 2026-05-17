@@ -21,6 +21,21 @@ import crypto from "crypto";
 import { getCache, setCache, delCache } from "./lib/redis.js";
 import { getMemoryCache, setMemoryCache } from "./lib/memoryCache.js";
 
+async function getUniqueSlug(titleOrSlug, EventModel, excludeId = null) {
+    let sanitized = titleOrSlug ? titleOrSlug.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') : '';
+    let baseSlug = sanitized || 'event';
+    let slug = baseSlug;
+    let slugCount = 1;
+    while (true) {
+        const query = { slug };
+        if (excludeId) query._id = { $ne: excludeId };
+        const exists = await EventModel.exists(query);
+        if (!exists) break;
+        slug = `${baseSlug}-${slugCount++}`;
+    }
+    return slug;
+}
+
 export default async function handler(req, res) {
     // 1. Initial configuration
     if (setupCors(req, res)) return;
@@ -190,7 +205,7 @@ export default async function handler(req, res) {
             if (!eventId) {
                 const pathParts = urlPath.split('/');
                 const lastPart = pathParts[pathParts.length - 1];
-                if (lastPart && lastPart !== 'events' && lastPart.length >= 20) {
+                if (lastPart && lastPart !== 'events' && lastPart !== '') {
                     eventId = lastPart;
                 }
             }
@@ -362,21 +377,37 @@ export default async function handler(req, res) {
                 return json(res, 200, order);
             }
 
-            // Generate unique SEO slug
-            let baseSlug = body.title ? body.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') : 'event';
+            // Generate unique SEO slug with retry-on-duplicate safety
+            let sanitized = body.title ? body.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') : '';
+            let baseSlug = sanitized || 'event';
             let slug = baseSlug;
             let slugCount = 1;
-            while (await Event.exists({ slug })) {
-                slug = `${baseSlug}-${slugCount++}`;
+
+            // Create Event with retry-on-duplicate-key handling
+            let newEvent;
+            let retries = 10;
+            while (retries > 0) {
+                try {
+                    newEvent = await Event.create({
+                        ...body,
+                        slug,
+                        organizerId: body.organizerId || user.id, // Use provided or default to creator
+                        status: body.status || 'draft'
+                    });
+                    break;
+                } catch (err) {
+                    if (err.code === 11000 && (err.message.includes('slug') || JSON.stringify(err.keyValue || {}).includes('slug'))) {
+                        slug = `${baseSlug}-${slugCount++}`;
+                        retries--;
+                    } else {
+                        throw err;
+                    }
+                }
             }
 
-            // Create Event
-            const newEvent = await Event.create({
-                ...body,
-                slug,
-                organizerId: body.organizerId || user.id, // Use provided or default to creator
-                status: body.status || 'draft'
-            });
+            if (!newEvent) {
+                return json(res, 500, { error: "Failed to generate unique slug after multiple attempts" });
+            }
 
             // Invalidate list caches
             await delCache(`events:public`);
@@ -402,6 +433,11 @@ export default async function handler(req, res) {
 
             if (!isOwner && !isGlobalAdmin) {
                 return json(res, 403, { error: "Permission denied" });
+            }
+
+            // Clean/sanitize slug if updated
+            if (body.slug) {
+                body.slug = await getUniqueSlug(body.slug, Event, eventId);
             }
 
             // Perform Update

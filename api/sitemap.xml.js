@@ -1,5 +1,5 @@
 /**
- * api/sitemap.js
+ * api/sitemap.xml.js
  * 
  * Purpose: Generates a dynamic XML sitemap for Google Search Console.
  * Fetches all active/published events from MongoDB and includes them in the crawl list.
@@ -8,14 +8,33 @@ import connectDB from './lib/mongodb.js';
 import * as models from './lib/models.js';
 import './lib/env.js';
 
+const escapeXml = (unsafe) => {
+    if (!unsafe) return '';
+    return unsafe.toString().replace(/[<>&'"]/g, (c) => {
+        switch (c) {
+            case '<': return '&lt;';
+            case '>': return '&gt;';
+            case '&': return '&amp;';
+            case '\'': return '&apos;';
+            case '"': return '&quot;';
+            default: return c;
+        }
+    });
+};
+
 export default async function handler(req, res) {
+    if (req.method !== 'GET') {
+        res.setHeader('Allow', 'GET');
+        return res.status(405).send('Method Not Allowed');
+    }
+
     try {
         await connectDB();
         const Event = models.Event;
 
         // Fetch all public, published events
         const events = await Event.find({ 
-            status: { $in: ["active", "published", "Active", "Published"] },
+            status: { $in: ["published"] },
             isPublic: true 
         }).select('_id slug updatedAt').lean();
 
@@ -26,7 +45,7 @@ export default async function handler(req, res) {
         let xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>${baseUrl}/</loc>
+    <loc>${escapeXml(baseUrl)}/</loc>
     <priority>1.0</priority>
     <changefreq>daily</changefreq>
   </url>`;
@@ -37,8 +56,8 @@ export default async function handler(req, res) {
             const eventUrl = event.slug ? `${baseUrl}/event/${event.slug}` : `${baseUrl}/event/${event._id}`;
             xml += `
   <url>
-    <loc>${eventUrl}</loc>
-    <lastmod>${lastMod}</lastmod>
+    <loc>${escapeXml(eventUrl)}</loc>
+    <lastmod>${escapeXml(lastMod)}</lastmod>
     <priority>0.8</priority>
     <changefreq>weekly</changefreq>
   </url>`;
