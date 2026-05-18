@@ -1,23 +1,38 @@
-# 🏢 Backstage (Park Conscious)
+# 🏢 Backstage & Park Conscious Monorepo
 
-Welcome to **Backstage** (Park Conscious), a high-performance event management, smart ticketing, and parking platform designed for modern cities and creators. 
+Welcome to the central developer guide. This repository is built as a **Turborepo-powered Monorepo**, containing two distinct projects with separate business scopes:
 
-This repository is built as a **Turborepo-powered Monorepo**, bringing together multiple frontends (React Apps, static landing pages) and centralized serverless backend services (Node.js API, secure transaction gateway).
+1. **Backstage (Main Event Suite):** A high-performance smart ticketing and event hosting platform for creators and small/medium venues.
+2. **Park Conscious (Parking Portal):** An independent smart-city static site and parking lot allocation system.
 
-This guide is designed to help new engineers quickly understand the technical architecture, set up the development environment, and ship clean, highly optimized code.
+---
+
+## 🚨 Domain & Scope Distinction (CRITICAL)
+
+To prevent confusion when onboarding, it is important to understand that the repository houses two separate domains:
+
+### 🎟️ 1. Backstage Suite (The Core Ticketing Product)
+This is the main product domain. All active development for event ticketing, dynamic checkouts, and organizer self-service onboarding happens here:
+*   **Customer Event Portal (`apps/events`):** The primary client-facing Vite/React web application.
+*   **Organizer Admin Panel (`apps/admin`):** The administrator and organizer dashboard for tracking sales, checking in guests, and building event threads.
+*   **Backend Serverless Handlers:** `api/events.js`, `api/pay.js` (Razorpay gateway integration), and `api/lib/email.js` (ticket pass dispatchers).
+
+### 🅿️ 2. Park Conscious (Independent Parking Project)
+This is a separate smart parking product that operates independently of the Backstage ticketing ecosystem:
+*   **Static Website (`web/`):** The landing page and owner-specific login dashboards (`web/owner/`).
+*   **AI Parking Engine:** Python allocation services (`api/engine/allocator`) and legacy Express routes (`services/`).
+*   *Note: This project is outside the domain and scope of the Backstage events system.*
 
 ---
 
 ## 🗺️ System Architecture
 
-Backstage is architected around a unified **Serverless catch-all backend** and a decoupled **Vite/React frontend portal** utilizing cross-subdomain authentication.
-
 ```mermaid
 graph TD
     subgraph Client Layer [Frontend Applications]
-        A["Events Portal (apps/events)"] -- "Port 3000 / events.parkconscious.in" --> E
-        B["Admin Panel (apps/admin)"] -- "Port 5173 / admin.events.parkconscious.in" --> E
-        C["Main Landing Page (web/)"] -- "Port 5500" --> E
+        A["🎟️ Backstage Event Portal (apps/events)"] -- "Port 3000 / events.parkconscious.in" --> E
+        B["🎟️ Backstage Admin Panel (apps/admin)"] -- "Port 5173 / admin.events.parkconscious.in" --> E
+        C["🅿️ Park Conscious Static Site (web/)"] -- "Port 5500" --> E
     end
 
     subgraph Router Layer
@@ -25,10 +40,10 @@ graph TD
     end
 
     subgraph API Layer [Backend Serverless Core]
-        F["api/events.js (Events, Slugs, Discussions)"]
-        G["api/auth.js (JWT, Google OAuth)"]
-        H["api/pay.js (Razorpay Payments & Webhooks)"]
-        I["api/admin.js (Global Metrics & Audits)"]
+        F["api/events.js (Backstage Core)"]
+        G["api/auth.js (Shared Auth)"]
+        H["api/pay.js (Razorpay Gateways)"]
+        I["api/admin.js (Administrative Audits)"]
     end
 
     subgraph Service & Storage Layer [Data & Third-Party Integration]
@@ -51,22 +66,20 @@ graph TD
 
 ## 📂 Monorepo Repository Structure
 
-The project is structured to enforce strong separation of concerns, rapid builds, and seamless local development:
-
 ```text
-├── apps/                        # Decoupled React Client Applications
-│   ├── events/                  # High-performance Customer Events Portal (Vite/React + SWR)
-│   └── admin/                   # Secure Internal Administrative Panel (Vite/React)
+├── apps/                        # Decoupled Frontend Applications
+│   ├── events/                  # [Backstage] Customer Event Portal (Vite/React + SWR)
+│   └── admin/                   # [Backstage] Organizer Administrative Panel (Vite/React)
 ├── packages/                    # Shareable Workspace Modules
 │   └── database/                # Shared DB models, MongoDB connections, and email modules
-├── web/                         # Main landing page & owner-specific portals (Vanilla HTML/JS)
+├── web/                         # [Park Conscious] Main static website & owner portal dashboards
 ├── api/                         # Backend Serverless API Handlers (Production Vercel Functions)
-│   ├── auth.js                  # Authentication, JWT encryption, & OAuth validations
-│   ├── events.js                # Core events API, unique SEO slug generator, & thread discussion boards
-│   ├── pay.js                   # Razorpay API transaction hooks & callback webhooks
+│   ├── auth.js                  # Shared JWT encryption & OAuth validations
+│   ├── events.js                # [Backstage] Core events API, unique SEO slugs, & discussions
+│   ├── pay.js                   # [Backstage] Razorpay checkouts & callback webhooks
 │   └── admin.js                 # Global management endpoints
 ├── services/                    # Background processes and core engines
-│   └── core/                    # Processing modules (QR ticket scanning & plate reading)
+│   └── core/                    # [Park Conscious] OCR plate reading & parking slot allocation
 ├── local-server.js              # High-fidelity Local Dev Server Proxy (Simulates Vercel environments)
 ├── package.json                 # Global dependencies & workspaces configuration
 └── vercel.json                  # Production Routing rules, subdomains, & rewriting map
@@ -114,28 +127,28 @@ REACT_APP_API_BASE_URL="http://localhost:3001"
 
 ---
 
-### 🏃 Running Backstage Locally
+### 🏃 Running Backstage & Park Conscious Locally
 
 To make local development as simple as possible, npm workspace scripts are mapped at the root directory:
 
 #### 1. Start the Local Backend API Proxy Server
-Backstage uses a specialized high-fidelity router (`local-server.js`) that mimics the Vercel production hosting environment, bypassing CORS constraints and supporting hot-reloading:
+Backstage uses a specialized local proxy (`local-server.js`) that mimics the Vercel production hosting environment, bypassing CORS constraints and supporting hot-reloading:
 ```bash
 npm run dev:backend
 ```
 *This spins up the backend API on **`http://localhost:3001`**.*
 
 #### 2. Start the Frontend Applications
-In a new terminal window, boot all React frontends concurrently (Admin & Events Portal):
+In a new terminal window, boot all frontend clients concurrently:
 ```bash
 npm run dev
 ```
-* **Events Customer Portal**: Accessible at [http://localhost:3000](http://localhost:3000)
-* **Admin Dashboard**: Accessible at [http://localhost:5173](http://localhost:5173)
+* **Backstage Events Customer Portal**: Accessible at [http://localhost:3000](http://localhost:3000)
+* **Backstage Admin Dashboard**: Accessible at [http://localhost:5173](http://localhost:5173)
 
 ---
 
-## 🛠️ Code Standards & Rules (Must Read for New Grads)
+## 🛠️ Code Standards & Rules
 
 To maintain database security, robust routing, and clean styling, follow these strict coding practices:
 
@@ -164,4 +177,4 @@ Production hosting is managed on **Vercel**.
 > * **Events Portal**: `apps/events`
 > * **Admin Panel**: `apps/admin`
 
-Happy Coding! If you have questions about payment gateway webhooks or database transactions, please consult the core architects before pushing to staging. 🚀
+Happy Coding! If you have questions about payment gateway webhooks or database transactions, please consult the core developers before pushing to staging. 🚀
