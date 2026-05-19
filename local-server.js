@@ -12,6 +12,7 @@ import authHandler from './api/auth.js';
 import adminHandler from './api/admin.js';
 import contactHandler from './api/contact.js';
 import sitemapHandler from './api/sitemap.xml.js';
+import robotsHandler from './api/robots.js';
 
 // BullMQ & Monitoring
 import { createBullBoard } from '@bull-board/api';
@@ -94,6 +95,7 @@ app.use((req, res, next) => {
     if (req.path.startsWith('/api/auth')) return vercelWrapper(authHandler)(req, res);
     if (req.path.startsWith('/api/admin')) return vercelWrapper(adminHandler)(req, res);
     if (req.path === '/api/sitemap.xml' || req.path === '/api/sitemap.xml/') return vercelWrapper(sitemapHandler)(req, res);
+    if (req.path === '/api/robots.txt' || req.path === '/api/robots.js') return vercelWrapper(robotsHandler)(req, res);
     next();
 });
 

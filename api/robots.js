@@ -16,12 +16,14 @@ Disallow: /AdminPanel/
     if (isEvents) {
         // Event Subdomain Rules
         robots += `Allow: /api/sitemap.js
+Allow: /api/sitemap.xml
 Sitemap: https://${host}/sitemap.xml
 `;
     } else {
         // Main Domain Rules
         robots += `Disallow: /api/
 Allow: /api/sitemap.js
+Allow: /api/sitemap.xml
 Sitemap: https://${host}/sitemap.xml
 `;
     }
