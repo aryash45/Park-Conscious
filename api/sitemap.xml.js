@@ -23,8 +23,8 @@ const escapeXml = (unsafe) => {
 };
 
 export default async function handler(req, res) {
-    if (req.method !== 'GET') {
-        res.setHeader('Allow', 'GET');
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+        res.setHeader('Allow', 'GET, HEAD');
         return res.status(405).send('Method Not Allowed');
     }
 
@@ -32,14 +32,25 @@ export default async function handler(req, res) {
         await connectDB();
         const Event = models.Event;
 
-        // Fetch all public, published events
+        // Fetch all public, published events (including legacy/fallback active statuses)
         const events = await Event.find({ 
-            status: { $in: ["published"] },
+            status: { $in: ["published", "active", "Published", "Active"] },
             isPublic: true 
         }).select('_id slug updatedAt').lean();
 
-        const rawBaseUrl = process.env.CANONICAL_ORIGIN || process.env.NEXT_PUBLIC_CANONICAL_ORIGIN || 'https://events.parkconscious.in';
+        // Resolve base URL dynamically to support custom domains, local development, and Vercel preview environments
+        const requestHost = req.headers['x-public-host'] || req.headers['x-forwarded-host'] || req.headers.host;
+        const protocol = req.headers['x-forwarded-proto'] || 'https';
+        const rawBaseUrl = requestHost ? `${protocol}://${requestHost}` : (process.env.CANONICAL_ORIGIN || process.env.NEXT_PUBLIC_CANONICAL_ORIGIN || 'https://events.parkconscious.in');
         const baseUrl = rawBaseUrl.replace(/\/+$/, '');
+
+        // Set response headers early so HEAD requests get the correct metadata
+        res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+        res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate'); // Cache for 1 hour
+
+        if (req.method === 'HEAD') {
+            return res.status(200).end();
+        }
 
         let xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -64,8 +75,6 @@ export default async function handler(req, res) {
 
         xml += `\n</urlset>`;
 
-        res.setHeader('Content-Type', 'text/xml');
-        res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate'); // Cache for 1 hour
         return res.status(200).send(xml);
     } catch (err) {
         console.error('[SITEMAP_ERROR]:', err);
