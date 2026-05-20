@@ -11,7 +11,7 @@ import payHandler from './api/pay.js';
 import authHandler from './api/auth.js';
 import adminHandler from './api/admin.js';
 import contactHandler from './api/contact.js';
-import sitemapHandler from './api/sitemap.xml.js';
+import sitemapHandler from './api/sitemap.js';
 import robotsHandler from './api/robots.js';
 
 // BullMQ & Monitoring

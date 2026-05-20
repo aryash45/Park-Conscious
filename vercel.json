@@ -38,14 +38,14 @@
     { "source": "/api/booking/status/:path*", "destination": "/api/pay.js" },
     { "source": "/api/bookings/:path*", "destination": "/api/pay.js" },
     { "source": "/api/engine/allocator", "destination": "/api/engine/allocator.py" },
-    { "source": "/api/sitemap.xml", "destination": "/api/sitemap.xml.js" },
+    { "source": "/api/sitemap.xml", "destination": "/api/sitemap.js" },
     { "source": "/api/robots.js", "destination": "/api/robots.js" },
     { "source": "/api/render-event.js", "destination": "/api/render-event.js" },
     { "source": "/api/:path*", "destination": "/api/events.js" },
     {
       "source": "/sitemap.xml",
       "has": [{ "type": "host", "value": "(events\\.parkconscious\\.in|.*\\.vercel\\.app)" }],
-      "destination": "/api/sitemap.xml.js"
+      "destination": "/api/sitemap.js"
     },
     {
       "source": "/robots.txt",
