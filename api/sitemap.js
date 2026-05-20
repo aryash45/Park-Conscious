@@ -8,25 +8,54 @@ import connectDB from './lib/mongodb.js';
 import * as models from './lib/models.js';
 import './lib/env.js';
 
+const escapeXml = (unsafe) => {
+    if (!unsafe) return '';
+    return unsafe.toString().replace(/[<>&'"]/g, (c) => {
+        switch (c) {
+            case '<': return '&lt;';
+            case '>': return '&gt;';
+            case '&': return '&amp;';
+            case '\'': return '&apos;';
+            case '"': return '&quot;';
+            default: return c;
+        }
+    });
+};
+
 export default async function handler(req, res) {
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+        res.setHeader('Allow', 'GET, HEAD');
+        return res.status(405).send('Method Not Allowed');
+    }
+
     try {
         await connectDB();
         const Event = models.Event;
 
-        // Fetch all public, published events
+        // Fetch all public, published events (including legacy/fallback active statuses)
         const events = await Event.find({ 
-            status: { $in: ["active", "published", "Active", "Published"] },
+            status: { $in: ["published", "active", "Published", "Active"] },
             isPublic: true 
-        }).select('_id updatedAt').lean();
+        }).select('_id slug updatedAt').lean();
 
-        const host = req.headers['x-public-host'] || req.headers['x-forwarded-host'] || req.headers.host || 'events.parkconscious.in';
+        // Resolve base URL dynamically to support custom domains, local development, and Vercel preview environments
+        const requestHost = req.headers['x-public-host'] || req.headers['x-forwarded-host'] || req.headers.host;
         const protocol = req.headers['x-forwarded-proto'] || 'https';
-        const baseUrl = `${protocol}://${host}`;
+        const rawBaseUrl = requestHost ? `${protocol}://${requestHost}` : (process.env.CANONICAL_ORIGIN || process.env.NEXT_PUBLIC_CANONICAL_ORIGIN || 'https://events.parkconscious.in');
+        const baseUrl = rawBaseUrl.replace(/\/+$/, '');
+
+        // Set response headers early so HEAD requests get the correct metadata
+        res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+        res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate'); // Cache for 1 hour
+
+        if (req.method === 'HEAD') {
+            return res.status(200).end();
+        }
 
         let xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>${baseUrl}/</loc>
+    <loc>${escapeXml(baseUrl)}/</loc>
     <priority>1.0</priority>
     <changefreq>daily</changefreq>
   </url>`;
@@ -34,10 +63,11 @@ export default async function handler(req, res) {
         // Add each event to the sitemap
         events.forEach(event => {
             const lastMod = event.updatedAt ? new Date(event.updatedAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+            const eventUrl = event.slug ? `${baseUrl}/event/${event.slug}` : `${baseUrl}/event/${event._id}`;
             xml += `
   <url>
-    <loc>${baseUrl}/event/${event._id}</loc>
-    <lastmod>${lastMod}</lastmod>
+    <loc>${escapeXml(eventUrl)}</loc>
+    <lastmod>${escapeXml(lastMod)}</lastmod>
     <priority>0.8</priority>
     <changefreq>weekly</changefreq>
   </url>`;
@@ -45,8 +75,6 @@ export default async function handler(req, res) {
 
         xml += `\n</urlset>`;
 
-        res.setHeader('Content-Type', 'text/xml');
-        res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate'); // Cache for 1 hour
         return res.status(200).send(xml);
     } catch (err) {
         console.error('[SITEMAP_ERROR]:', err);
