@@ -6,6 +6,7 @@
  * to ensure perfect social media previews (WhatsApp, Slack, etc.) 
  * while maintaining the full React SPA experience for users.
  */
+import mongoose from 'mongoose';
 import connectDB from './lib/mongodb.js';
 import * as models from './lib/models.js';
 import { normalizeEvent } from './lib/utils.js';
@@ -15,13 +16,18 @@ const { Event } = models;
 export default async function handler(req, res) {
     const { id } = req.query;
 
-    if (!id || id.length < 24) {
+    if (!id) {
         return res.redirect('/');
     }
 
     try {
         await connectDB();
-        const eventData = await Event.findById(id).lean();
+        
+        // Fetch event by slug first, fallback to ObjectId if valid
+        let eventData = await Event.findOne({ slug: id }).lean();
+        if (!eventData && mongoose.Types.ObjectId.isValid(id)) {
+            eventData = await Event.findById(id).lean();
+        }
 
         if (!eventData) {
             return res.redirect('/');
@@ -42,7 +48,6 @@ export default async function handler(req, res) {
             absoluteImageUrl = `https://events.parkconscious.in${imageUrl}`;
         }
         
-        // Optimize Cloudinary image for Social Media
         // Optimize Cloudinary image for Social Media (1200x630 is the gold standard)
         if (absoluteImageUrl.includes('res.cloudinary.com')) {
             absoluteImageUrl = absoluteImageUrl.replace(/\/v\d+\//, '/').replace('/upload/', '/upload/q_auto,f_auto,w_1200,h_630,c_pad,b_black/');
@@ -50,7 +55,8 @@ export default async function handler(req, res) {
 
         const host = req.headers['x-public-host'] || req.headers['x-forwarded-host'] || req.headers.host || 'events.parkconscious.in';
         const protocol = host.includes('localhost') ? 'http' : 'https';
-        const canonicalUrl = `${protocol}://${host}/event/${id}`;
+        const eventSlug = event.slug || id;
+        const canonicalUrl = `${protocol}://${host}/event/${eventSlug}`;
 
         // Fetch the actual index.html from the build
         let html = '';
