@@ -13,6 +13,7 @@ import adminHandler from './api/admin.js';
 import contactHandler from './api/contact.js';
 import sitemapHandler from './api/sitemap.js';
 import robotsHandler from './api/robots.js';
+import renderEventHandler from './api/render-event.js';
 
 // BullMQ & Monitoring
 import { createBullBoard } from '@bull-board/api';
@@ -97,6 +98,11 @@ app.use((req, res, next) => {
     if (req.path === '/api/sitemap.xml' || req.path === '/api/sitemap.xml/') return vercelWrapper(sitemapHandler)(req, res);
     if (req.path === '/api/robots.txt' || req.path === '/api/robots.js') return vercelWrapper(robotsHandler)(req, res);
     next();
+});
+
+app.get('/event/:id', (req, res, next) => {
+    req.query.id = req.params.id;
+    return vercelWrapper(renderEventHandler)(req, res);
 });
 
 const PORT = 3001;
