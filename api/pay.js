@@ -436,7 +436,7 @@ export default async function handler(req, res) {
             if (!booking) return json(res, 404, { message: 'Booking not found' });
 
             if (booking.status === 'Initiated' && booking.inventoryReserved && booking.reservationExpiresAt && new Date(booking.reservationExpiresAt).getTime() <= Date.now()) {
-                await releaseReservationByBooking(booking);
+                await releaseReservationByBooking(booking, 'Expired');
                 await invalidateEventCache(booking.eventId);
                 return json(res, 410, { message: 'Booking reservation expired' });
             }

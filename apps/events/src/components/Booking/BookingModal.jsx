@@ -141,14 +141,10 @@ const BookingModal = ({ isOpen, setIsOpen, event, themeConfig }) => {
 
         const res = await loadScript("https://checkout.razorpay.com/v1/checkout.js");
         if (!res) {
-            // Release the reservation so inventory is not held when the SDK cannot load.
+            // Reuse the existing helper — it holds the double-cancellation guard
+            // (checkoutSettled / cancellationSent flags) and owns the payload shape.
             try {
-                await backendAxios.post("/api/payment-cancel", {
-                    orderId,
-                    email: formData.email,
-                    phone: formData.phone,
-                    userId: user ? (user.uid || user.id) : (formData.name || "Guest")
-                });
+                await releaseReservation();
             } catch (cancelErr) {
                 reportSystemError("Reservation Release Failed After SDK Load Failure", "api_failure", { cancelErr: cancelErr.message, eventId: event.id });
             }

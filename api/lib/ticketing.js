@@ -201,8 +201,14 @@ const restoreReleasedInventory = async (booking, finalStatus = 'Expired', extraQ
 
   if (!claimedBooking) return false;
 
-  // Release inventory units first — if this fails the booking stays retryable.
-  await releaseInventoryUnits(claimedBooking.eventId, claimedBooking.tierName, { allowLegacyFallback: true });
+  // Release inventory units first; only finalize if the release succeeded.
+  const released = await releaseInventoryUnits(claimedBooking.eventId, claimedBooking.tierName, { allowLegacyFallback: true });
+
+  if (!released) {
+    // releaseInventoryUnits returned false (e.g. event not found, no capacity to restore).
+    // Leave the booking in its current state so callers can retry.
+    return false;
+  }
 
   // Only now mark the booking as fully released.
   await finalizeInventoryRelease(claimedBooking._id, finalStatus);
@@ -319,10 +325,19 @@ export const releaseReservationByBooking = async (booking, finalStatus = 'Expire
 export const restoreInventoryForConfirmedBooking = async (booking) => {
   if (!booking?._id || !booking?.eventId) return false;
 
-  const claimedBooking = await markConfirmedBookingReleased(booking._id);
-  if (!claimedBooking) return false;
+  // Step 1: Attempt to return the inventory unit first.
+  // If this fails the booking record is NOT yet modified, keeping it retryable.
+  const released = await releaseInventoryUnits(booking.eventId, booking.tierName, { allowLegacyFallback: true });
+  if (!released) return false;
 
-  await releaseInventoryUnits(claimedBooking.eventId, claimedBooking.tierName, { allowLegacyFallback: true });
+  // Step 2: Inventory restored — now mark the booking record as released.
+  const claimedBooking = await markConfirmedBookingReleased(booking._id);
+  if (!claimedBooking) {
+    // markConfirmedBookingReleased matched nothing (already released or wrong status).
+    // Inventory was already decremented above; treat as complete to avoid double-release.
+    return true;
+  }
+
   return true;
 };
 

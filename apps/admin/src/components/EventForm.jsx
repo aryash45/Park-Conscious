@@ -301,7 +301,7 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
         requiredFields: formData.requiredFields,
         mediaGallery: formData.mediaGallery || [],
         hosts: formData.hosts || [],
-        ticketTiers: formData.ticketTiers || [],
+        ticketTiers: (formData.ticketTiers || []).map(({ soldCount: _sc, ...tier }) => tier),
         startupFormEnabled: formData.startupFormEnabled || false,
         themeConfig: formData.themeConfig,
         isPublic: formData.isPublic,
