@@ -141,6 +141,17 @@ const BookingModal = ({ isOpen, setIsOpen, event, themeConfig }) => {
 
         const res = await loadScript("https://checkout.razorpay.com/v1/checkout.js");
         if (!res) {
+            // Release the reservation so inventory is not held when the SDK cannot load.
+            try {
+                await backendAxios.post("/api/payment-cancel", {
+                    orderId,
+                    email: formData.email,
+                    phone: formData.phone,
+                    userId: user ? (user.uid || user.id) : (formData.name || "Guest")
+                });
+            } catch (cancelErr) {
+                reportSystemError("Reservation Release Failed After SDK Load Failure", "api_failure", { cancelErr: cancelErr.message, eventId: event.id });
+            }
             setError("Payment SDK failed to load. Please check connection.");
             reportSystemError("Razorpay SDK Load Failed", "sdk_failure", { eventId: event.id });
             setLoading(false);
@@ -193,31 +204,45 @@ const BookingModal = ({ isOpen, setIsOpen, event, themeConfig }) => {
             setError("Payment failed! Please try again.");
             setLoading(false);
         });
+        paymentObject.on('payment.success', function () {
+            // Success is handled inside the handler callback above;
+            // this listener exists to catch any SDK-level success events.
+            checkoutSettled = true;
+        });
         paymentObject.open();
+        // Do NOT call setLoading(false) here — the modal must stay locked
+        // until the payment flow resolves via handler / dismiss / failed callbacks.
 
       } else if (response.data?.success && response.data?.redirectUrl) {
         window.location.href = response.data.redirectUrl;
       } else if (response.data?.success && response.data?.amount === 0) {
           // Handle free events
           alert("Registration Successful!");
+          setLoading(false);
           closeModal();
       } else {
         setError("Failed to initiate booking. Please try again.");
         reportSystemError("Booking Initiation Failed", "api_failure", { response: response.data, eventId: event.id });
+        setLoading(false);
       }
     } catch (err) {
       console.error(err);
       setError(err.response?.data?.message || "Server connection error.");
       reportSystemError("Booking Process Exception", "frontend_crash", { error: err.message, eventId: event.id });
-    } finally {
       setLoading(false);
     }
+    // NOTE: No finally{setLoading(false)} here — loading is cleared per-outcome above
+    // to prevent the form unlocking while the Razorpay modal is still active.
   };
 
   if (!event) return null;
 
   const reqFields = event.requiredFields || { name: true, email: true, phone: true };
   const displayPricing = serverPricing || event.selectedTier?.pricing || event.pricing || null;
+  // Single source-of-truth for CTA price — always reflects server-confirmed pricing.
+  const ctaPrice = displayPricing
+    ? (displayPricing.finalPrice ?? displayPricing.effectivePrice ?? 0)
+    : 0;
 
   const activeTheme = themeConfig || event?.themeConfig || {};
   const primaryColor = activeTheme.primaryColor || '#E33B76';
@@ -525,7 +550,7 @@ const BookingModal = ({ isOpen, setIsOpen, event, themeConfig }) => {
                       ) : (
                         <>
                           <CreditCard className="shrink-0" size={20} />
-                          <span className="flex-1 text-center">{(event.selectedTier?.price || event.displayPrice || 0) > 0 ? `Pay • ₹${event.selectedTier?.price || event.displayPrice}` : (event.startupFormEnabled && !registrationType) ? "Select Option Above" : "Confirm Ticket Booking"}</span>
+                          <span className="flex-1 text-center">{ctaPrice > 0 ? `Pay • ₹${ctaPrice}` : (event.startupFormEnabled && !registrationType) ? "Select Option Above" : "Confirm Ticket Booking"}</span>
                           <div className="w-5 shrink-0" />
                         </>
                       )}

@@ -152,9 +152,13 @@ export const releaseInventoryUnits = async (eventId, tierName = null, options = 
   return !!legacyUpdatedEvent;
 };
 
-const claimInventoryRelease = async (bookingId, finalStatus, extraQuery = {}) => {
+// Step 1: Acquire exclusive claim rights (does NOT yet clear inventory fields,
+// keeping the booking retryable if the subsequent releaseInventoryUnits call fails).
+const acquireInventoryReleaseClaim = async (bookingId, extraQuery = {}) => {
   if (!bookingId) return null;
 
+  // Use a sentinel field to mark that a release is in-flight while leaving
+  // inventoryReleasedAt null so callers can detect an incomplete release and retry.
   return models.Booking.findOneAndUpdate(
     {
       _id: bookingId,
@@ -162,6 +166,19 @@ const claimInventoryRelease = async (bookingId, finalStatus, extraQuery = {}) =>
       inventoryReleasedAt: null,
       ...extraQuery
     },
+    {
+      $set: { status: 'Initiated' } // keep Initiated so a retry re-enters this path
+    },
+    { new: false }
+  ).lean();
+};
+
+// Step 2: After releaseInventoryUnits succeeds, finalize the booking record.
+const finalizeInventoryRelease = async (bookingId, finalStatus) => {
+  if (!bookingId) return null;
+
+  return models.Booking.findOneAndUpdate(
+    { _id: bookingId, inventoryReleasedAt: null },
     {
       $set: {
         status: finalStatus,
@@ -176,14 +193,19 @@ const claimInventoryRelease = async (bookingId, finalStatus, extraQuery = {}) =>
 const restoreReleasedInventory = async (booking, finalStatus = 'Expired', extraQuery = {}) => {
   if (!booking?._id || !booking?.eventId) return false;
 
-  const claimedBooking = await claimInventoryRelease(booking._id, finalStatus, {
+  // Acquire the release lock; returns the pre-update doc or null if already claimed.
+  const claimedBooking = await acquireInventoryReleaseClaim(booking._id, {
     status: 'Initiated',
     ...extraQuery
   });
 
   if (!claimedBooking) return false;
 
+  // Release inventory units first — if this fails the booking stays retryable.
   await releaseInventoryUnits(claimedBooking.eventId, claimedBooking.tierName, { allowLegacyFallback: true });
+
+  // Only now mark the booking as fully released.
+  await finalizeInventoryRelease(claimedBooking._id, finalStatus);
   return true;
 };
 

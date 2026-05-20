@@ -50,20 +50,20 @@ const normalizeEmailValue = (value) => {
 const bookingOwnedByRequester = (booking, authUser, body) => {
     if (!booking) return false;
 
-    const bookingEmail = normalizeEmailValue(booking.email);
-    const authEmail = normalizeEmailValue(authUser?.email);
-    if (bookingEmail && authEmail && bookingEmail === authEmail) return true;
+    // Only trust server-verified session claims — never caller-supplied body fields.
+    if (authUser) {
+        const bookingEmail = normalizeEmailValue(booking.email);
+        const authEmail = normalizeEmailValue(authUser?.email);
+        if (bookingEmail && authEmail && bookingEmail === authEmail) return true;
 
-    const bookingUserId = normalizeIdentityValue(booking.userId);
-    const requestUserId = normalizeIdentityValue(body.userId);
-    if (bookingUserId && requestUserId && bookingUserId === requestUserId) return true;
+        const bookingUserId = normalizeIdentityValue(booking.userId);
+        const authId = normalizeIdentityValue(authUser?.id || authUser?.uid);
+        if (bookingUserId && authId && bookingUserId === authId) return true;
 
-    const bookingPhone = normalizeIdentityValue(booking.phone);
-    const requestPhone = normalizeIdentityValue(body.phone);
-    if (bookingPhone && requestPhone && bookingPhone === requestPhone) return true;
-
-    const requestEmail = normalizeEmailValue(body.email);
-    if (bookingEmail && requestEmail && bookingEmail === requestEmail) return true;
+        const bookingPhone = normalizeIdentityValue(booking.phone);
+        const authPhone = normalizeIdentityValue(authUser?.phone);
+        if (bookingPhone && authPhone && bookingPhone === authPhone) return true;
+    }
 
     return false;
 };
@@ -156,9 +156,11 @@ export default async function handler(req, res) {
                 pricingSnapshot = buildPricingSnapshot(reservation.pricing);
                 effectiveAmount = pricingSnapshot.finalPrice;
             } else {
-                // For non-managed events, effectiveAmount stays at 0 (free events)
-                // or should be explicitly provided by event config (prevents price spoofing)
-                effectiveAmount = 0;
+                // Reject non-managed (non-24-char) event IDs — do not default to free checkout.
+                // Slugged / legacy / parking IDs must go through a server-side price resolution path.
+                return json(res, 400, {
+                    message: 'Unsupported event format. Only managed event IDs are accepted for checkout.'
+                });
             }
             const KEY_ID = process.env.RAZORPAY_KEY_ID;
             const KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
@@ -269,9 +271,15 @@ export default async function handler(req, res) {
             }
 
             const authUser = verifyUser(req);
-            if (!bookingOwnedByRequester(booking, authUser, body)) {
-                return json(res, 403, { message: "You are not allowed to cancel this reservation" });
+            if (authUser) {
+                // Authenticated: ownership must be proven via verified session claims.
+                if (!bookingOwnedByRequester(booking, authUser, body)) {
+                    return json(res, 403, { message: "You are not allowed to cancel this reservation" });
+                }
             }
+            // Guest (no session): the transactionId is a server-generated, unguessable token
+            // (e.g. Razorpay order_XXXXXXXXXXXXXXXX) that was only ever returned to the
+            // booking creator. Possession is already proven by the findOne lookup above.
 
             if (booking.inventoryReserved) {
                 await releaseReservationByBooking(booking, 'Cancelled');
@@ -311,6 +319,18 @@ export default async function handler(req, res) {
 
                 if (booking.inventoryReleasedAt) {
                     return json(res, 409, { success: false, message: "This reservation expired before payment verification completed." });
+                }
+
+                // Guard: reject if the reservation window has already elapsed.
+                if (booking.reservationExpiresAt && new Date(booking.reservationExpiresAt).getTime() <= Date.now()) {
+                    // Release the inventory for this expired booking if still reserved.
+                    if (booking.inventoryReserved) {
+                        await releaseReservationByBooking(booking, 'Expired');
+                    } else {
+                        await Booking.findByIdAndUpdate(booking._id, { $set: { status: 'Expired' } });
+                    }
+                    await invalidateEventCache(booking.eventId);
+                    return json(res, 410, { success: false, message: "This reservation expired before payment verification completed." });
                 }
 
                 const totalAmount = parseFloat(booking.amount) || 0;

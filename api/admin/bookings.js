@@ -179,6 +179,17 @@ export async function handleBookings(url, method, body, user, req, res) {
                 const state = data?.data?.state;
 
                 if (data?.success && state === "COMPLETED") {
+                    // Guard: ensure the reservation window is still valid before confirming
+                    const now = Date.now();
+                    const reservationStillValid = b.inventoryReserved
+                        ? (b.reservationExpiresAt && new Date(b.reservationExpiresAt).getTime() > now && !b.inventoryReleasedAt)
+                        : (!b.reservationExpiresAt || new Date(b.reservationExpiresAt).getTime() > now);
+
+                    if (!reservationStillValid) {
+                        failureCount++;
+                        continue;
+                    }
+
                     let consumedLegacyInventory = false;
                     if (!b.inventoryReserved) {
                         const inventoryConsumed = await consumeInventoryForLegacyBooking(b);
@@ -190,7 +201,15 @@ export async function handleBookings(url, method, body, user, req, res) {
                     }
 
                     const updated = await Booking.findOneAndUpdate(
-                        { _id: b._id, status: "Initiated" },
+                        {
+                            _id: b._id,
+                            status: "Initiated",
+                            inventoryReleasedAt: null,
+                            $or: [
+                                { reservationExpiresAt: { $gt: new Date() } },
+                                { reservationExpiresAt: null }
+                            ]
+                        },
                         { $set: { status: "Confirmed", ticketId: "TK-" + crypto.randomUUID().slice(0, 8).toUpperCase() } },
                         { new: true }
                     );
@@ -201,7 +220,16 @@ export async function handleBookings(url, method, body, user, req, res) {
                         await releaseInventoryUnits(b.eventId, b.tierName, { allowLegacyFallback: true });
                     }
                 } else if (state === "FAILED" || state === "CANCELLED") {
-                    await releaseReservationByBooking(b, 'Failed');
+                    const finalStatus = state === "CANCELLED" ? "Cancelled" : "Failed";
+                    const released = await releaseReservationByBooking(b, finalStatus);
+                    // For legacy/rollout-era bookings where inventoryReserved is false,
+                    // releaseReservationByBooking makes no change; explicitly mark them.
+                    if (!released) {
+                        await Booking.findOneAndUpdate(
+                            { _id: b._id, status: "Initiated" },
+                            { $set: { status: finalStatus } }
+                        );
+                    }
                     failureCount++;
                 } else if (!data || !data.success) {
                     // Treat missing data or success:false as failure to avoid TypeErrors

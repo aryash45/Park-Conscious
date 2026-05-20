@@ -51,7 +51,6 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
     category: '',
     price: 0,
     capacity: 0,
-    soldCount: 0,
     escalationThreshold: 0,
     escalatedPrice: 0,
     escalationAlertLimit: 5,
@@ -128,7 +127,7 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
           accentColor: initialData.accentColor || 'indigo-500',
           price: initialData.price ?? initialData.regularPrice ?? 0,
           capacity: initialData.capacity ?? 0,
-          soldCount: initialData.soldCount ?? 0,
+          // soldCount intentionally excluded — server-owned; do not round-trip from client
           escalationThreshold: initialData.escalationThreshold ?? 0,
           escalatedPrice: initialData.escalatedPrice ?? 0,
           escalationAlertLimit: initialData.escalationAlertLimit ?? 5,
@@ -282,11 +281,12 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    // eslint-disable-next-line no-unused-vars
+    const { soldCount: _soldCount, ...restFormData } = formData; // strip server-owned counter
     const submissionData = {
-        ...formData,
+        ...restFormData,
         price: parseInt(formData.price) || 0,
         capacity: parseInt(formData.capacity) || 0,
-        soldCount: parseInt(formData.soldCount) || 0,
         escalationThreshold: parseInt(formData.escalationThreshold) || 0,
         escalatedPrice: parseInt(formData.escalatedPrice) || 0,
         escalationAlertLimit: parseInt(formData.escalationAlertLimit) || 0,
@@ -1140,7 +1140,7 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                 type="button"
                 onClick={() => setFormData(prev => ({
                   ...prev,
-                  ticketTiers: [...(prev.ticketTiers || []), { name: '', price: 0, capacity: 0, soldCount: 0, escalationThreshold: 0, escalatedPrice: 0, escalationAlertLimit: 5, requireApproval: false, description: '' }]
+                  ticketTiers: [...(prev.ticketTiers || []), { name: '', price: 0, capacity: 0, escalationThreshold: 0, escalatedPrice: 0, escalationAlertLimit: 5, requireApproval: false, description: '' }]
                 }))}
                 className="flex items-center gap-2 bg-[#6366f1] hover:bg-[#4f46e5] text-white px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-lg shadow-[#6366f1]/20 active:scale-[0.98]"
               >
@@ -1189,6 +1189,8 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                     <input
                       type="number"
                       name="escalationThreshold"
+                      min="0"
+                      step="1"
                       value={formData.escalationThreshold}
                       onChange={handleChange}
                       className="w-full bg-slate-900 border border-slate-800 rounded-3xl px-8 py-5 text-white text-lg focus:outline-none focus:border-[#6366f1]/50 transition-all font-mono"
@@ -1199,6 +1201,8 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                     <input
                       type="number"
                       name="escalatedPrice"
+                      min="0"
+                      step="1"
                       value={formData.escalatedPrice}
                       onChange={handleChange}
                       className="w-full bg-slate-900 border border-slate-800 rounded-3xl px-8 py-5 text-white text-lg focus:outline-none focus:border-[#6366f1]/50 transition-all font-mono"
@@ -1209,6 +1213,8 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                     <input
                       type="number"
                       name="escalationAlertLimit"
+                      min="0"
+                      step="1"
                       value={formData.escalationAlertLimit}
                       onChange={handleChange}
                       className="w-full bg-slate-900 border border-slate-800 rounded-3xl px-8 py-5 text-white text-lg focus:outline-none focus:border-[#6366f1]/50 transition-all font-mono"
@@ -1280,6 +1286,8 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                         <label className="block text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Escalation Threshold</label>
                         <input
                           type="number" value={tier.escalationThreshold || 0}
+                          min="0"
+                          step="1"
                           onChange={(e) => {
                             const newTiers = [...formData.ticketTiers];
                             newTiers[idx].escalationThreshold = parseInt(e.target.value) || 0;
@@ -1293,6 +1301,8 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                         <label className="block text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Escalated Price</label>
                         <input
                           type="number" value={tier.escalatedPrice || 0}
+                          min="0"
+                          step="1"
                           onChange={(e) => {
                             const newTiers = [...formData.ticketTiers];
                             newTiers[idx].escalatedPrice = parseInt(e.target.value) || 0;
@@ -1306,6 +1316,8 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                         <label className="block text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Urgency Alert Limit</label>
                         <input
                           type="number" value={tier.escalationAlertLimit ?? 5}
+                          min="0"
+                          step="1"
                           onChange={(e) => {
                             const newTiers = [...formData.ticketTiers];
                             newTiers[idx].escalationAlertLimit = parseInt(e.target.value) || 0;
