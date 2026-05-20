@@ -23,7 +23,9 @@ import PosterSlider from "../components/PosterSlider/PosterSlider.Component";
 import SearchBar from "../components/SearchBar/SearchBar";
 
 const FeaturedEventsSection = lazy(() => import("../components/FeaturedEvents/FeaturedEventsSection"));
+const LandscapeBanner = lazy(() => import("../components/FeaturedEvents/LandscapeBanner"));
 const DiscussionBoard = lazy(() => import("../components/Discussion/DiscussionBoard"));
+const BrandSpotlight = lazy(() => import("../components/FeaturedEvents/BrandSpotlight"));
 
 const HomePage = () => {
     const navigate = useNavigate();
@@ -38,6 +40,11 @@ const HomePage = () => {
     });
     
     const { data: featuredData } = useSWR('/api/events?featured=true', fetcher, {
+        revalidateOnFocus: false,
+        dedupingInterval: 60000
+    });
+
+    const { data: spotlightData } = useSWR('/api/spotlight', fetcher, {
         revalidateOnFocus: false,
         dedupingInterval: 60000
     });
@@ -112,126 +119,71 @@ const HomePage = () => {
           <meta name="description" content="Discover premium events across Delhi NCR with pre-booked parking included. Authentic experiences powered by Backstage." />
         </Helmet>
 
-        {/* Dynamic Editorial Hero */}
-        <div className="w-full relative py-32 md:py-48 flex flex-col items-center overflow-hidden isolation-isolate">
-           <svg 
-             className="absolute top-0 left-0 w-full h-full pointer-events-none z-0 opacity-50 animate-pulse" 
-             style={{ animationDuration: '10s' }}
-             viewBox="0 0 1440 600" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"
-           >
-             <path 
-               d="M-50,600 C 150,600 350,550 400,400 C 450,200 200,150 150,350 C 100,550 400,650 700,500 C 1000,350 1300,150 1540,200" 
-               stroke="#6366f1" strokeWidth="6" strokeLinecap="round" 
-               style={{ filter: 'drop-shadow(0 0 20px rgba(99,102,241,0.5))' }}
-             />
-           </svg>
-
-           <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-indigo-600/10 blur-[120px] rounded-full animate-mesh pointer-events-none z-0"></div>
-           <div className="absolute bottom-[0%] right-[-5%] w-[40%] h-[60%] bg-blue-600/5 blur-[120px] rounded-full animate-mesh pointer-events-none z-0" style={{ animationDelay: '-5s' }}></div>
-           
-           <div className="container mx-auto px-6 text-center relative z-10">
-              <div className="flex flex-col items-center">
-                 <h1 className="text-7xl sm:text-8xl md:text-[10rem] lg:text-[14rem] font-black uppercase tracking-tighter leading-[0.85] md:leading-[0.75] m-0 p-0 text-transparent bg-clip-text bg-gradient-to-b from-white to-white/10 select-none animate-reveal pr-2 md:pr-4" style={{ animationDelay: '0.1s' }}>
-                    DON'T MISS
-                 </h1>
-                 <h1 className="text-7xl sm:text-8xl md:text-[10rem] lg:text-[14rem] font-black uppercase tracking-tighter leading-[0.85] md:leading-[0.75] m-0 p-0 text-transparent bg-clip-text bg-gradient-to-b from-indigo-400 to-indigo-800/20 select-none pb-4 animate-reveal -mt-1 sm:-mt-2 md:-mt-4 pr-2 md:pr-4" style={{ animationDelay: '0.3s' }}>
-                    THE VIBE.
-                 </h1>
-              </div>
-
-              <div className="mt-8 md:mt-12 max-w-xl mx-auto space-y-12 animate-reveal" style={{ animationDelay: '0.6s' }}>
-                 <p className="text-slate-400 text-sm md:text-lg font-medium leading-relaxed uppercase tracking-[0.4em]">
-                    Curated experiences across Delhi NCR. Pre-booked parking included.
-                 </p>
-                 <SearchBar 
-                    onSearch={(query) => {
-                       setSearchQuery(query);
-                       document.getElementById('event-grid').scrollIntoView({ behavior: 'smooth' });
-                    }} 
-                 />
-              </div>
-           </div>
+        {/* Tagline Header */}
+        <div className="container mx-auto px-6 pt-10 md:pt-12 pb-3 relative z-20">
+          <p className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.35em] text-indigo-400 mb-1.5">
+            Curated Experiences
+          </p>
+          <h1 className="text-xl md:text-3xl font-black text-white tracking-tight uppercase leading-tight max-w-2xl">
+            Discover what’s <br className="block md:hidden" /> happening next.
+          </h1>
         </div>
-  
-        {/* Premium White Glass Ticker */}
-        <div className="w-full relative z-20 -mt-8 md:-mt-12">
-           <div className="max-w-[1700px] mx-auto px-6">
-              <div className="w-full h-14 md:h-16 bg-white/10 backdrop-blur-2xl border border-white/20 rounded-2xl flex items-center justify-center overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.3)]">
-                <div 
-                  key={currentAd}
-                  className="flex items-center gap-6 md:gap-12 px-8 h-full animate-in fade-in slide-in-from-bottom-3 duration-1000"
-                >
-                    <div className="w-2 h-2 bg-indigo-500 rounded-full shrink-0 animate-pulse shadow-[0_0_15px_rgba(99,102,241,0.5)]"></div>
-                    <p className="text-white font-black text-[10px] md:text-[11px] uppercase tracking-[0.4em] text-center drop-shadow-md">
-                      {adCopies[currentAd]}
-                    </p>
-                    <div className="w-2 h-2 bg-indigo-500 rounded-full shrink-0 animate-pulse shadow-[0_0_15px_rgba(99,102,241,0.5)]"></div>
-                </div>
-              </div>
-           </div>
+
+        {/* Widescreen Cinematic Landscape Banner for Handpicked Events */}
+        <div className="container mx-auto px-6 pt-4 relative z-20">
+          <Suspense fallback={<div className="h-[28rem] md:h-[32rem] w-full bg-slate-900/30 rounded-[2.5rem] animate-pulse"></div>}>
+            <LandscapeBanner featuredEvents={featuredEvents} isLoading={isInitialLoading} />
+          </Suspense>
         </div>
 
         {/* Missing Config Notification */}
         {missingConfig && (
-          <div className="container mx-auto px-6 mt-16 relative z-30">
-             <div className="bg-amber-500/10 border border-amber-500/30 rounded-3xl p-8 md:p-12 text-center max-w-2xl mx-auto backdrop-blur-md">
-                <div className="w-16 h-16 bg-amber-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                   <Zap size={32} className="text-amber-500" />
+          <div className="container mx-auto px-6 mt-12 relative z-30">
+             <div className="bg-amber-500/10 border border-amber-500/30 rounded-3xl p-8 text-center max-w-2xl mx-auto backdrop-blur-md">
+                <div className="w-12 h-12 bg-amber-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                   <Zap size={24} className="text-amber-500" />
                 </div>
-                <h3 className="text-2xl font-black text-amber-500 uppercase tracking-tight mb-4">Connection Required</h3>
-                <p className="text-slate-300 text-sm md:text-base leading-relaxed">
+                <h3 className="text-xl font-black text-amber-500 uppercase tracking-tight mb-2">Connection Required</h3>
+                <p className="text-slate-300 text-xs md:text-sm">
                    The frontend is live, but your database is not connected. Add your MONGODB_URI to the .env file.
                 </p>
              </div>
           </div>
         )}
   
-        {/* Category Navigation */}
-        <div className="container mx-auto px-6 mt-32 mb-16 relative z-10 overflow-x-auto no-scrollbar">
-          <div className="flex items-center justify-start md:justify-center gap-8 md:gap-12 min-w-max pb-4">
-            {categories.map((cat) => (
-              <button 
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`relative py-4 text-[11px] font-black uppercase tracking-[0.3em] transition-all duration-300 ${
-                  selectedCategory === cat ? "text-white" : "text-slate-500 hover:text-slate-400"
-                }`}
-              >
-                {cat}
-                {selectedCategory === cat && (
-                   <span className="absolute bottom-0 left-0 w-full h-[2px] bg-white rounded-full animate-in fade-in slide-in-from-left-2 duration-300"></span>
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
-  
-        {/* Handpicked Experiences Section */}
-        <div className="container mx-auto px-6 md:px-12 mb-16 relative z-10">
-           <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-20">
-              <div className="space-y-6">
-                 <div className="flex items-center gap-3">
-                    <p className="text-[9px] font-black text-indigo-500 uppercase tracking-[0.4em]">{sectionContent.handpicked.label}</p>
-                 </div>
-                 <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tighter leading-none">
-                    {sectionContent.handpicked.title.split('\n').map((line, i) => (
-                      <React.Fragment key={i}>{line}{i === 0 && <br />}</React.Fragment>
-                    ))}
-                 </h2>
-              </div>
-              <div className="max-w-xs space-y-4">
-                 <p className="text-slate-500 text-sm md:text-base font-medium leading-relaxed">
-                    {sectionContent.handpicked.description}
-                 </p>
-              </div>
+        {/* Unified Search + Emoji Scrollable Category Ribbon */}
+        <div className="container mx-auto px-6 md:px-12 mt-16 mb-16 relative z-10 flex flex-col lg:flex-row items-center justify-between gap-8">
+           <div className="w-full lg:max-w-md shrink-0">
+              <SearchBar 
+                 onSearch={(query) => {
+                    setSearchQuery(query);
+                    document.getElementById('event-grid').scrollIntoView({ behavior: 'smooth' });
+                 }} 
+              />
            </div>
-           <Suspense fallback={<div className="h-96 w-full bg-slate-900/20 rounded-[3rem] animate-pulse"></div>}>
-              <FeaturedEventsSection featuredEvents={featuredEvents} isLoading={isInitialLoading} />
-           </Suspense>
+
+           <div className="w-full overflow-x-auto no-scrollbar flex items-center gap-4 py-2 px-4 justify-start lg:justify-end">
+              {categories.map((cat) => {
+                 const isActive = selectedCategory === cat;
+                 return (
+                   <button 
+                     key={cat}
+                     onClick={() => setSelectedCategory(cat)}
+                     className={`flex items-center gap-2.5 px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-300 shrink-0 border ${
+                       isActive 
+                         ? "bg-white text-black border-white shadow-xl scale-105" 
+                         : "bg-white/5 text-slate-400 hover:text-white border-white/5 hover:bg-white/10"
+                     }`}
+                   >
+                     {cat}
+                   </button>
+                 );
+              })}
+           </div>
         </div>
   
-        {/* Upcoming Events Grid */}
-        <div id="event-grid" className="container mx-auto px-6 md:px-12 mt-12 mb-32 scroll-mt-24">
+        {/* Upcoming Events Grid (Pushed way up for direct visibility) */}
+        <div id="event-grid" className="container mx-auto px-6 md:px-12 mt-4 mb-32 scroll-mt-24">
           <PosterSlider
             title={selectedCategory === "All Events" ? sectionContent.upcoming.title : `FILTERED: ${selectedCategory}`}
             subtitle={selectedCategory === "All Events" ? sectionContent.upcoming.subtitle : `Now viewing curated highlights for ${selectedCategory}`}
@@ -240,6 +192,13 @@ const HomePage = () => {
             isLoading={isInitialLoading}
           />
         </div>
+
+        {/* Brand Spotlight Showcase Section (Option A Stark-White contrasts) */}
+        {spotlightData && spotlightData.isActive && spotlightData.brandPoster && (
+          <Suspense fallback={<div className="container mx-auto px-6 py-20 text-center animate-pulse text-zinc-500 uppercase tracking-widest text-[9px] font-bold">Populating Spotlight Showcase...</div>}>
+            <BrandSpotlight spotlight={spotlightData} />
+          </Suspense>
+        )}
 
         {/* Discussion Section */}
         <div className="container mx-auto px-6 md:px-12 mt-32">

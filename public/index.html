@@ -755,16 +755,6 @@
 
   <!-- Logic Script (Preserved) -->
   <script>
-    function escapeHtml(str) {
-        if (!str) return "";
-        return String(str)
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
-    }
-
     function openParkingMap() {
       window.location.href = 'find-parking.html';
     }
@@ -1099,35 +1089,23 @@
             setTimeout(() => {
                 loading.classList.add('hidden');
                 
-                const bestOpt = data.options && data.options.length > 0 ? data.options[0] : null;
-                if (!bestOpt) {
-                    loading.classList.add('hidden');
-                    modeEl.textContent = 'No Routes Found';
-                    expEl.textContent = 'Try adjusting your locations.';
-                    result.classList.remove('hidden');
-                    return;
-                }
+                const bestOpt = data.options[0];
                 
                 // Set minimal glassmorphic class based on mode
                 modeEl.className = 'font-bold uppercase tracking-tighter text-2xl leading-none flex items-center gap-3';
                 let accentColor = 'text-slate-900';
                 let dotColor = 'bg-slate-900';
 
-                const safeMode = (data.best_mode || 'walking').toLowerCase();
-                if(safeMode === 'metro') {
+                if(data.best_mode === 'metro') {
                     accentColor = 'text-emerald-500';
                     dotColor = 'bg-emerald-500';
-                } else if(safeMode === 'cab') {
+                } else if(data.best_mode === 'cab') {
                     accentColor = 'text-blue-500';
                     dotColor = 'bg-blue-500';
                 }
                 
-                // XSS Protection: Use safe DOM methods for dynamic text
-                modeEl.innerHTML = `<span class="w-3 h-3 rounded-full ${dotColor} shadow-[0_0_12px_rgba(0,0,0,0.1)]"></span> <span class="${accentColor}">${escapeHtml(data.best_mode)}</span>`;
-                
-                expEl.innerHTML = `<span class="block mb-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Recommendation</span>`;
-                const expText = document.createTextNode(data.explanation || "");
-                expEl.appendChild(expText);
+                modeEl.innerHTML = `<span class="w-3 h-3 rounded-full ${dotColor} shadow-[0_0_12px_rgba(0,0,0,0.1)]"></span> <span class="${accentColor}">${data.best_mode}</span>`;
+                expEl.innerHTML = `<span class="block mb-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Recommendation</span> ${data.explanation}`;
 
                 // Minimal Glassmorphic Stats
                 const statsHtml = `
@@ -1157,23 +1135,16 @@
                         
                         let colorClass = 'bg-slate-900';
                         if (seg.mode === 'metro' && seg.color) {
-                            // Validation: Only allow safe hex colors or known classes
-                            const isHex = /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(seg.color);
-                            colorClass = isHex ? `bg-[${seg.color}]` : (seg.color.startsWith('bg-') ? seg.color : 'bg-emerald-500');
+                            colorClass = seg.color.startsWith('bg-') ? seg.color : `bg-[${seg.color}]`;
                         } else if (seg.mode === 'metro') {
                             colorClass = 'bg-emerald-500';
                         } else if (seg.mode === 'cab') {
                             colorClass = 'bg-blue-500';
                         }
                         
-                        const safeLine = escapeHtml(seg.line || "");
-                        const safeMode = escapeHtml(seg.mode || "");
-                        const safeFrom = escapeHtml(seg.from_loc || "");
-                        const safeTo = escapeHtml(seg.to_loc || "");
-
                         let extraInfo = '';
                         if (seg.mode === 'metro' && seg.line) {
-                            extraInfo = `<span class="ml-2 px-1.5 py-0.5 rounded-md text-[8px] font-black text-white ${colorClass}">${safeLine.toUpperCase()}</span>`;
+                            extraInfo = `<span class="ml-2 px-1.5 py-0.5 rounded-md text-[8px] font-black text-white ${colorClass}">${seg.line.toUpperCase()}</span>`;
                         }
 
                         step.innerHTML = `
@@ -1183,9 +1154,9 @@
                             </div>
                             <div class="flex-1 pb-2">
                                 <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none flex items-center">
-                                    ${safeMode} • ${Math.round(seg.duration_min)}m ${extraInfo}
+                                    ${seg.mode} • ${Math.round(seg.duration_min)}m ${extraInfo}
                                 </p>
-                                <p class="text-[13px] text-slate-800 font-bold mt-1.5 tracking-tight">${safeFrom} <span class="text-slate-300 mx-1 font-light">→</span> ${safeTo}</p>
+                                <p class="text-[13px] text-slate-800 font-bold mt-1.5 tracking-tight">${seg.from_loc} <span class="text-slate-300 mx-1 font-light">→</span> ${seg.to_loc}</p>
                             </div>
                         `;
                         segmentsBox.appendChild(step);

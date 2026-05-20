@@ -86,6 +86,7 @@ const DiscussionBoard = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [showForm, setShowForm] = useState(false);
   const [preselectedMovie, setPreselectedMovie] = useState(null);
+  const [showAllPrompts, setShowAllPrompts] = useState(false);
 
   // Fetch upcoming / now-playing events for the prompt cards
   useEffect(() => {
@@ -233,15 +234,35 @@ const DiscussionBoard = () => {
             </h3>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {newReleases.map((event, i) => (
-              <EventPromptCard
-                key={event._id || event.id}
-                event={event}
-                hookLine={HOOK_LINES[i % HOOK_LINES.length]}
-                onClick={() => handlePromptCardClick(event)}
-              />
-            ))}
+            {newReleases.map((event, i) => {
+              const isExtraMobile = i >= 2;
+              return (
+                <div 
+                  key={event._id || event.id}
+                  className={isExtraMobile && !showAllPrompts ? "hidden sm:block" : "block"}
+                >
+                  <EventPromptCard
+                    event={event}
+                    hookLine={HOOK_LINES[i % HOOK_LINES.length]}
+                    onClick={() => handlePromptCardClick(event)}
+                  />
+                </div>
+              );
+            })}
           </div>
+
+          {/* Mobile-only Show More / Less toggle button */}
+          {newReleases.length > 2 && (
+            <div className="block sm:hidden mt-3 text-center">
+              <button
+                onClick={() => setShowAllPrompts(!showAllPrompts)}
+                className="inline-flex items-center gap-1.5 bg-darkBackground-800 hover:bg-darkBackground-700 border border-darkBackground-700 text-gray-300 hover:text-white px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors w-full justify-center"
+              >
+                <span>{showAllPrompts ? "Show Less" : `Show More (${newReleases.length - 2} More)`}</span>
+                <BiChevronDown className={`w-4 h-4 transition-transform duration-300 ${showAllPrompts ? "rotate-180" : ""}`} />
+              </button>
+            </div>
+          )}
 
           {/* Sign-in CTA shown only to guests */}
           {!user && (

@@ -84,37 +84,64 @@ const PosterSlider = (props) => {
 
   return (
     <>
-      <div className="flex flex-col items-start sm:ml-3 mb-10">
+      <div className="flex flex-col items-start sm:ml-3 mb-6 md:mb-10">
         <h3
-          className={`text-4xl md:text-5xl font-black uppercase tracking-tighter ${
+          className={`text-2xl md:text-5xl font-black uppercase tracking-tighter ${
             isDark ? "text-white" : "text-gray-100"
           }`}
         >
           {title}
         </h3>
-        <p className={`text-sm md:text-base font-medium opacity-60 ${isDark ? "text-white" : "text-gray-400"}`}>
+        <p className={`text-xs md:text-base font-medium opacity-60 ${isDark ? "text-white" : "text-gray-400"}`}>
           {subtitle}
         </p>
       </div>
-      <Slider {...settings}>
-        {isLoading ? (
-          [...Array(5)].map((_, index) => (
-             <div key={`skeleton-${index}`} className="px-2">
-                 <div className="w-full h-80 bg-slate-800/80 rounded-[3rem] animate-pulse"></div>
-                 <div className="w-3/4 h-4 bg-slate-800 rounded-full mt-4 animate-pulse mx-2"></div>
-                 <div className="w-1/2 h-3 bg-slate-800 rounded-full mt-2 animate-pulse mx-2"></div>
-             </div>
-          ))
-        ) : posters && posters.length > 0 ? (
-          posters.map((each, index) => (
-            <Poster {...each} isDark={isDark} key={index} />
-          ))
-        ) : (
-          <div className="py-20 text-center w-full text-slate-500 font-medium border border-dashed border-slate-800 rounded-2xl">
-            No events found in this category.
-          </div>
-        )}
-      </Slider>
+
+      {/* Mobile view: Butter-smooth native CSS horizontal overflow track (Fast, lightweight) */}
+      <div className="block md:hidden">
+        <div className="flex gap-2.5 overflow-x-auto no-scrollbar scroll-smooth snap-x pb-4 px-4">
+          {isLoading ? (
+            [...Array(3)].map((_, index) => (
+              <div key={`skeleton-${index}`} className="w-[160px] shrink-0 snap-center">
+                <div className="w-full aspect-[3/4] bg-slate-800/80 rounded-2xl animate-pulse"></div>
+              </div>
+            ))
+          ) : posters && posters.length > 0 ? (
+            posters.map((each, index) => (
+              <div key={index} className="w-[160px] shrink-0 snap-center">
+                <Poster {...each} isDark={isDark} />
+              </div>
+            ))
+          ) : (
+            <div className="py-10 text-center w-full text-slate-500 text-xs border border-dashed border-slate-800 rounded-2xl">
+              No events found.
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Desktop view: Slick Slider */}
+      <div className="hidden md:block">
+        <Slider {...settings}>
+          {isLoading ? (
+            [...Array(5)].map((_, index) => (
+               <div key={`skeleton-${index}`} className="px-2">
+                   <div className="w-full h-80 bg-slate-800/80 rounded-[3rem] animate-pulse"></div>
+                   <div className="w-3/4 h-4 bg-slate-800 rounded-full mt-4 animate-pulse mx-2"></div>
+                   <div className="w-1/2 h-3 bg-slate-800 rounded-full mt-2 animate-pulse mx-2"></div>
+               </div>
+            ))
+          ) : posters && posters.length > 0 ? (
+            posters.map((each, index) => (
+              <Poster {...each} isDark={isDark} key={index} />
+            ))
+          ) : (
+            <div className="py-20 text-center w-full text-slate-500 font-medium border border-dashed border-slate-800 rounded-2xl">
+              No events found in this category.
+            </div>
+          )}
+        </Slider>
+      </div>
     </>
   );
 };

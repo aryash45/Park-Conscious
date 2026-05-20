@@ -257,33 +257,23 @@
                 if (data.parkings.length === 0) {
                     listEl.innerHTML = '<div class="text-center py-8"><div class="text-slate-300 text-4xl mb-3">🅿</div><p class="text-slate-400 text-sm">No locations yet.</p><a href="add-parking.html" class="text-[#00C39A] text-sm font-bold mt-2 inline-block">Add your first →</a></div>';
                 } else {
-                    const esc = (str) => String(str || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[m]));
                     data.parkings.forEach(p => {
                         const el = document.createElement('div');
                         el.className = 'flex items-center justify-between p-3 rounded-xl border border-slate-100 hover:border-[#00C39A]/30 hover:bg-emerald-50/30 transition-all group';
-                        
-                        const safeId = esc(p._id);
-                        const safeLoc = esc(p.Location);
-                        const safeStatus = esc(p.Status || 'Active');
-                        const safeType = esc(p.Type || 'Parking');
-                        const safePrice = p.PricePerHour ? '₹' + esc(p.PricePerHour) + '/hr' : 'Contact';
-
                         el.innerHTML = `
                             <div class="flex items-center gap-3">
-                                <button class="remove-btn p-2 bg-red-50 text-red-500 rounded-lg md:opacity-0 group-hover:opacity-100 transition-all hover:bg-red-500 hover:text-white" title="Remove Parking">
+                                <button onclick="removeParking('${p._id}', '${p.Location}')" class="p-2 bg-red-50 text-red-500 rounded-lg md:opacity-0 group-hover:opacity-100 transition-all hover:bg-red-500 hover:text-white" title="Remove Parking">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                 </button>
                                 <div>
-                                    <div class="font-bold text-slate-900 text-sm">${safeLoc}</div>
-                                    <div class="text-xs text-emerald-500 font-medium mt-0.5">● ${safeStatus}</div>
+                                    <div class="font-bold text-slate-900 text-sm">${p.Location}</div>
+                                    <div class="text-xs text-emerald-500 font-medium mt-0.5">● ${p.Status || 'Active'}</div>
                                 </div>
                             </div>
                             <div class="text-right">
-                                <div class="font-bold text-slate-800 text-sm">${safePrice}</div>
-                                <div class="text-xs text-slate-400">${safeType}</div>
+                                <div class="font-bold text-slate-800 text-sm">${p.PricePerHour ? '₹'+p.PricePerHour+'/hr' : 'Contact'}</div>
+                                <div class="text-xs text-slate-400">${p.Type || 'Parking'}</div>
                             </div>`;
-                        
-                        el.querySelector('.remove-btn').onclick = () => removeParking(p._id, p.Location);
                         listEl.appendChild(el);
                     });
                 }
