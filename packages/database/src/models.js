@@ -56,6 +56,10 @@ const eventSchema = new mongoose.Schema(
     regularPrice: { type: Number, default: 0 },
     vipPrice: { type: Number, default: 0 },
     capacity: { type: Number, default: 0 },
+    soldCount: { type: Number, default: 0, min: 0 },
+    escalationThreshold: { type: Number, default: 0, min: 0 },
+    escalatedPrice: { type: Number, default: 0, min: 0 },
+    escalationAlertLimit: { type: Number, default: 0, min: 0 },
     status: { type: String, default: 'draft', enum: ['draft', 'published', 'cancelled'] },
     organizerId: { type: String, default: null }, // UID of the event owner
     scannerIds: { type: [String], default: [] }, // Array of scanner UIDs assigned to this event
@@ -101,6 +105,10 @@ const eventSchema = new mongoose.Schema(
       name: { type: String, required: true },
       price: { type: Number, default: 0 },
       capacity: { type: Number, default: 0 },
+      soldCount: { type: Number, default: 0, min: 0 },
+      escalationThreshold: { type: Number, default: 0, min: 0 },
+      escalatedPrice: { type: Number, default: 0, min: 0 },
+      escalationAlertLimit: { type: Number, default: 0, min: 0 },
       requireApproval: { type: Boolean, default: false },
       description: String
     }],
@@ -207,6 +215,19 @@ const bookingSchema = new mongoose.Schema(
     screenshotUrl: { type: String, default: null },
     status: { type: String, default: "Confirmed" },
     tierName: { type: String, default: null },
+    inventoryReserved: { type: Boolean, default: false },
+    reservationExpiresAt: { type: Date, default: null },
+    inventoryReleasedAt: { type: Date, default: null },
+    pricingSnapshot: {
+      basePrice: { type: Number, default: 0 },
+      finalPrice: { type: Number, default: 0 },
+      escalatedPrice: { type: Number, default: 0 },
+      escalationThreshold: { type: Number, default: 0 },
+      escalationAlertLimit: { type: Number, default: 0 },
+      soldCountAtPurchase: { type: Number, default: 0 },
+      discountedRemaining: { type: Number, default: 0 },
+      isEscalated: { type: Boolean, default: false }
+    },
     customData: { type: mongoose.Schema.Types.Mixed, default: {} },
     ipAddress: { type: String, default: null },
     userAgent: { type: String, default: null },
@@ -221,6 +242,7 @@ const bookingSchema = new mongoose.Schema(
 bookingSchema.index({ eventId: 1, status: 1 });
 bookingSchema.index({ userId: 1, status: 1 });
 bookingSchema.index({ transactionId: 1 });
+bookingSchema.index({ status: 1, reservationExpiresAt: 1 });
 bookingSchema.index({ status: 1 });
 
 const eventRequestSchema = new mongoose.Schema(

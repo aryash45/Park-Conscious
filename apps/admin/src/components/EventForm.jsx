@@ -51,6 +51,10 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
     category: '',
     price: 0,
     capacity: 0,
+    soldCount: 0,
+    escalationThreshold: 0,
+    escalatedPrice: 0,
+    escalationAlertLimit: 5,
     status: 'published',
     images: [],
     isFeatured: false,
@@ -124,6 +128,10 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
           accentColor: initialData.accentColor || 'indigo-500',
           price: initialData.price ?? initialData.regularPrice ?? 0,
           capacity: initialData.capacity ?? 0,
+          soldCount: initialData.soldCount ?? 0,
+          escalationThreshold: initialData.escalationThreshold ?? 0,
+          escalatedPrice: initialData.escalatedPrice ?? 0,
+          escalationAlertLimit: initialData.escalationAlertLimit ?? 5,
           requiredFields: {
             name:  initialData.requiredFields?.name  ?? true,
             email: initialData.requiredFields?.email ?? true,
@@ -278,6 +286,10 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
         ...formData,
         price: parseInt(formData.price) || 0,
         capacity: parseInt(formData.capacity) || 0,
+        soldCount: parseInt(formData.soldCount) || 0,
+        escalationThreshold: parseInt(formData.escalationThreshold) || 0,
+        escalatedPrice: parseInt(formData.escalatedPrice) || 0,
+        escalationAlertLimit: parseInt(formData.escalationAlertLimit) || 0,
         location: {
             name: formData.locationName,
             address: formData.locationAddress,
@@ -1128,7 +1140,7 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                 type="button"
                 onClick={() => setFormData(prev => ({
                   ...prev,
-                  ticketTiers: [...(prev.ticketTiers || []), { name: '', price: 0, capacity: 0, requireApproval: false, description: '' }]
+                  ticketTiers: [...(prev.ticketTiers || []), { name: '', price: 0, capacity: 0, soldCount: 0, escalationThreshold: 0, escalatedPrice: 0, escalationAlertLimit: 5, requireApproval: false, description: '' }]
                 }))}
                 className="flex items-center gap-2 bg-[#6366f1] hover:bg-[#4f46e5] text-white px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-lg shadow-[#6366f1]/20 active:scale-[0.98]"
               >
@@ -1137,6 +1149,73 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
             </div>
 
             <div className="space-y-4">
+              <div className="p-8 bg-slate-950 border border-slate-800 rounded-[2.5rem] space-y-8">
+                <div className="flex items-start justify-between gap-6">
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-black text-white uppercase tracking-[0.2em]">Fallback Event Pricing</p>
+                    <p className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.2em]">
+                      Used when an event does not rely on custom ticket tiers.
+                    </p>
+                  </div>
+                  <div className="px-4 py-2 rounded-2xl bg-slate-900 border border-slate-800 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">
+                    Legacy / Single Tier
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <label className="block text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Base Price (INR)</label>
+                    <input
+                      type="number"
+                      name="price"
+                      value={formData.price}
+                      onChange={handleChange}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-3xl px-8 py-5 text-white text-lg focus:outline-none focus:border-[#6366f1]/50 transition-all font-mono"
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <label className="block text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Remaining Capacity</label>
+                    <input
+                      type="number"
+                      name="capacity"
+                      value={formData.capacity}
+                      onChange={handleChange}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-3xl px-8 py-5 text-white text-lg focus:outline-none focus:border-[#6366f1]/50 transition-all font-mono"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                  <div className="space-y-3">
+                    <label className="block text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Escalation Threshold</label>
+                    <input
+                      type="number"
+                      name="escalationThreshold"
+                      value={formData.escalationThreshold}
+                      onChange={handleChange}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-3xl px-8 py-5 text-white text-lg focus:outline-none focus:border-[#6366f1]/50 transition-all font-mono"
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <label className="block text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Escalated Price</label>
+                    <input
+                      type="number"
+                      name="escalatedPrice"
+                      value={formData.escalatedPrice}
+                      onChange={handleChange}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-3xl px-8 py-5 text-white text-lg focus:outline-none focus:border-[#6366f1]/50 transition-all font-mono"
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <label className="block text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Urgency Alert Limit</label>
+                    <input
+                      type="number"
+                      name="escalationAlertLimit"
+                      value={formData.escalationAlertLimit}
+                      onChange={handleChange}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-3xl px-8 py-5 text-white text-lg focus:outline-none focus:border-[#6366f1]/50 transition-all font-mono"
+                    />
+                  </div>
+                </div>
+              </div>
               {formData.ticketTiers.map((tier, idx) => (
                 <div key={idx} className="p-10 bg-slate-950 border border-slate-800 rounded-[2.5rem] space-y-10 relative group shadow-2xl">
                   {/* Delete Button - Top Right */}
@@ -1196,6 +1275,58 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                         />
                       </div>
                     </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
+                      <div className="space-y-3">
+                        <label className="block text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Escalation Threshold</label>
+                        <input
+                          type="number" value={tier.escalationThreshold || 0}
+                          onChange={(e) => {
+                            const newTiers = [...formData.ticketTiers];
+                            newTiers[idx].escalationThreshold = parseInt(e.target.value) || 0;
+                            setFormData(prev => ({ ...prev, ticketTiers: newTiers }));
+                          }}
+                          className="w-full bg-slate-900 border border-slate-800 rounded-3xl px-8 py-5 text-white text-lg focus:outline-none focus:border-[#6366f1]/50 transition-all font-mono"
+                          placeholder="50"
+                        />
+                      </div>
+                      <div className="space-y-3">
+                        <label className="block text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Escalated Price</label>
+                        <input
+                          type="number" value={tier.escalatedPrice || 0}
+                          onChange={(e) => {
+                            const newTiers = [...formData.ticketTiers];
+                            newTiers[idx].escalatedPrice = parseInt(e.target.value) || 0;
+                            setFormData(prev => ({ ...prev, ticketTiers: newTiers }));
+                          }}
+                          className="w-full bg-slate-900 border border-slate-800 rounded-3xl px-8 py-5 text-white text-lg focus:outline-none focus:border-[#6366f1]/50 transition-all font-mono"
+                          placeholder="799"
+                        />
+                      </div>
+                      <div className="space-y-3">
+                        <label className="block text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Urgency Alert Limit</label>
+                        <input
+                          type="number" value={tier.escalationAlertLimit ?? 5}
+                          onChange={(e) => {
+                            const newTiers = [...formData.ticketTiers];
+                            newTiers[idx].escalationAlertLimit = parseInt(e.target.value) || 0;
+                            setFormData(prev => ({ ...prev, ticketTiers: newTiers }));
+                          }}
+                          className="w-full bg-slate-900 border border-slate-800 rounded-3xl px-8 py-5 text-white text-lg focus:outline-none focus:border-[#6366f1]/50 transition-all font-mono"
+                          placeholder="5"
+                        />
+                      </div>
+                    </div>
+                    {tier.escalationThreshold > 0 && tier.escalatedPrice > tier.price && (
+                      <div className="rounded-[2rem] border border-amber-500/15 bg-amber-500/5 px-6 py-5 flex items-start gap-4">
+                        <AlertCircle size={18} className="text-amber-400 shrink-0 mt-0.5" />
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-black text-amber-300 uppercase tracking-[0.2em]">Dynamic Escalation Armed</p>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em] leading-relaxed">
+                            First {tier.escalationThreshold} tickets sell at INR {tier.price}. Once that sells out, this tier automatically moves to INR {tier.escalatedPrice}.
+                          </p>
+                        </div>
+                      </div>
+                    )}
                     
                     {/* Fee Calculator */}
                     {tier.price > 0 && (

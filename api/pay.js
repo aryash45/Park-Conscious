@@ -6,16 +6,75 @@
  * free ticket processing, check-ins, individual booking status checks, 
  * and fetching a user's full booking history across multiple databases.
  */
-import axios from 'axios';
 import crypto from 'crypto';
 import Razorpay from 'razorpay';
 import connectDB from './lib/mongodb.js';
 import * as models from './lib/models.js';
 import { json, setupCors, getBody, normalizeEvent, verifyUser } from './lib/utils.js';
 import { dispatchTicketEmail } from './lib/email.js';
+import { delCache } from './lib/redis.js';
+import { delMemoryCache } from './lib/memoryCache.js';
+import {
+    reserveInventory,
+    releaseReservationByBooking,
+    releaseInventoryUnits,
+    consumeInventoryForLegacyBooking
+} from './lib/ticketing.js';
+import { cleanupExpiredReservationsIfNeeded } from './lib/cleanupReservations.js';
 
 const { Booking, Owner, User, Event } = models;
 const PLATFORM_FEE_PERCENT = 0.08; // 8% commission
+
+const buildPricingSnapshot = (pricing) => ({
+    basePrice: pricing.basePrice,
+    finalPrice: pricing.effectivePrice,
+    escalatedPrice: pricing.escalatedPrice,
+    escalationThreshold: pricing.escalationThreshold,
+    escalationAlertLimit: pricing.escalationAlertLimit,
+    soldCountAtPurchase: pricing.soldCount,
+    discountedRemaining: pricing.discountedRemaining,
+    isEscalated: pricing.isEscalated
+});
+
+const normalizeIdentityValue = (value) => {
+    if (value === null || value === undefined) return null;
+    const normalized = String(value).trim();
+    return normalized ? normalized : null;
+};
+
+const normalizeEmailValue = (value) => {
+    const normalized = normalizeIdentityValue(value);
+    return normalized ? normalized.toLowerCase() : null;
+};
+
+const bookingOwnedByRequester = (booking, authUser, body) => {
+    if (!booking) return false;
+
+    const bookingEmail = normalizeEmailValue(booking.email);
+    const authEmail = normalizeEmailValue(authUser?.email);
+    if (bookingEmail && authEmail && bookingEmail === authEmail) return true;
+
+    const bookingUserId = normalizeIdentityValue(booking.userId);
+    const requestUserId = normalizeIdentityValue(body.userId);
+    if (bookingUserId && requestUserId && bookingUserId === requestUserId) return true;
+
+    const bookingPhone = normalizeIdentityValue(booking.phone);
+    const requestPhone = normalizeIdentityValue(body.phone);
+    if (bookingPhone && requestPhone && bookingPhone === requestPhone) return true;
+
+    const requestEmail = normalizeEmailValue(body.email);
+    if (bookingEmail && requestEmail && bookingEmail === requestEmail) return true;
+
+    return false;
+};
+
+const invalidateEventCache = async (eventId) => {
+    if (!eventId || eventId.length !== 24) return;
+    await delCache(`event:${eventId}:public`);
+    await delCache(`event:${eventId}:privileged`);
+    delMemoryCache(`event_${eventId}_public`);
+    delMemoryCache(`event_${eventId}_privileged`);
+};
 
 export default async function handler(req, res) {
     if (setupCors(req, res)) return;
@@ -32,15 +91,21 @@ export default async function handler(req, res) {
         // Default to backstage_events for general payment logic
         await connectDB('backstage_events');
         
+        // Cleanup expired reservations if needed (serverless-optimized)
+        await cleanupExpiredReservationsIfNeeded();
+        
         // Check if this is a request for the user's personal history
         const isHistoryRequest = url.includes('/bookings/') && !url.includes('/status') && !url.includes('/check-in');
         if (url.includes('/pay') && !url.includes('/payment-callback') && method === 'POST') {
-            const { name, amount, phone, eventId, orderId, userId, screenshotUrl, customData } = body;
+            const { name, phone, eventId, orderId, userId, screenshotUrl, customData } = body;
             const targetEventId = eventId || orderId;
             const targetUserId = userId || name || "Guest";
+            const requestedTierName = body.tierName || null;
+            const isManagedEvent = !!(targetEventId && targetEventId.length === 24);
+            const fallbackAmount = 0; // SECURITY: Never trust frontend pricing
 
             // SECURITY: Ensure the event is published before allowing bookings
-            if (targetEventId && targetEventId.length === 24) {
+            if (isManagedEvent) {
                 const event = await models.Event.findById(targetEventId).lean();
                 if (!event) return json(res, 404, { message: 'Event not found' });
                 if (!['published', 'Published'].includes(event.status)) {
@@ -68,11 +133,39 @@ export default async function handler(req, res) {
                     });
                 }
             }
-            
+
+            let reservation = null;
+            let pricingSnapshot = {
+                basePrice: fallbackAmount,
+                finalPrice: fallbackAmount,
+                escalatedPrice: fallbackAmount,
+                escalationThreshold: 0,
+                escalationAlertLimit: 0,
+                soldCountAtPurchase: 0,
+                discountedRemaining: 0,
+                isEscalated: false
+            };
+            let effectiveAmount = fallbackAmount;
+
+            if (isManagedEvent) {
+                reservation = await reserveInventory(targetEventId, requestedTierName);
+                if (!reservation.ok) {
+                    const statusCode = reservation.code === 'EVENT_NOT_FOUND' ? 404 : 409;
+                    return json(res, statusCode, { message: reservation.message });
+                }
+                pricingSnapshot = buildPricingSnapshot(reservation.pricing);
+                effectiveAmount = pricingSnapshot.finalPrice;
+            } else {
+                // For non-managed events, effectiveAmount stays at 0 (free events)
+                // or should be explicitly provided by event config (prevents price spoofing)
+                effectiveAmount = 0;
+            }
             const KEY_ID = process.env.RAZORPAY_KEY_ID;
             const KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
 
-            if (!KEY_ID || !KEY_SECRET) {
+            if (effectiveAmount > 0 && (!KEY_ID || !KEY_SECRET)) {
+                if (reservation) await releaseInventoryUnits(targetEventId, reservation.pricing.tierName, { allowLegacyFallback: true });
+                await invalidateEventCache(targetEventId);
                 console.error("[SECURITY ALERT]: Razorpay Keys are missing from environment variables.");
                 return json(res, 500, { 
                     message: "Internal Configuration Error: Payment keys not found." 
@@ -84,10 +177,10 @@ export default async function handler(req, res) {
             // Ensure redirected traffic points back to the client application properly
             const redirectBase = origin;
 
-            const numericAmount = Math.round(parseFloat(amount) * 100);
+            const numericAmount = Math.round(effectiveAmount * 100);
 
             // Handle FREE tickets (amount = 0) instantly bypassing Razorpay
-            if (numericAmount === 0 || !amount) {
+            if (numericAmount === 0) {
                 const ticketId = "TK-" + crypto.randomUUID().slice(0, 8).toUpperCase();
                 const newBooking = await Booking.create({ 
                     transactionId: txId, 
@@ -100,37 +193,17 @@ export default async function handler(req, res) {
                     name: name || body.name || null,
                     email: body.email || null,
                     ticketId: ticketId,
-                    tierName: body.tierName || null,
+                    tierName: reservation?.pricing?.tierName || requestedTierName,
+                    inventoryReserved: !!reservation,
+                    pricingSnapshot,
                     customData: customData || {},
                     ipAddress: req.headers['x-forwarded-for'] || req.socket.remoteAddress || null,
                     userAgent: req.headers['user-agent'] || null
                 });
 
-                if (targetEventId && targetEventId.length === 24) {
-                    const tierName = body.tierName;
-                    const filter = { _id: targetEventId };
-                    const updateQuery = { $inc: { capacity: -1 } };
-                    
-                    if (tierName) {
-                        const event = await models.Event.findById(targetEventId).lean();
-                        if (event && event.ticketTiers?.some(t => t.name === tierName)) {
-                            filter["ticketTiers.name"] = tierName;
-                            updateQuery.$inc["ticketTiers.$.capacity"] = -1;
-                        }
-                    }
-
-                    const eventBefore = await models.Event.findById(targetEventId).lean();
-                    const updateResult = await models.Event.findOneAndUpdate(filter, updateQuery, { new: true }).lean();
-                    
-                    console.log(`[BOOKING_DEBUG_FREE] CID: ${targetEventId} Tier: ${tierName}`);
-                    console.log(`[BOOKING_DEBUG_FREE] BEFORE: Cap=${eventBefore?.capacity}`);
-                    console.log(`[BOOKING_DEBUG_FREE] AFTER:  Cap=${updateResult?.capacity}`);
-                } else {
-                    console.warn(`[BOOKING_DEBUG_FREE] Skipping capacity decrement for non-ObjectId: ${targetEventId}`);
-                }
-
                 // Dispatch ticket email (Smart Dual-Mode)
                 dispatchTicketEmail(newBooking._id);
+                await invalidateEventCache(targetEventId);
 
                 return json(res, 200, { success: true, redirectUrl: `${redirectBase}/payment-success?txnId=${txId}` });
             }
@@ -147,32 +220,67 @@ export default async function handler(req, res) {
                 receipt: txId,
             };
 
-            const order = await razorpay.orders.create(options);
+            let order;
+            try {
+                order = await razorpay.orders.create(options);
+                await Booking.create({ 
+                    transactionId: order.id, 
+                    eventId: targetEventId, 
+                    userId: targetUserId, 
+                    amount: String(effectiveAmount), 
+                    screenshotUrl: screenshotUrl || null,
+                    status: "Initiated",
+                    phone: phone,
+                    name: name || body.name || null,
+                    email: body.email || null,
+                    tierName: reservation?.pricing?.tierName || requestedTierName,
+                    inventoryReserved: !!reservation,
+                    reservationExpiresAt: reservation?.reservationExpiresAt || null,
+                    pricingSnapshot,
+                    customData: customData || {},
+                    ipAddress: req.headers['x-forwarded-for'] || req.socket.remoteAddress || null,
+                    userAgent: req.headers['user-agent'] || null
+                });
+            } catch (orderError) {
+                if (reservation) await releaseInventoryUnits(targetEventId, reservation.pricing.tierName, { allowLegacyFallback: true });
+                await invalidateEventCache(targetEventId);
+                throw orderError;
+            }
 
-            await Booking.create({ 
-                transactionId: order.id, 
-                eventId: targetEventId, 
-                userId: targetUserId, 
-                amount, 
-                screenshotUrl: screenshotUrl || null,
-                status: "Initiated",
-                phone: phone,
-                name: name || body.name || null,
-                email: body.email || null,
-                tierName: body.tierName || null,
-                customData: customData || {},
-                ipAddress: req.headers['x-forwarded-for'] || req.socket.remoteAddress || null,
-                userAgent: req.headers['user-agent'] || null
-            });
+            await invalidateEventCache(targetEventId);
 
             return json(res, 200, { 
                 success: true, 
                 orderId: order.id, 
                 amount: numericAmount, 
-                key: KEY_ID 
+                key: KEY_ID,
+                pricing: pricingSnapshot
             });
         }
 
+        if (url.includes('/payment-cancel') && method === 'POST') {
+            const transactionId = body.orderId || body.transactionId || body.razorpay_order_id;
+            if (!transactionId) return json(res, 400, { message: "Order ID is required" });
+
+            const booking = await Booking.findOne({ transactionId }).lean();
+            if (!booking) return json(res, 404, { message: "Booking record not found" });
+            if (booking.status !== 'Initiated') {
+                return json(res, 409, { message: "Only active reservations can be cancelled" });
+            }
+
+            const authUser = verifyUser(req);
+            if (!bookingOwnedByRequester(booking, authUser, body)) {
+                return json(res, 403, { message: "You are not allowed to cancel this reservation" });
+            }
+
+            if (booking.inventoryReserved) {
+                await releaseReservationByBooking(booking, 'Cancelled');
+            } else {
+                await Booking.findByIdAndUpdate(booking._id, { $set: { status: 'Cancelled' } });
+            }
+            await invalidateEventCache(booking.eventId);
+            return json(res, 200, { success: true });
+        }
 
         // -- Razorpay Payment Callback (Verification) --
         if (url.includes('/payment-callback')) {
@@ -197,49 +305,66 @@ export default async function handler(req, res) {
                 const booking = await Booking.findOne({ transactionId: razorpay_order_id });
                 if (!booking) return json(res, 404, { message: "Booking record not found" });
 
+                if (booking.status === 'Confirmed') {
+                    return json(res, 200, { success: true, message: "Payment already verified", txnId: razorpay_order_id });
+                }
+
+                if (booking.inventoryReleasedAt) {
+                    return json(res, 409, { success: false, message: "This reservation expired before payment verification completed." });
+                }
+
                 const totalAmount = parseFloat(booking.amount) || 0;
                 const platformFee = Math.round(totalAmount * PLATFORM_FEE_PERCENT * 100) / 100;
                 const organizerPayout = totalAmount - platformFee;
+                let consumedLegacyInventory = false;
+
+                if (!booking.inventoryReserved) {
+                    const inventoryConsumed = await consumeInventoryForLegacyBooking(booking);
+                    if (!inventoryConsumed) {
+                        return json(res, 409, {
+                            success: false,
+                            message: "This event no longer has inventory available for this booking."
+                        });
+                    }
+                    consumedLegacyInventory = true;
+                }
 
                 const updatedBooking = await Booking.findOneAndUpdate(
-                    { transactionId: razorpay_order_id, status: { $ne: "Confirmed" } }, 
+                    { transactionId: razorpay_order_id, status: "Initiated", inventoryReleasedAt: null }, 
                     { $set: { 
                         status: "Confirmed", 
                         ticketId: "TK-" + crypto.randomUUID().slice(0, 8).toUpperCase(),
                         platformFee,
-                        organizerPayout
+                        organizerPayout,
+                        reservationExpiresAt: null
                     } },
                     { new: true }
                 );
 
-                if (updatedBooking && updatedBooking.eventId && updatedBooking.eventId.length === 24) {
-                    const tierName = updatedBooking.tierName;
-                    const filter = { _id: updatedBooking.eventId };
-                    const updateQuery = { $inc: { capacity: -1 } };
-                    
-                    if (tierName) {
-                        const event = await models.Event.findById(updatedBooking.eventId).lean();
-                        if (event && event.ticketTiers?.some(t => t.name === tierName)) {
-                            filter["ticketTiers.name"] = tierName;
-                            updateQuery.$inc["ticketTiers.$.capacity"] = -1;
-                        }
+                if (!updatedBooking) {
+                    if (consumedLegacyInventory) {
+                        await releaseInventoryUnits(booking.eventId, booking.tierName, { allowLegacyFallback: true });
                     }
-
-                    const eventBefore = await models.Event.findById(updatedBooking.eventId).lean();
-                    const updateResult = await models.Event.findOneAndUpdate(filter, updateQuery, { new: true }).lean();
-                    
-                    console.log(`[BOOKING_DEBUG] CID: ${updatedBooking.eventId} Tier: ${tierName}`);
-                    console.log(`[BOOKING_DEBUG] BEFORE: Cap=${eventBefore?.capacity}`);
-                    console.log(`[BOOKING_DEBUG] AFTER:  Cap=${updateResult?.capacity}`);
-                } else {
-                    console.warn(`[BOOKING_DEBUG] Skipping capacity decrement for non-ObjectId: ${updatedBooking?.eventId}`);
+                    const latestBooking = await Booking.findOne({ transactionId: razorpay_order_id }).lean();
+                    if (latestBooking?.status === 'Confirmed') {
+                        return json(res, 200, { success: true, message: "Payment already verified", txnId: razorpay_order_id });
+                    }
+                    return json(res, 409, { success: false, message: "This reservation is no longer active." });
                 }
                 
                 // Dispatch ticket email (Smart Dual-Mode)
                 dispatchTicketEmail(updatedBooking._id);
+                await invalidateEventCache(updatedBooking.eventId);
 
                 return json(res, 200, { success: true, message: "Payment verified successfully", txnId: razorpay_order_id });
             } else {
+                const booking = await Booking.findOne({ transactionId: razorpay_order_id }).lean();
+                if (booking?.inventoryReserved) {
+                    await releaseReservationByBooking(booking, 'Failed');
+                    await invalidateEventCache(booking.eventId);
+                } else if (booking) {
+                    await Booking.findByIdAndUpdate(booking._id, { $set: { status: 'Failed' } });
+                }
                 return json(res, 400, { success: false, message: "Invalid signature" });
             }
         }
@@ -289,6 +414,12 @@ export default async function handler(req, res) {
             }
 
             if (!booking) return json(res, 404, { message: 'Booking not found' });
+
+            if (booking.status === 'Initiated' && booking.inventoryReserved && booking.reservationExpiresAt && new Date(booking.reservationExpiresAt).getTime() <= Date.now()) {
+                await releaseReservationByBooking(booking);
+                await invalidateEventCache(booking.eventId);
+                return json(res, 410, { message: 'Booking reservation expired' });
+            }
             
             if (booking.eventId && booking.eventId.length === 24) {
                 const event = await models.Event.findById(booking.eventId).lean();

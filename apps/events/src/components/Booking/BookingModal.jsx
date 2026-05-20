@@ -29,6 +29,7 @@ const BookingModal = ({ isOpen, setIsOpen, event, themeConfig }) => {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
+  const [serverPricing, setServerPricing] = useState(null);
 
   // Pre-fill user data
   useEffect(() => {
@@ -39,6 +40,7 @@ const BookingModal = ({ isOpen, setIsOpen, event, themeConfig }) => {
         phone: ""
       });
       setCustomData({});
+      setServerPricing(null);
       
       const reqFields = event.requiredFields || { name: true, email: true, phone: true };
       const skipIdentity = !reqFields.name && !reqFields.email && !reqFields.phone;
@@ -91,21 +93,44 @@ const BookingModal = ({ isOpen, setIsOpen, event, themeConfig }) => {
     setLoading(true);
 
     try {
+      const fallbackTierLabel = registrationType === 'startup' ? 'Startup Founder' : 'Standard';
+      const requestedTierName = event.selectedTier?.name
+        || event.ticketTiers?.find?.((tier) => tier?.name === fallbackTierLabel)?.name
+        || null;
+
       const response = await backendAxios.post("/api/pay", {
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
-        amount: event.selectedTier ? event.selectedTier.price : (event.displayPrice || 0),
         userId: user ? (user.uid || user.id) : (formData.name || "Guest"),
         eventId: event.id || event._id,
-        tierName: event.selectedTier?.name || (registrationType === 'startup' ? 'Startup Founder' : 'Standard'),
+        tierName: requestedTierName,
         customData: {
           ...customData,
           registrationType: registrationType
         }
       });
+      setServerPricing(response.data?.pricing || null);
 
       if (response.data?.success && response.data?.orderId) {
+        const orderId = response.data.orderId;
+        let checkoutSettled = false;
+        let cancellationSent = false;
+        const releaseReservation = async () => {
+          if (checkoutSettled || cancellationSent) return;
+          cancellationSent = true;
+          try {
+            await backendAxios.post("/api/payment-cancel", {
+              orderId,
+              email: formData.email,
+              phone: formData.phone,
+              userId: user ? (user.uid || user.id) : (formData.name || "Guest")
+            });
+          } catch (releaseErr) {
+            console.error("Failed to release reservation:", releaseErr);
+          }
+        };
+
         const loadScript = (src) => new Promise((resolve) => {
             const script = document.createElement("script");
             script.src = src;
@@ -133,14 +158,17 @@ const BookingModal = ({ isOpen, setIsOpen, event, themeConfig }) => {
                 try {
                     const verifyRes = await backendAxios.post("/api/payment-callback", paymentResponse);
                     if (verifyRes.data?.success) {
+                        checkoutSettled = true;
                         window.location.href = `/payment-success?txnId=${verifyRes.data.txnId}`;
                     } else {
                         setError("Payment verification failed.");
+                        await releaseReservation();
                         reportSystemError("Payment Verification Failed (Logic)", "payment_failure", { paymentResponse, eventId: event.id });
                         setLoading(false);
                     }
                 } catch (err) {
                     setError("Payment verification failed. Please contact support.");
+                    await releaseReservation();
                     reportSystemError("Payment Verification Error (Network)", "api_failure", { error: err.message, eventId: event.id });
                     setLoading(false);
                 }
@@ -152,14 +180,16 @@ const BookingModal = ({ isOpen, setIsOpen, event, themeConfig }) => {
             },
             theme: { color: "#4f46e5" },
             modal: {
-                ondismiss: function() {
+                ondismiss: async function() {
+                    await releaseReservation();
                     setLoading(false);
                 }
             }
         };
 
         const paymentObject = new window.Razorpay(options);
-        paymentObject.on('payment.failed', function () {
+        paymentObject.on('payment.failed', async function () {
+            await releaseReservation();
             setError("Payment failed! Please try again.");
             setLoading(false);
         });
@@ -187,6 +217,7 @@ const BookingModal = ({ isOpen, setIsOpen, event, themeConfig }) => {
   if (!event) return null;
 
   const reqFields = event.requiredFields || { name: true, email: true, phone: true };
+  const displayPricing = serverPricing || event.selectedTier?.pricing || event.pricing || null;
 
   const activeTheme = themeConfig || event?.themeConfig || {};
   const primaryColor = activeTheme.primaryColor || '#E33B76';
@@ -244,6 +275,33 @@ const BookingModal = ({ isOpen, setIsOpen, event, themeConfig }) => {
                 </div>
 
                 <form onSubmit={handleBooking} className="space-y-8 md:space-y-10 relative z-10">
+                  {displayPricing && (
+                    <div className={`rounded-[2rem] p-6 border ${displayMode === 'dark' ? 'bg-white/5 border-white/10' : 'bg-white/70 border-white/80'} space-y-3`}>
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className={`text-[9px] font-black uppercase tracking-[0.3em] ${labelClass}`}>Server Verified Pricing</p>
+                          <p className={`text-3xl font-black mt-2 ${textTitleClass}`}>INR {Number(displayPricing.finalPrice ?? displayPricing.effectivePrice ?? 0).toLocaleString('en-IN')}</p>
+                        </div>
+                        {(displayPricing.isEscalated || displayPricing.escalatedPrice > displayPricing.basePrice) && (
+                          <div className="text-right">
+                            <p className={`text-[9px] font-black uppercase tracking-[0.25em] ${displayPricing.isEscalated ? 'text-amber-400' : textSubtitleClass}`}>
+                              {displayPricing.isEscalated ? 'Escalated' : 'Threshold Armed'}
+                            </p>
+                            <p className={`text-[9px] font-black uppercase tracking-[0.2em] ${textSubtitleClass}`}>
+                              Base INR {Number(displayPricing.basePrice || 0).toLocaleString('en-IN')}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                      {displayPricing.discountedRemaining > 0 && displayPricing.discountedRemaining <= (displayPricing.escalationAlertLimit || 0) && (
+                        <div className="rounded-[1.5rem] border border-amber-400/20 bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-transparent px-4 py-3">
+                          <p className="text-[10px] font-black uppercase tracking-[0.25em] text-amber-300">
+                            Only {displayPricing.discountedRemaining} ticket{displayPricing.discountedRemaining === 1 ? '' : 's'} left before the price increases.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <div className="grid grid-cols-1 gap-6 md:gap-10">
                     {event.startupFormEnabled && !registrationType ? (
                       <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">

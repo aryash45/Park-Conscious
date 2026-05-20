@@ -28,6 +28,8 @@ const clUrl = (url, type = 'image') => {
   return url.replace('/upload/', `/upload/${transforms}/`);
 };
 
+const formatINR = (value) => `INR ${Number(value || 0).toLocaleString('en-IN')}`;
+
 const EventPage = () => {
   const { id } = useParams();
   const [event, setEvent] = useState(null);
@@ -122,6 +124,14 @@ const EventPage = () => {
     : dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 
   const hostsList = Array.isArray(event.hosts) ? event.hosts : [];
+  const selectedPricing = selectedTier?.pricing || event.pricing || {
+    effectivePrice: event.price || 0,
+    basePrice: event.price || 0,
+    escalatedPrice: event.escalatedPrice || 0,
+    showUrgency: false,
+    discountedRemaining: 0,
+    isEscalated: false
+  };
   const primaryColor = liveTheme?.primaryColor || '#E33B76';
   const displayMode = liveTheme?.displayMode || 'light';
   
@@ -245,6 +255,30 @@ const EventPage = () => {
                             </button>
                           ))}
                         </div>
+                        <div className="rounded-[2rem] border border-white/10 bg-black/20 px-5 py-5 space-y-3">
+                          <div className="flex items-center justify-between gap-4">
+                            <div>
+                              <p className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-500">Live Checkout Price</p>
+                              <p className={`text-2xl font-heading font-bold mt-2 ${textTitleClass}`}>{formatINR(selectedPricing.effectivePrice)}</p>
+                            </div>
+                            {selectedPricing?.isEscalated && selectedPricing?.basePrice < selectedPricing?.effectivePrice && (
+                              <div className="text-right">
+                                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-amber-400">Escalated</p>
+                                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 line-through">
+                                  {formatINR(selectedPricing.basePrice)}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                          {selectedPricing?.showUrgency && (
+                            <div className="relative overflow-hidden rounded-[1.5rem] border border-amber-400/20 bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-transparent px-4 py-3 shadow-[0_0_30px_rgba(251,191,36,0.08)]">
+                              <div className="absolute inset-y-0 left-0 w-24 bg-amber-400/10 blur-2xl animate-pulse" />
+                              <p className="relative text-[10px] font-black uppercase tracking-[0.25em] text-amber-200">
+                                Only {selectedPricing.discountedRemaining} ticket{selectedPricing.discountedRemaining === 1 ? '' : 's'} left at this price.
+                              </p>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     ) : (
                       <>
@@ -252,6 +286,29 @@ const EventPage = () => {
                         <div className="flex items-baseline justify-between border-b border-black/5 pb-6">
                           <span className={`text-5xl font-bold font-heading leading-none ${textTitleClass}`}>{event.capacity || 0}</span>
                           <span className={`text-[9px] font-black uppercase tracking-[0.2em] ${textSubtitleClass}`}>Global Capacity</span>
+                        </div>
+                        <div className="rounded-[2rem] border border-white/10 bg-black/20 px-5 py-5 space-y-3">
+                          <div className="flex items-center justify-between gap-4">
+                            <div>
+                              <p className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-500">Live Checkout Price</p>
+                              <p className={`text-2xl font-heading font-bold mt-2 ${textTitleClass}`}>{formatINR(selectedPricing.effectivePrice)}</p>
+                            </div>
+                            {selectedPricing?.isEscalated && selectedPricing?.basePrice < selectedPricing?.effectivePrice && (
+                              <div className="text-right">
+                                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-amber-400">Escalated</p>
+                                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 line-through">
+                                  {formatINR(selectedPricing.basePrice)}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                          {selectedPricing?.showUrgency && (
+                            <div className="rounded-[1.5rem] border border-amber-400/20 bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-transparent px-4 py-3">
+                              <p className="text-[10px] font-black uppercase tracking-[0.25em] text-amber-200">
+                                Only {selectedPricing.discountedRemaining} ticket{selectedPricing.discountedRemaining === 1 ? '' : 's'} left before the price rises.
+                              </p>
+                            </div>
+                          )}
                         </div>
                       </>
                     )}

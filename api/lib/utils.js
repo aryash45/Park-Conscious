@@ -10,12 +10,13 @@ import jwt from 'jsonwebtoken';
 import { parse, serialize } from 'cookie';
 import mongoose from 'mongoose';
 import './env.js';
+import { enrichEventWithPricing } from './ticketing.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || "fallback_secret_65271829";
 
 export function normalizeEvent(evt) {
     if (!evt) return null;
-    const e = typeof evt.toObject === 'function' ? evt.toObject() : JSON.parse(JSON.stringify(evt));
+    const e = enrichEventWithPricing(evt);
     
     // Title/Name Sync
     e.name = e.name || e.title || "Untitled Experience";

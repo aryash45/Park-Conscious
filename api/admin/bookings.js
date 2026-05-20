@@ -8,6 +8,12 @@ import axios from 'axios';
 import { json, normalizeEvent } from '../lib/utils.js';
 import * as models from '../lib/models.js';
 import { processTicketEmail } from '../lib/email.js';
+import {
+    restoreInventoryForConfirmedBooking,
+    releaseReservationByBooking,
+    consumeInventoryForLegacyBooking,
+    releaseInventoryUnits
+} from '../lib/ticketing.js';
 
 const { Booking, Event, User, Owner, Parking } = models;
 
@@ -135,7 +141,9 @@ export async function handleBookings(url, method, body, user, req, res) {
         }
 
         if (booking.status && booking.status.toLowerCase() === "confirmed" && booking.eventId && booking.eventId.length === 24) {
-           await Event.findByIdAndUpdate(booking.eventId, { $inc: { capacity: 1 } });
+           await restoreInventoryForConfirmedBooking(booking);
+        } else if (booking.status === "Initiated") {
+           await releaseReservationByBooking(booking, 'Cancelled');
         }
 
         await Booking.findByIdAndDelete(bookingId);
@@ -171,19 +179,14 @@ export async function handleBookings(url, method, body, user, req, res) {
                 const state = data?.data?.state;
 
                 if (data?.success && state === "COMPLETED") {
-                    // ATOMIC CAPACITY GUARD: Check and decrement first
-                    let capacityUpdate = null;
-                    if (b.eventId && b.eventId.length === 24) {
-                        capacityUpdate = await Event.findOneAndUpdate(
-                            { _id: b.eventId, capacity: { $gt: 0 } },
-                            { $inc: { capacity: -1 } },
-                            { new: true }
-                        );
-                        
-                        if (!capacityUpdate) {
-                            console.error(`[RECONCILE_OVERSOLD] Event ${b.eventId} is full. Skipping.`);
+                    let consumedLegacyInventory = false;
+                    if (!b.inventoryReserved) {
+                        const inventoryConsumed = await consumeInventoryForLegacyBooking(b);
+                        if (!inventoryConsumed) {
+                            failureCount++;
                             continue;
                         }
+                        consumedLegacyInventory = true;
                     }
 
                     const updated = await Booking.findOneAndUpdate(
@@ -194,12 +197,11 @@ export async function handleBookings(url, method, body, user, req, res) {
 
                     if (updated) {
                         recoveredCount++;
-                    } else if (capacityUpdate) {
-                        // Rollback capacity if booking update failed
-                        await Event.findByIdAndUpdate(b.eventId, { $inc: { capacity: 1 } });
+                    } else if (consumedLegacyInventory) {
+                        await releaseInventoryUnits(b.eventId, b.tierName, { allowLegacyFallback: true });
                     }
                 } else if (state === "FAILED" || state === "CANCELLED") {
-                    await Booking.findByIdAndUpdate(b._id, { $set: { status: "Failed" } });
+                    await releaseReservationByBooking(b, 'Failed');
                     failureCount++;
                 } else if (!data || !data.success) {
                     // Treat missing data or success:false as failure to avoid TypeErrors
