@@ -85,12 +85,14 @@ const BrandSpotlight = ({ spotlight }) => {
                     <div className="flex gap-1.5 z-20">
                       <button
                         onClick={() => scroll('left')}
+                        aria-label="Scroll left"
                         className="w-8 h-8 rounded-full bg-white border border-zinc-200 flex items-center justify-center text-zinc-600 hover:bg-zinc-50 hover:text-black transition-all shadow-sm"
                       >
                         <ChevronLeft size={14} />
                       </button>
                       <button
                         onClick={() => scroll('right')}
+                        aria-label="Scroll right"
                         className="w-8 h-8 rounded-full bg-white border border-zinc-200 flex items-center justify-center text-zinc-600 hover:bg-zinc-50 hover:text-black transition-all shadow-sm"
                       >
                         <ChevronRight size={14} />

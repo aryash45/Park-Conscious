@@ -213,12 +213,18 @@ const Banners = () => {
     setFeaturedSubtitle(event.featuredSubtitle || event.description || '');
     setFeaturedOrder(event.featuredOrder ?? 0);
     
-    // Format dates to YYYY-MM-DDThh:mm for datetime-local input fields
+    // Format dates to YYYY-MM-DDThh:mm for datetime-local input fields (using local timezone)
     const formatDateForInput = (dateStr) => {
       if (!dateStr) return '';
       const d = new Date(dateStr);
       if (isNaN(d.getTime())) return '';
-      return d.toISOString().slice(0, 16);
+      const pad = (num) => String(num).padStart(2, '0');
+      const year = d.getFullYear();
+      const month = pad(d.getMonth() + 1);
+      const date = pad(d.getDate());
+      const hours = pad(d.getHours());
+      const minutes = pad(d.getMinutes());
+      return `${year}-${month}-${date}T${hours}:${minutes}`;
     };
 
     setFeaturedStart(formatDateForInput(event.featuredStart));

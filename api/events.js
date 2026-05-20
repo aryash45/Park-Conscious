@@ -97,6 +97,11 @@ export default async function handler(req, res) {
                         isActive: false
                     });
                 }
+                if (spotlight.eventIds && Array.isArray(spotlight.eventIds)) {
+                    spotlight.eventIds = spotlight.eventIds
+                        .filter(event => event && (event.isPublic || event.status === 'published'))
+                        .map(event => pruneEvent(event, false));
+                }
                 return json(res, 200, spotlight);
             }
 
@@ -105,8 +110,8 @@ export default async function handler(req, res) {
                 const user = verifyUser(req);
                 if (!user) return json(res, 401, { error: "Unauthorized" });
 
-                const isGlobalAdmin = ['admin', 'superadmin', 'owner'].includes(user.role);
-                if (!isGlobalAdmin) return json(res, 403, { error: "Permission denied" });
+                const isSuperAdmin = user && user.role === 'superadmin';
+                if (!isSuperAdmin) return json(res, 403, { error: "Permission denied" });
 
                 const body = await getBody(req);
                 
@@ -397,7 +402,9 @@ export default async function handler(req, res) {
             }
             
             // OPTIMIZATION: Check In-Memory Cache First
-            const memCacheKey = `events_feed_${JSON.stringify(filter)}`;
+            const keyFilter = { ...filter };
+            delete keyFilter.$and;
+            const memCacheKey = `events_feed_${JSON.stringify(keyFilter)}`;
             const memCachedEvents = getMemoryCache(memCacheKey);
             
             if (memCachedEvents) {

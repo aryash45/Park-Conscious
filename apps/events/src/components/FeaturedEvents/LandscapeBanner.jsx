@@ -110,7 +110,11 @@ const LandscapeBanner = ({ featuredEvents, isLoading }) => {
             <div 
               key={event._id} 
               onClick={() => navigate(`/event/${event._id}`)}
-              className="relative w-full h-auto lg:h-[32rem] overflow-hidden focus:outline-none bg-[#0b0b0f] cursor-pointer group rounded-[2.5rem] border border-white/5 hover:border-white/15 transition-all duration-300 shadow-2xl"
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/event/${event._id}`); } }}
+              role="button"
+              tabIndex={0}
+              aria-label={`Open event ${event.featuredTitle || event.title}`}
+              className="relative w-full h-auto lg:h-[32rem] overflow-hidden focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-[#0b0b0f] cursor-pointer group rounded-[2.5rem] border border-white/5 hover:border-white/15 transition-all duration-300 shadow-2xl"
             >
               
               <div className="flex flex-col-reverse lg:flex-row w-full h-full">
@@ -187,7 +191,7 @@ const LandscapeBanner = ({ featuredEvents, isLoading }) => {
                       <div className="flex flex-col">
                         <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Pricing</span>
                         <span className="text-sm font-black text-white">
-                          ₹{event.price || "FREE"}
+                          {event.price != null && event.price > 0 ? `₹${event.price}` : 'FREE'}
                         </span>
                       </div>
 

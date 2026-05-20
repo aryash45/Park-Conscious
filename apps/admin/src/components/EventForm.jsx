@@ -10,7 +10,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Upload, X, MapPin, Calendar, Tag, Shield, 
   Info, IndianRupee, Users, PlusCircle, 
-  ChevronDown, ChevronUp, Star,
+  ChevronDown, ChevronUp, Star, AlertCircle,
   Lock, Layout, Monitor, Globe, Trash2, RefreshCw, Ticket, Palette, PlayCircle, Rocket, ShieldCheck, Zap, Link2
 } from 'lucide-react';
 import { uploadToCloudinary, uploadVideoToCloudinary } from '../utils/cloudinary';
