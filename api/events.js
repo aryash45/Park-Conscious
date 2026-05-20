@@ -19,7 +19,7 @@ import {
 } from "./lib/utils.js";
 import crypto from "crypto";
 import { getCache, setCache, delCache } from "./lib/redis.js";
-import { getMemoryCache, setMemoryCache } from "./lib/memoryCache.js";
+import { getMemoryCache, setMemoryCache, clearMemoryCache } from "./lib/memoryCache.js";
 
 async function getUniqueSlug(titleOrSlug, EventModel, excludeId = null) {
     let sanitized = titleOrSlug ? titleOrSlug.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') : '';
@@ -43,7 +43,7 @@ export default async function handler(req, res) {
     // 2. Main Logic wrapper
     try {
         await connectDB();
-        const { Event, Discussion, Comment } = models;
+        const { Event, Discussion, Comment, Spotlight } = models;
 
         // Health check (Now accurately reflects the connection)
         const fullUrl = req.url || "/";
@@ -82,6 +82,60 @@ export default async function handler(req, res) {
         const method = req.method || 'GET';
 
         const action = parsedUrl.searchParams.get('action');
+
+        // -- Brand Spotlight Curation endpoints --
+        if (urlPath.includes('/spotlight')) {
+            // GET /api/spotlight: Fetch the active spotlight populated with events
+            if (method === "GET") {
+                let spotlight = await Spotlight.findOne({ isActive: true }).populate('eventIds').lean();
+                if (!spotlight) {
+                    return json(res, 200, {
+                        title: "Brand Spotlight",
+                        subtitle: "Curated experiences from our premier partner networks.",
+                        brandPoster: "",
+                        eventIds: [],
+                        isActive: false
+                    });
+                }
+                if (spotlight.eventIds && Array.isArray(spotlight.eventIds)) {
+                    spotlight.eventIds = spotlight.eventIds
+                        .filter(event => event && (event.isPublic || event.status === 'published'))
+                        .map(event => pruneEvent(event, false));
+                }
+                return json(res, 200, spotlight);
+            }
+
+            // PUT /api/spotlight: Save or update the global spotlight config (Super Admin only!)
+            if (method === "PUT") {
+                const user = verifyUser(req);
+                if (!user) return json(res, 401, { error: "Unauthorized" });
+
+                const isSuperAdmin = user && user.role === 'superadmin';
+                if (!isSuperAdmin) return json(res, 403, { error: "Permission denied" });
+
+                const body = await getBody(req);
+                
+                let spotlight = await Spotlight.findOne({ isActive: true });
+                if (!spotlight) {
+                    spotlight = new Spotlight({ isActive: true });
+                }
+
+                spotlight.title = body.title || "";
+                spotlight.subtitle = body.subtitle || "";
+                spotlight.brandPoster = body.brandPoster || "";
+                spotlight.eventIds = body.eventIds || [];
+                
+                await spotlight.save();
+
+                clearMemoryCache();
+                await delCache(`events:public`);
+                await delCache(`events:featured`);
+
+                return json(res, 200, spotlight.toObject());
+            }
+
+            return json(res, 405, { error: "Method not allowed for spotlight" });
+        }
 
         // -- Discussions & Comments --
         if (urlPath.includes('/discussions') || (action && action.startsWith('discussions'))) {
@@ -318,12 +372,39 @@ export default async function handler(req, res) {
             if (type) filter.type = type;
 
             const featured = parsedUrl.searchParams.get("featured");
-            if (featured === "true") filter.isFeatured = true;
-            
-            console.log(`[DEBUG_API]: Querying Event model. DB: ${Event.db.name}, Filter:`, JSON.stringify(filter));
+            let sortObj = { date: 1 };
+            let selectStr = '-description -requiredFields -customForms -faqs';
+
+            if (featured === "true") {
+                filter.isFeatured = true;
+                sortObj = { featuredOrder: 1, date: 1 };
+                // Keep description for featured banner ticket stub display
+                selectStr = '-requiredFields -customForms -faqs';
+
+                // Enforce time-gated scheduling filters
+                const now = new Date();
+                filter.$and = [
+                    {
+                        $or: [
+                            { featuredStart: null },
+                            { featuredStart: { $exists: false } },
+                            { featuredStart: { $lte: now } }
+                        ]
+                    },
+                    {
+                        $or: [
+                            { featuredEnd: null },
+                            { featuredEnd: { $exists: false } },
+                            { featuredEnd: { $gte: now } }
+                        ]
+                    }
+                ];
+            }
             
             // OPTIMIZATION: Check In-Memory Cache First
-            const memCacheKey = `events_feed_${JSON.stringify(filter)}`;
+            const keyFilter = { ...filter };
+            delete keyFilter.$and;
+            const memCacheKey = `events_feed_${JSON.stringify(keyFilter)}`;
             const memCachedEvents = getMemoryCache(memCacheKey);
             
             if (memCachedEvents) {
@@ -334,10 +415,10 @@ export default async function handler(req, res) {
                 }));
             }
             
-            // OPTIMIZATION: Projection excludes large text fields for list views
+            // OPTIMIZATION: Projection excludes large text fields for standard feed list views, but preserves descriptions for banners
             const events = await Event.find(filter)
-                .select('-description -requiredFields -customForms -faqs')
-                .sort({ date: 1 })
+                .select(selectStr)
+                .sort(sortObj)
                 .limit(50)
                 .lean();
 
@@ -360,6 +441,19 @@ export default async function handler(req, res) {
             if (!user) return json(res, 401, { error: "Unauthorized" });
 
             const body = await getBody(req);
+            const isGlobalAdmin = user && ['admin', 'superadmin', 'owner'].includes(user.role);
+
+            // Strip featured properties for standard users to prevent spoofing homepage slots
+            if (!isGlobalAdmin) {
+                delete body.isFeatured;
+                delete body.featuredTitle;
+                delete body.featuredSubtitle;
+                delete body.featuredLabel;
+                delete body.bannerImage;
+                delete body.featuredOrder;
+                delete body.featuredStart;
+                delete body.featuredEnd;
+            }
             
             // Handle Razorpay Order Creation (if requested)
             if (body.action === "create_order") {
@@ -385,7 +479,6 @@ export default async function handler(req, res) {
             // RBAC: Validate organizerId mapping to prevent spoofing/claiming other organizers
             let organizerId = user.id;
             if (body.organizerId && body.organizerId !== user.id) {
-                const isGlobalAdmin = user && ['admin', 'superadmin', 'owner'].includes(user.role);
                 if (!isGlobalAdmin) {
                     return json(res, 403, { error: "Permission denied: only admins can assign events to other organizers" });
                 }
@@ -428,6 +521,7 @@ export default async function handler(req, res) {
             // Invalidate list caches
             await delCache(`events:public`);
             await delCache(`events:featured`);
+            clearMemoryCache();
 
             return json(res, 201, normalizeEvent(newEvent));
         }
@@ -451,6 +545,18 @@ export default async function handler(req, res) {
                 return json(res, 403, { error: "Permission denied" });
             }
 
+            // Strip featured/promotional settings for standard creators to maintain platform curation
+            if (!isGlobalAdmin) {
+                delete body.isFeatured;
+                delete body.featuredTitle;
+                delete body.featuredSubtitle;
+                delete body.featuredLabel;
+                delete body.bannerImage;
+                delete body.featuredOrder;
+                delete body.featuredStart;
+                delete body.featuredEnd;
+            }
+
             // Clean/sanitize slug if updated (including if set to an empty string)
             if (body.hasOwnProperty('slug')) {
                 body.slug = await getUniqueSlug(body.slug, Event, eventId);
@@ -468,6 +574,7 @@ export default async function handler(req, res) {
             await delCache(`event:${eventId}:privileged`);
             await delCache(`events:public`);
             await delCache(`events:featured`);
+            clearMemoryCache();
 
             return json(res, 200, normalizeEvent(updatedEvent));
         }
@@ -495,6 +602,7 @@ export default async function handler(req, res) {
             await delCache(`event:${eventId}:privileged`);
             await delCache(`events:public`);
             await delCache(`events:featured`);
+            clearMemoryCache();
 
             return json(res, 200, { success: true, message: "Event terminated" });
         }

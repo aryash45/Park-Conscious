@@ -28,6 +28,15 @@ body {
   min-height: 100%;
 }
 
+/* Hide scrollbars utility class */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
 h1, h2, h3, h4, .font-heading {
   /* Reverted to global default to maintain landing page design */
 }

@@ -21,6 +21,7 @@ import EditEvent from './pages/EditEvent';
 import SystemHealth from './pages/SystemHealth';
 import Inquiries from './pages/Inquiries';
 import ScannerApp from './pages/ScannerApp';
+import Banners from './pages/Banners';
 import { RefreshCw } from 'lucide-react';
 
 const PrivateRoute = ({ children }) => {
@@ -128,6 +129,7 @@ function App() {
               <Route path="price-updater" element={<PriceUpdater />} />
               <Route path="health" element={<SuperAdminRoute><SystemHealth /></SuperAdminRoute>} />
               <Route path="inquiries" element={<SuperAdminRoute><Inquiries /></SuperAdminRoute>} />
+              <Route path="banners" element={<SuperAdminRoute><Banners /></SuperAdminRoute>} />
               <Route path="attendees" element={<Attendees />} />
               <Route path="settings" element={<Settings />} />
             </Route>

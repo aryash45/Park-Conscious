@@ -112,77 +112,80 @@ const SuccessPage = () => {
         {/* The Premium Ticket */}
         <div className="relative group" id="ticket-card">
           {/* Outer Shadow/Glow */}
-          <div className="absolute -inset-4 bg-indigo-500/10 blur-2xl opacity-0 group-hover:opacity-100 transition-opacity rounded-[3rem]" />
+          <div className="absolute -inset-4 bg-indigo-500/15 blur-2xl opacity-100 transition-opacity rounded-[3rem]" />
           
-          <div className="bg-[#0A0A0C] border border-white/5 rounded-[2.5rem] overflow-hidden shadow-2xl relative">
+          <div className="bg-gradient-to-br from-[#131317] via-[#0E0E12] to-[#0A0A0C] border border-white/10 rounded-[2.5rem] overflow-hidden shadow-[0_0_50px_-12px_rgba(99,102,241,0.25)] relative">
             
             {/* Top Section: Event Header */}
             <div className="p-8 md:p-12 space-y-8">
                <div className="flex justify-between items-start">
-                  <div className="space-y-1">
-                     <p className="text-indigo-400 text-[10px] font-black uppercase tracking-[0.3em]">Access Pass</p>
-                     <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight uppercase max-w-[250px] leading-none">
+                  <div className="space-y-1.5">
+                     <p className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-sky-400 text-[10px] font-black uppercase tracking-[0.3em]">Access Pass</p>
+                     <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight uppercase max-w-[280px] leading-none">
                         {event.title || "Event Tickets"}
-                     </h2>
+                      </h2>
                   </div>
-                  <div className="text-right">
-                     <p className="text-slate-600 text-[9px] font-black uppercase tracking-[0.2em]">Ticket ID</p>
-                     <p className="text-white text-xs font-mono tracking-wider">{booking.ticketId || "TK-PENDING"}</p>
+                  <div className="text-right space-y-1">
+                     <p className="text-zinc-500 text-[9px] font-black uppercase tracking-[0.2em]">Ticket ID</p>
+                     <p className="text-white text-xs font-mono tracking-wider font-bold bg-white/5 px-2.5 py-1 rounded-md border border-white/10 inline-block">{booking.ticketId || "TK-PENDING"}</p>
                   </div>
                </div>
 
                <div className="grid grid-cols-2 gap-8 pt-4">
                   <div className="space-y-3">
-                     <div className="flex items-center gap-2 text-slate-500">
-                        <User size={12} className="text-indigo-500" />
-                        <span className="text-[9px] font-black uppercase tracking-[0.2em]">Guest</span>
+                     <div className="flex items-center gap-2 text-zinc-400">
+                        <User size={12} className="text-indigo-400" />
+                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-500">Guest</span>
                      </div>
-                     <p className="text-sm font-bold text-white truncate uppercase">{userName}</p>
+                     <p className="text-base font-black text-white truncate uppercase tracking-tight">{userName}</p>
                   </div>
                   <div className="space-y-3">
-                     <div className="flex items-center gap-2 text-slate-500">
-                        <Ticket size={12} className="text-indigo-500" />
-                        <span className="text-[9px] font-black uppercase tracking-[0.2em]">Type</span>
+                     <div className="flex items-center gap-2 text-zinc-400">
+                        <Ticket size={12} className="text-indigo-400" />
+                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-500">Type</span>
                      </div>
-                     <p className="text-sm font-bold text-white uppercase">{booking.amount > 0 ? "Standard Pass" : "Early Access"}</p>
+                     <p className="text-base font-black text-indigo-400 uppercase tracking-tight">{booking.amount > 0 ? "Standard Pass" : "Early Access"}</p>
                   </div>
                </div>
 
                <div className="space-y-6 pt-2">
                   <div className="flex items-start gap-4">
-                     <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center shrink-0 border border-white/5">
-                        <Calendar size={18} className="text-slate-400" />
+                     <div className="w-10 h-10 bg-white/[0.06] rounded-xl flex items-center justify-center shrink-0 border border-white/10">
+                        <Calendar size={18} className="text-indigo-400" />
                      </div>
                      <div className="space-y-1">
-                        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Event Date</p>
-                        <p className="text-xs md:text-sm text-slate-200 font-bold uppercase">{dateStr}</p>
+                        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-500">Event Date</p>
+                        <p className="text-xs md:text-sm text-slate-100 font-extrabold uppercase">{dateStr}</p>
                      </div>
                   </div>
                   
                   <div className="flex items-start gap-4">
-                     <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center shrink-0 border border-white/5">
-                        <MapPin size={18} className="text-slate-400" />
+                     <div className="w-10 h-10 bg-white/[0.06] rounded-xl flex items-center justify-center shrink-0 border border-white/10">
+                        <MapPin size={18} className="text-indigo-400" />
                      </div>
                      <div className="space-y-1">
-                        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Location</p>
-                        <p className="text-xs md:text-sm text-slate-200 font-bold uppercase">{venue}</p>
+                        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-500">Location</p>
+                        <p className="text-xs md:text-sm text-slate-100 font-extrabold uppercase">{venue}</p>
                      </div>
                   </div>
                </div>
             </div>
 
-            {/* Perforated Divider */}
+            {/* Perforated Divider (Dots and stubs are now highly visible) */}
             <div className="relative py-4 overflow-hidden">
-               <div className="absolute left-[-15px] top-1/2 -translate-y-1/2 w-8 h-8 bg-[#050507] rounded-full border border-white/5 z-20" />
-               <div className="absolute right-[-15px] top-1/2 -translate-y-1/2 w-8 h-8 bg-[#050507] rounded-full border border-white/5 z-20" />
-               <div className="mx-8 border-t-2 border-dashed border-white/10" />
+               {/* Left Ticket Stub Cutout */}
+               <div className="absolute left-[-16px] top-1/2 -translate-y-1/2 w-8 h-8 bg-[#050507] rounded-full border-2 border-white/20 z-20 shadow-[inset_-4px_0_6px_rgba(0,0,0,0.6)]" />
+               {/* Right Ticket Stub Cutout */}
+               <div className="absolute right-[-16px] top-1/2 -translate-y-1/2 w-8 h-8 bg-[#050507] rounded-full border-2 border-white/20 z-20 shadow-[inset_4px_0_6px_rgba(0,0,0,0.6)]" />
+               {/* High-contrast Perforated Dots */}
+               <div className="mx-8 border-t-2 border-dashed border-white/35" />
             </div>
 
             {/* Bottom Section: QR Code */}
-            <div className="p-8 md:p-12 flex flex-col md:flex-row items-center justify-between gap-8 bg-white/[0.02]">
+            <div className="p-8 md:p-12 flex flex-col md:flex-row items-center justify-between gap-8 bg-white/[0.04] border-t border-white/5">
                <div className="space-y-4 text-center md:text-left">
                   <h3 className="text-lg font-black text-white uppercase tracking-tight">Security Code</h3>
-                  <p className="text-slate-500 text-[10px] leading-relaxed uppercase tracking-[0.1em] max-w-[200px]">
+                  <p className="text-slate-400 text-[10px] leading-relaxed uppercase tracking-[0.1em] max-w-[200px]">
                      Present this QR code at the entrance for scanning. Entry is limited to one person per ticket.
                   </p>
                   <div className="flex items-center gap-4 justify-center md:justify-start pt-2">
@@ -194,8 +197,8 @@ const SuccessPage = () => {
                </div>
                
                <div className="relative group/qr">
-                  <div className="absolute -inset-4 bg-white/5 blur-xl rounded-full opacity-0 group-hover/qr:opacity-100 transition-opacity" />
-                  <div className="p-6 bg-white rounded-[2rem] shadow-2xl relative">
+                  <div className="absolute -inset-4 bg-indigo-500/10 blur-xl rounded-full opacity-100 transition-opacity" />
+                  <div className="p-6 bg-white rounded-[2rem] shadow-[0_0_30px_rgba(99,102,241,0.2)] relative">
                     <QRCodeSVG 
                       value={booking.ticketId || txnId} 
                       size={140} 

@@ -89,6 +89,7 @@ app.use((req, res, next) => {
     if (
         req.path.startsWith('/api/events') || 
         req.path.startsWith('/api/discussions') || 
+        req.path.startsWith('/api/spotlight') || 
         req.path.startsWith('/api/health')
     ) return vercelWrapper(eventsHandler)(req, res);
     if (req.path.startsWith('/api/contact')) return vercelWrapper(contactHandler)(req, res);

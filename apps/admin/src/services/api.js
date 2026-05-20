@@ -104,4 +104,9 @@ export const adminService = {
   }
 };
 
+export const spotlightService = {
+  get: () => api.get('/api/spotlight'),
+  update: (spotlightData) => api.put('/api/spotlight', spotlightData)
+};
+
 export default api;

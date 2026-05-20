@@ -10,7 +10,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { 
   BarChart, Calendar, Users, Settings, 
   LogOut, Menu, Shield, Bell,
-  Search, Activity, Inbox, QrCode
+  Search, Activity, Inbox, QrCode, Tv
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
@@ -81,6 +81,7 @@ const MainLayout = () => {
               {isSuperAdmin && (
                 <>
                   <div className="text-[9px] font-bold text-zinc-700 uppercase tracking-[0.2em] mt-8 mb-4 ml-1">Team</div>
+                  <SidebarItem icon={Tv} label="Homepage Editorial" to="/banners" />
                   <SidebarItem icon={Inbox} label="Inquiries" to="/inquiries" />
                   <SidebarItem icon={Activity} label="Health" to="/health" />
                   <SidebarItem icon={Settings} label="Settings" to="/settings" />
