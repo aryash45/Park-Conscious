@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { eventService, spotlightService } from '../services/api';
 import { uploadToCloudinary } from '../utils/cloudinary';
-import { useAuth } from '../hooks/useAuth';
+
 
 const CampaignStatusBadge = ({ event }) => {
   if (!event.isFeatured) {
@@ -54,7 +54,7 @@ const CampaignStatusBadge = ({ event }) => {
 };
 
 const Banners = () => {
-  const { admin } = useAuth();
+
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -166,31 +166,42 @@ const Banners = () => {
   };
 
   const fetchEvents = useCallback(async (force = false) => {
-    if (force) setLoading(true);
+    if (force) {
+      await Promise.resolve();
+      setLoading(true);
+    }
     try {
       const { data } = await eventService.getAll();
       const sorted = Array.isArray(data) ? data : [];
       setEvents(sorted);
       
-      // Update selected event if edit session is active
-      if (selectedEvent) {
-        const fresh = sorted.find(e => e._id === selectedEvent._id);
-        if (fresh) {
-          setSelectedEvent(fresh);
-        }
-      }
+      // Update selected event if edit session is active using functional update to avoid dependencies
+      setSelectedEvent(prev => {
+        if (!prev) return null;
+        const fresh = sorted.find(e => e._id === prev._id);
+        return fresh || prev;
+      });
     } catch (error) {
       console.error('Failed to load events:', error);
       setErrorMsg('Failed to sync events repository.');
     } finally {
       setLoading(false);
     }
-  }, [selectedEvent]);
+  }, []);
 
   useEffect(() => {
-    fetchEvents(true);
-    fetchSpotlight();
-  }, [fetchSpotlight]);
+    let active = true;
+    const init = async () => {
+      await Promise.resolve();
+      if (!active) return;
+      fetchEvents(true);
+      fetchSpotlight();
+    };
+    init();
+    return () => {
+      active = false;
+    };
+  }, [fetchEvents, fetchSpotlight]);
 
   const handleSelectEvent = (event) => {
     setSelectedEvent(event);
