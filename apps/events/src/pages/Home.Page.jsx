@@ -152,7 +152,7 @@ const HomePage = () => {
         )}
   
         {/* Unified Search + Emoji Scrollable Category Ribbon */}
-        <div className="container mx-auto px-6 md:px-12 mt-16 mb-16 relative z-10 flex flex-col lg:flex-row items-center justify-between gap-8">
+        <div className="container mx-auto px-6 md:px-12 mt-6 md:mt-16 mb-10 md:mb-16 relative z-10 flex flex-col lg:flex-row items-center justify-between gap-8">
            <div className="w-full lg:max-w-md shrink-0">
               <SearchBar 
                  onSearch={(query) => {

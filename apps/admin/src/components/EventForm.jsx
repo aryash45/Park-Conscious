@@ -11,11 +11,12 @@ import {
   Upload, X, MapPin, Calendar, Tag, Shield, 
   Info, IndianRupee, Users, PlusCircle, 
   ChevronDown, ChevronUp, Star, AlertCircle,
-  Lock, Layout, Monitor, Globe, Trash2, RefreshCw, Ticket, Palette, PlayCircle, Rocket, ShieldCheck, Zap, Link2
+  Lock, Layout, Monitor, Globe, Trash2, RefreshCw, Ticket, Palette, PlayCircle, Rocket, ShieldCheck, Zap, Link2, FileInput, CheckCircle2
 } from 'lucide-react';
 import { uploadToCloudinary, uploadVideoToCloudinary } from '../utils/cloudinary';
 import axios from 'axios';
 import { normalizeApiUrl } from '../utils/apiUtils';
+import { eventService } from '../services/api';
 
 const SessionIdDisplay = () => {
   const [sessionId] = useState(() => Math.random().toString(36).substring(7).toUpperCase());
@@ -101,6 +102,45 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
   const [galleryUploading, setGalleryUploading] = useState(false);
   const [galleryError, setGalleryError] = useState('');
   const [error, setError] = useState('');
+
+  // Google Form Import Modal State
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importUrl, setImportUrl] = useState('');
+  const [isImporting, setIsImporting] = useState(false);
+  const [importError, setImportError] = useState('');
+  const [importMode, setImportMode] = useState('append'); // 'append' | 'overwrite'
+  const [importSuccess, setImportSuccess] = useState(null); // { count, title }
+
+  const handleGoogleFormImport = async () => {
+    if (!importUrl.trim()) {
+      setImportError('Please paste a Google Form URL.');
+      return;
+    }
+    setIsImporting(true);
+    setImportError('');
+    setImportSuccess(null);
+    try {
+      const { data } = await eventService.importGoogleForm(importUrl.trim());
+      const newFields = (data.customForms || []).map(f => ({ ...f, id: f.id || `gf_${Date.now()}_${Math.random().toString(36).slice(2)}` }));
+      setFormData(prev => ({
+        ...prev,
+        customForms: importMode === 'overwrite'
+          ? newFields
+          : [...(Array.isArray(prev.customForms) ? prev.customForms : []), ...newFields]
+      }));
+      setImportSuccess({ count: newFields.length, title: data.title });
+      setTimeout(() => {
+        setIsImportModalOpen(false);
+        setImportUrl('');
+        setImportSuccess(null);
+        setImportMode('append');
+      }, 1800);
+    } catch (err) {
+      setImportError(err.response?.data?.error || err.message || 'Import failed. Check the URL and try again.');
+    } finally {
+      setIsImporting(false);
+    }
+  };
 
   useEffect(() => {
     if (initialData) {
@@ -894,6 +934,13 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                   </button>
                   <button
                     type="button"
+                    onClick={() => { setIsImportModalOpen(true); setImportError(''); setImportSuccess(null); setImportUrl(''); }}
+                    className="flex items-center gap-2 bg-violet-500/10 hover:bg-violet-500/20 text-violet-400 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] transition-all border border-violet-500/20"
+                  >
+                    <FileInput size={13} /> Import Google Form
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setFormData(prev => ({
                       ...prev,
                       customForms: [...(Array.isArray(prev.customForms) ? prev.customForms : []), { id: Date.now().toString(), label: '', type: 'text', required: false, options: [] }]
@@ -903,6 +950,136 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                     <PlusCircle size={14} /> Add Field
                   </button>
                 </div>
+
+              {/* ── Google Form Import Modal ── */}
+              {isImportModalOpen && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-xl animate-in fade-in duration-300">
+                  <div className="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-2xl shadow-violet-950/40 animate-in zoom-in-95 duration-300">
+                    {/* Header */}
+                    <div className="px-8 py-6 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+                      <div className="flex items-center gap-4">
+                        <div className="w-11 h-11 rounded-2xl bg-violet-500/15 border border-violet-500/25 flex items-center justify-center shadow-lg shadow-violet-900/20">
+                          <FileInput size={20} className="text-violet-400" />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-black text-white uppercase tracking-tight">Import from Google Form</h3>
+                          <p className="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-0.5">Auto-import questions &amp; field types</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => { setIsImportModalOpen(false); setImportError(''); setImportSuccess(null); }}
+                        className="p-2 text-slate-500 hover:text-white transition-colors rounded-xl hover:bg-slate-800"
+                      >
+                        <X size={20} />
+                      </button>
+                    </div>
+
+                    {/* Body */}
+                    <div className="p-8 space-y-6">
+                      {/* URL Input */}
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Google Form URL</label>
+                        <input
+                          type="url"
+                          value={importUrl}
+                          onChange={(e) => { setImportUrl(e.target.value); setImportError(''); }}
+                          placeholder="https://docs.google.com/forms/d/e/.../viewform"
+                          className="w-full bg-slate-950 border border-slate-800 focus:border-violet-500/50 rounded-2xl px-5 py-4 text-sm text-white placeholder:text-slate-700 focus:outline-none transition-all font-medium"
+                        />
+                        <p className="text-[9px] text-slate-600 font-medium ml-1">Paste any public Google Form share or view link.</p>
+                      </div>
+
+                      {/* Import Mode Toggle */}
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Import Mode</label>
+                        <div className="grid grid-cols-2 gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setImportMode('append')}
+                            className={`flex flex-col items-start gap-1.5 p-4 rounded-2xl border-2 transition-all ${
+                              importMode === 'append'
+                                ? 'bg-violet-500/10 border-violet-500/50 text-violet-300'
+                                : 'bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-700'
+                            }`}
+                          >
+                            <PlusCircle size={16} />
+                            <span className="text-[10px] font-black uppercase tracking-widest">Append</span>
+                            <span className="text-[9px] font-medium opacity-70">Add below existing fields</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setImportMode('overwrite')}
+                            className={`flex flex-col items-start gap-1.5 p-4 rounded-2xl border-2 transition-all ${
+                              importMode === 'overwrite'
+                                ? 'bg-rose-500/10 border-rose-500/40 text-rose-300'
+                                : 'bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-700'
+                            }`}
+                          >
+                            <RefreshCw size={16} />
+                            <span className="text-[10px] font-black uppercase tracking-widest">Overwrite</span>
+                            <span className="text-[9px] font-medium opacity-70">Replace all existing fields</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Error */}
+                      {importError && (
+                        <div className="flex items-start gap-3 p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl">
+                          <AlertCircle size={16} className="text-rose-400 shrink-0 mt-0.5" />
+                          <p className="text-[10px] font-bold text-rose-400 leading-relaxed">{importError}</p>
+                        </div>
+                      )}
+
+                      {/* Success */}
+                      {importSuccess && (
+                        <div className="flex items-start gap-3 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl">
+                          <CheckCircle2 size={16} className="text-emerald-400 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">{importSuccess.count} Fields Imported!</p>
+                            {importSuccess.title && <p className="text-[9px] text-emerald-600 font-medium mt-0.5 truncate">From: {importSuccess.title}</p>}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Supported types note */}
+                      {!importError && !importSuccess && (
+                        <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-2xl">
+                          <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-2">Supported Field Types</p>
+                          <div className="flex flex-wrap gap-2">
+                            {['Short Text', 'Paragraph', 'Dropdown', 'Multiple Choice', 'Checkboxes', 'File Upload'].map(t => (
+                              <span key={t} className="px-2 py-1 bg-slate-900 border border-slate-800 rounded-lg text-[9px] font-bold text-slate-500 uppercase tracking-widest">{t}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Actions */}
+                      <div className="flex gap-3 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => { setIsImportModalOpen(false); setImportError(''); setImportSuccess(null); }}
+                          className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white font-black text-[9px] uppercase tracking-[0.2em] py-4 rounded-2xl transition-all"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleGoogleFormImport}
+                          disabled={isImporting || !importUrl.trim()}
+                          className="flex-[2] bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white font-black text-[9px] uppercase tracking-[0.2em] py-4 rounded-2xl transition-all shadow-xl shadow-violet-950/40 flex items-center justify-center gap-2"
+                        >
+                          {isImporting ? (
+                            <><RefreshCw size={14} className="animate-spin" /> Importing&hellip;</>
+                          ) : (
+                            <><FileInput size={14} /> Import Fields</>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
               </div>
 
               {formData.customForms && formData.customForms.length > 0 ? (
