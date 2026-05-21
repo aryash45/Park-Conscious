@@ -8,6 +8,8 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, Calendar, MapPin } from 'lucide-react';
+import { getEventUrlId } from "../../utils/eventUrl";
+import { getEventPriceLabel } from "../../utils/eventPrice";
 
 const colorStyles = {
     "red-600":    { border: "group-hover:border-red-600/30",     mesh: "bg-red-600/10",     label: "bg-red-600",     btn: "group-hover:bg-red-600" },
@@ -62,7 +64,7 @@ const FeaturedEventsSection = ({ featuredEvents, isLoading }) => {
           return (
             <div 
               key={event._id}
-              onClick={() => navigate(`/event/${event._id}`)}
+              onClick={() => navigate(`/event/${getEventUrlId(event)}`)}
               className="group relative h-[34rem] md:h-[38rem] rounded-[2.5rem] overflow-hidden cursor-pointer bg-black border border-white/5 transition-all duration-700 hover:border-white/20"
             >
               {/* Cinematic Background */}
@@ -115,7 +117,7 @@ const FeaturedEventsSection = ({ featuredEvents, isLoading }) => {
 
                     <div className="flex flex-col items-end">
                        <span className="text-[8px] font-black uppercase tracking-[0.4em] text-white/40 mb-1">Passes</span>
-                       <p className="text-3xl font-black text-white tracking-tighter italic drop-shadow-lg">₹{event.price || 'FREE'}</p>
+                       <p className="text-3xl font-black text-white tracking-tighter italic drop-shadow-lg">{getEventPriceLabel(event)}</p>
                     </div>
                   </div>
                 </div>

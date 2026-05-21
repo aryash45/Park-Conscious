@@ -17,6 +17,8 @@ import {
   Calendar, Clock, Users, ArrowUpRight, Share2, Instagram, Globe, Link2
 } from "lucide-react";
 import { Helmet } from "react-helmet";
+import { getEventUrlId } from "../utils/eventUrl";
+import { getOgImageUrl } from "../utils/ogImage";
 
 /**
  * Inject Cloudinary transformations into a Cloudinary URL.
@@ -63,6 +65,13 @@ const EventPage = () => {
       navigate("/");
     }
   }, [error, navigate]);
+
+  // Redirect ObjectId (or stale) URLs to canonical slug URL
+  useEffect(() => {
+    if (!rawEvent?.slug || id === rawEvent.slug) return;
+    const search = window.location.search;
+    navigate(`/event/${rawEvent.slug}${search}`, { replace: true });
+  }, [rawEvent, id, navigate]);
 
   // Normalize Data when rawEvent arrives
   useEffect(() => {
@@ -182,15 +191,18 @@ const EventPage = () => {
   return (
     <PremiumBackground themeConfig={liveTheme}>
       <Helmet>
+        <link rel="canonical" href={`https://events.parkconscious.in/event/${getEventUrlId(event)}`} />
         <title>{`${event.displayTitle} | BACKSTAGE`}</title>
         <meta name="description" content={event.displayDescription?.substring(0, 160) || "Join us for an exclusive event experience."} />
         <meta property="og:title" content={event.displayTitle} />
         <meta property="og:description" content={event.displayDescription?.substring(0, 160) || "Join us for an exclusive event experience."} />
-        <meta property="og:image" content={clUrl(event.images?.[0] || event.image)} />
+        <meta property="og:image" content={getOgImageUrl(event)} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="1600" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={event.displayTitle} />
         <meta name="twitter:description" content={event.displayDescription?.substring(0, 160) || "Join us for an exclusive event experience."} />
-        <meta name="twitter:image" content={clUrl(event.images?.[0] || event.image)} />
+        <meta name="twitter:image" content={getOgImageUrl(event)} />
         
         {/* JSON-LD Schema for Events */}
         <script type="application/ld+json">

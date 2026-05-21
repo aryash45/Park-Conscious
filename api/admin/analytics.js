@@ -99,6 +99,7 @@ export async function handleAnalytics(url, method, body, user, req, res) {
                 const bookings = eventBookings.filter(b => String(b.eventId) === String(e._id));
                 return {
                     eventId: e._id,
+                    slug: e.slug,
                     title: e.displayTitle || e.title,
                     totalTickets: bookings.length,
                     attended: bookings.filter(b => b.attended).length,

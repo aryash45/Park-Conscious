@@ -10,6 +10,7 @@ import mongoose from 'mongoose';
 import connectDB from './lib/mongodb.js';
 import * as models from './lib/models.js';
 import { normalizeEvent } from './lib/utils.js';
+import { getOgImageUrl, OG_IMAGE_WIDTH, OG_IMAGE_HEIGHT } from './lib/ogImage.js';
 
 const { Event } = models;
 
@@ -34,27 +35,23 @@ export default async function handler(req, res) {
         }
 
         const event = normalizeEvent(eventData);
+
+        const host = req.headers['x-public-host'] || req.headers['x-forwarded-host'] || req.headers.host || 'events.parkconscious.in';
+        const protocol = host.includes('localhost') ? 'http' : 'https';
+
+        // Permanent redirect from ObjectId URL to canonical slug URL
+        if (event.slug && id !== event.slug) {
+            const redirectUrl = `${protocol}://${host}/event/${event.slug}`;
+            res.writeHead(301, { Location: redirectUrl });
+            return res.end();
+        }
         
         // Prepare metadata
         const title = `${event.title} | BACKSTAGE`;
         const description = event.description?.substring(0, 160) || "Join us for an exclusive event experience.";
         
-        // Use a high-res fallback if the event image is missing
-        const imageUrl = event.images?.[0] || event.image || 'https://events.parkconscious.in/new_backstage.png';
-        
-        // Ensure image URL is absolute and uses HTTPS
-        let absoluteImageUrl = imageUrl;
-        if (imageUrl.startsWith('/')) {
-            absoluteImageUrl = `https://events.parkconscious.in${imageUrl}`;
-        }
-        
-        // Optimize Cloudinary image for Social Media (1200x630 is the gold standard)
-        if (absoluteImageUrl.includes('res.cloudinary.com')) {
-            absoluteImageUrl = absoluteImageUrl.replace(/\/v\d+\//, '/').replace('/upload/', '/upload/q_auto,f_auto,w_1200,h_630,c_pad,b_black/');
-        }
+        const absoluteImageUrl = getOgImageUrl(event, `${protocol}://${host}`);
 
-        const host = req.headers['x-public-host'] || req.headers['x-forwarded-host'] || req.headers.host || 'events.parkconscious.in';
-        const protocol = host.includes('localhost') ? 'http' : 'https';
         const eventSlug = event.slug || id;
         const canonicalUrl = `${protocol}://${host}/event/${eventSlug}`;
 
@@ -99,8 +96,10 @@ export default async function handler(req, res) {
     <meta property="og:title" content="${title}">
     <meta property="og:description" content="${description}">
     <meta property="og:image" content="${absoluteImageUrl}">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="630">
+    <meta property="og:image:secure_url" content="${absoluteImageUrl}">
+    <meta property="og:image:type" content="image/jpeg">
+    <meta property="og:image:width" content="${OG_IMAGE_WIDTH}">
+    <meta property="og:image:height" content="${OG_IMAGE_HEIGHT}">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="${title}">
     <meta name="twitter:description" content="${description}">

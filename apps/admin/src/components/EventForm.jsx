@@ -242,7 +242,8 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
   const handleCopyLink = () => {
     if (!initialData?._id) return;
     const EVENTS_BASE = import.meta.env.VITE_EVENTS_APP_URL || "https://events.parkconscious.in";
-    const url = `${EVENTS_BASE}/event/${initialData._id}`;
+    const urlId = initialData.slug || initialData._id;
+    const url = `${EVENTS_BASE}/event/${urlId}`;
     navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);

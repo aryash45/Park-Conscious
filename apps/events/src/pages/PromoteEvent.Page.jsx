@@ -57,7 +57,8 @@ const PromoteEventPage = () => {
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
             });
-            navigate(`/event/${id}?promoted=true`);
+            const urlId = event?.slug || id;
+            navigate(`/event/${urlId}?promoted=true`);
           } catch (err) {
             alert("Payment verification failed. Please contact support.");
           }
