@@ -320,7 +320,7 @@ export default async function handler(req, res) {
                     return json(res, 200, cached);
                 }
 
-                const data = pruneEvent(event, canSeePrivate);
+                const data = normalizeEvent(pruneEvent(event, canSeePrivate));
                 await setCache(cacheKey, data, 300); // 5 min cache
                 setMemoryCache(memCacheKey, data, 60); // 1 min memory cache
                 

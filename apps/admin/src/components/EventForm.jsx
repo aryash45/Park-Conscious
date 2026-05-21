@@ -1277,7 +1277,7 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
                     />
                   </div>
                   <div className="space-y-3">
-                    <label className="block text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Remaining Capacity</label>
+                    <label className="block text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Total Capacity</label>
                     <input
                       type="number"
                       name="capacity"

@@ -157,17 +157,23 @@ export const releaseInventoryUnits = async (eventId, tierName = null, options = 
 const acquireInventoryReleaseClaim = async (bookingId, extraQuery = {}) => {
   if (!bookingId) return null;
 
-  // Use a sentinel field to mark that a release is in-flight while leaving
-  // inventoryReleasedAt null so callers can detect an incomplete release and retry.
+  // Use $and so the $ne: 'Releasing' guard cannot be silently overwritten
+  // if extraQuery also contains a `status` key (e.g. { status: 'Initiated' } from restoreReleasedInventory).
   return models.Booking.findOneAndUpdate(
     {
-      _id: bookingId,
-      inventoryReserved: true,
-      inventoryReleasedAt: null,
-      ...extraQuery
+      $and: [
+        {
+          _id: bookingId,
+          inventoryReserved: true,
+          inventoryReleasedAt: null,
+          ...extraQuery
+        },
+        // Explicit guard: never claim a booking already being released by another worker
+        { status: { $ne: 'Releasing' } }
+      ]
     },
     {
-      $set: { status: 'Initiated' } // keep Initiated so a retry re-enters this path
+      $set: { status: 'Releasing' } // transient lock — keeps booking out of the retry pool
     },
     { new: false }
   ).lean();
