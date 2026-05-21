@@ -9,6 +9,8 @@ import React from "react";
 import Slider from "react-slick";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, Calendar, MapPin, Tag } from "lucide-react";
+import { getEventUrlId } from "../../utils/eventUrl";
+import { getEventPriceLabel } from "../../utils/eventPrice";
 
 // Curated aesthetic glow highlights based on accent colors
 const accentColors = {
@@ -109,8 +111,8 @@ const LandscapeBanner = ({ featuredEvents, isLoading }) => {
           return (
             <div 
               key={event._id} 
-              onClick={() => navigate(`/event/${event._id}`)}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/event/${event._id}`); } }}
+              onClick={() => navigate(`/event/${getEventUrlId(event)}`)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/event/${getEventUrlId(event)}`); } }}
               role="button"
               tabIndex={0}
               aria-label={`Open event ${event.featuredTitle || event.title}`}
@@ -191,7 +193,7 @@ const LandscapeBanner = ({ featuredEvents, isLoading }) => {
                       <div className="flex flex-col">
                         <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Pricing</span>
                         <span className="text-sm font-black text-white">
-                          {event.price != null && event.price > 0 ? `₹${event.price}` : 'FREE'}
+                          {getEventPriceLabel(event)}
                         </span>
                       </div>
 

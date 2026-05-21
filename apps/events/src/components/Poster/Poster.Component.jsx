@@ -3,9 +3,11 @@ import { Link } from "react-router-dom";
 import { Calendar, MapPin } from 'lucide-react';
 import { preload } from "swr";
 import { backendAxios } from "../../axios";
+import { getEventUrlId } from "../../utils/eventUrl";
+import { getEventPriceLabel } from "../../utils/eventPrice";
 
 const Poster = (props) => {
-  const eventId = props.slug || props._id || props.id;
+  const eventId = getEventUrlId(props);
   
   const prefetchEvent = () => {
     if (eventId) {
@@ -38,7 +40,7 @@ const Poster = (props) => {
           <div className="absolute top-2.5 right-2.5 z-20">
             <div className="h-5 md:h-6 px-2 md:px-3 rounded-full bg-black/75 backdrop-blur-md border border-white/10 flex items-center justify-center">
               <span className="text-[8px] md:text-[9px] font-black uppercase tracking-widest text-white">
-                {props.price ? `₹${props.price}` : 'FREE'}
+                {getEventPriceLabel(props)}
               </span>
             </div>
           </div>

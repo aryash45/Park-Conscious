@@ -9,6 +9,8 @@
 import React, { useRef } from 'react';
 import { ChevronLeft, ChevronRight, MapPin, Calendar, ArrowRight } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import { getEventUrlId } from '../../utils/eventUrl';
+import { getEventPriceLabel } from '../../utils/eventPrice';
 
 const BrandSpotlight = ({ spotlight }) => {
   const sliderRef = useRef(null);
@@ -107,7 +109,7 @@ const BrandSpotlight = ({ spotlight }) => {
                   className="flex gap-4 overflow-x-auto no-scrollbar scroll-smooth pb-4 px-1"
                 >
                   {events.map(event => {
-                    const eventId = event.slug || event._id;
+                    const eventId = getEventUrlId(event);
                     const posterSrc = (event.images && event.images[0]) || event.image || 'https://images.unsplash.com/photo-1540039155733-5bb30b53aa14';
                     const venueLabel = event.location?.name || event.venue || '';
                     const cityLabel  = event.location?.city || event.venueCity || '';
@@ -129,7 +131,7 @@ const BrandSpotlight = ({ spotlight }) => {
                               <div className="absolute top-3 right-3 z-20">
                                 <div className="h-6 px-3 rounded-full bg-black/70 backdrop-blur-md border border-white/10 flex items-center">
                                   <span className="text-[9px] font-black uppercase tracking-widest text-white">
-                                    {event.price ? `₹${event.price}` : 'FREE'}
+                                    {getEventPriceLabel(event)}
                                   </span>
                                 </div>
                               </div>

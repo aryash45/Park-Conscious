@@ -71,11 +71,12 @@ const Events = () => {
   };
 
   const [copiedId, setCopiedId] = useState(null);
-  const handleCopyLink = (id) => {
+  const handleCopyLink = (event) => {
     const EVENTS_BASE = import.meta.env.VITE_EVENTS_APP_URL || "https://events.parkconscious.in";
-    const url = `${EVENTS_BASE}/event/${id}`;
+    const urlId = event.slug || event._id;
+    const url = `${EVENTS_BASE}/event/${urlId}`;
     navigator.clipboard.writeText(url);
-    setCopiedId(id);
+    setCopiedId(event._id);
     setTimeout(() => setCopiedId(null), 2000);
   };
 
@@ -268,7 +269,7 @@ const Events = () => {
                         
                         {/* Copy Link Button */}
                         <button
-                          onClick={(e) => { e.stopPropagation(); handleCopyLink(event._id); }}
+                          onClick={(e) => { e.stopPropagation(); handleCopyLink(event); }}
                           className={`p-2 rounded-xl border transition-all flex items-center gap-2 ${copiedId === event._id ? 'bg-emerald-500 border-emerald-500 text-white' : 'bg-white/5 border-white/10 text-slate-500 hover:bg-white/10 hover:text-white'}`}
                         >
                           <Link2 size={12} />

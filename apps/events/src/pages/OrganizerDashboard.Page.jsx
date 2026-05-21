@@ -226,7 +226,7 @@ const OrganizerDashboardPage = () => {
                         <td className="px-6 py-4 text-right">
                           <div className="flex justify-end gap-2">
                              <button 
-                               onClick={() => window.open(`/event/${ev.eventId}`, '_blank')}
+                               onClick={() => window.open(`/event/${ev.slug || ev.eventId}`, '_blank')}
                                className="p-2 bg-white/5 hover:bg-white/10 text-white rounded-lg transition-all"
                                title="View Event"
                              >

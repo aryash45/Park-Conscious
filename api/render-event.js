@@ -10,8 +10,35 @@ import mongoose from 'mongoose';
 import connectDB from './lib/mongodb.js';
 import * as models from './lib/models.js';
 import { normalizeEvent } from './lib/utils.js';
+import { getOgImageUrl, OG_IMAGE_WIDTH, OG_IMAGE_HEIGHT } from './lib/ogImage.js';
 
 const { Event } = models;
+
+const DEFAULT_ORIGIN = 'https://events.parkconscious.in';
+
+function getTrustedOrigin() {
+    const raw = process.env.CANONICAL_ORIGIN || process.env.NEXT_PUBLIC_CANONICAL_ORIGIN || DEFAULT_ORIGIN;
+    try {
+        return new URL(raw).origin;
+    } catch {
+        return DEFAULT_ORIGIN;
+    }
+}
+
+/** Preserve query params (e.g. UTM, preview) but drop routing `id`. */
+function buildRedirectQuery(query) {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query || {})) {
+        if (key === 'id') continue;
+        if (Array.isArray(value)) {
+            value.forEach((v) => params.append(key, String(v)));
+        } else if (value != null) {
+            params.append(key, String(value));
+        }
+    }
+    const qs = params.toString();
+    return qs ? `?${qs}` : '';
+}
 
 export default async function handler(req, res) {
     const { id } = req.query;
@@ -34,29 +61,24 @@ export default async function handler(req, res) {
         }
 
         const event = normalizeEvent(eventData);
+
+        const trustedOrigin = getTrustedOrigin();
+
+        // Permanent redirect from ObjectId URL to canonical slug URL
+        if (event.slug && id !== event.slug) {
+            const redirectUrl = `${trustedOrigin}/event/${event.slug}${buildRedirectQuery(req.query)}`;
+            res.writeHead(301, { Location: redirectUrl });
+            return res.end();
+        }
         
         // Prepare metadata
         const title = `${event.title} | BACKSTAGE`;
         const description = event.description?.substring(0, 160) || "Join us for an exclusive event experience.";
         
-        // Use a high-res fallback if the event image is missing
-        const imageUrl = event.images?.[0] || event.image || 'https://events.parkconscious.in/new_backstage.png';
-        
-        // Ensure image URL is absolute and uses HTTPS
-        let absoluteImageUrl = imageUrl;
-        if (imageUrl.startsWith('/')) {
-            absoluteImageUrl = `https://events.parkconscious.in${imageUrl}`;
-        }
-        
-        // Optimize Cloudinary image for Social Media (1200x630 is the gold standard)
-        if (absoluteImageUrl.includes('res.cloudinary.com')) {
-            absoluteImageUrl = absoluteImageUrl.replace(/\/v\d+\//, '/').replace('/upload/', '/upload/q_auto,f_auto,w_1200,h_630,c_pad,b_black/');
-        }
+        const absoluteImageUrl = getOgImageUrl(event, trustedOrigin);
 
-        const host = req.headers['x-public-host'] || req.headers['x-forwarded-host'] || req.headers.host || 'events.parkconscious.in';
-        const protocol = host.includes('localhost') ? 'http' : 'https';
         const eventSlug = event.slug || id;
-        const canonicalUrl = `${protocol}://${host}/event/${eventSlug}`;
+        const canonicalUrl = `${trustedOrigin}/event/${eventSlug}`;
 
         // Fetch the actual index.html from the build
         let html = '';
@@ -64,7 +86,7 @@ export default async function handler(req, res) {
         const timeoutId = setTimeout(() => controller.abort(), 3000);
 
         try {
-            const indexUrl = `${protocol}://${host}/index.html`;
+            const indexUrl = `${trustedOrigin}/index.html`;
             console.log(`[RENDERER]: Fetching index from ${indexUrl}`);
             const indexResponse = await fetch(indexUrl, { 
                 headers: { 'User-Agent': 'Backstage-SEO-Renderer' },
@@ -99,8 +121,10 @@ export default async function handler(req, res) {
     <meta property="og:title" content="${title}">
     <meta property="og:description" content="${description}">
     <meta property="og:image" content="${absoluteImageUrl}">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="630">
+    <meta property="og:image:secure_url" content="${absoluteImageUrl}">
+    <meta property="og:image:type" content="image/jpeg">
+    <meta property="og:image:width" content="${OG_IMAGE_WIDTH}">
+    <meta property="og:image:height" content="${OG_IMAGE_HEIGHT}">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="${title}">
     <meta name="twitter:description" content="${description}">

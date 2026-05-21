@@ -18,6 +18,7 @@ import {
     logSystemError 
 } from "./lib/utils.js";
 import crypto from "crypto";
+import axios from "axios";
 import { getCache, setCache, delCache } from "./lib/redis.js";
 import { getMemoryCache, setMemoryCache, clearMemoryCache } from "./lib/memoryCache.js";
 
@@ -455,6 +456,169 @@ export default async function handler(req, res) {
                 delete body.featuredEnd;
             }
             
+            // Handle Google Form Import
+            if (action === "import_google_form" || body.action === "import_google_form") {
+                const { url } = body;
+                if (!url) {
+                    return json(res, 400, { error: "Google Form URL is required" });
+                }
+                
+                try {
+                    // Normalize the URL
+                    let targetUrl = url.trim();
+                    if (targetUrl.includes('/edit')) {
+                        targetUrl = targetUrl.replace(/\/edit(\?.*)?$/, '/viewform');
+                    }
+                    if (!targetUrl.includes('/viewform') && !targetUrl.match(/\/forms\/d\/e\/[a-zA-Z0-9_-]+\/?$/)) {
+                        if (targetUrl.includes('/viewform')) {
+                            // already has it
+                        } else {
+                            if (targetUrl.endsWith('/')) {
+                                targetUrl += 'viewform';
+                            } else if (!targetUrl.endsWith('viewform')) {
+                                targetUrl += '/viewform';
+                            }
+                        }
+                    }
+
+                    console.log(`[IMPORT_GOOGLE_FORM]: Fetching and parsing form from URL: ${targetUrl}`);
+                    const response = await axios.get(targetUrl, {
+                        headers: {
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                            'Accept-Language': 'en-US,en;q=0.5'
+                        },
+                        timeout: 10000
+                    });
+
+                    const html = response.data;
+                    
+                    // Parse FB_PUBLIC_LOAD_DATA_ using the matching bracket parser
+                    const startIndex = html.indexOf('FB_PUBLIC_LOAD_DATA_');
+                    if (startIndex === -1) {
+                        return json(res, 400, { error: "Could not find form data in the page. Please ensure the Google Form is public and accessible." });
+                    }
+                    
+                    const bracketIndex = html.indexOf('[', startIndex);
+                    if (bracketIndex === -1) {
+                        return json(res, 400, { error: "Failed to parse Google Form data structure." });
+                    }
+                    
+                    let bracketCount = 0;
+                    let jsonEndIndex = -1;
+                    let inString = false;
+                    let stringChar = '';
+                    let escaped = false;
+                    
+                    for (let i = bracketIndex; i < html.length; i++) {
+                        const char = html[i];
+                        if (escaped) {
+                            escaped = false;
+                            continue;
+                        }
+                        if (char === '\\') {
+                            escaped = true;
+                            continue;
+                        }
+                        if (char === '"' || char === "'") {
+                            if (!inString) {
+                                inString = true;
+                                stringChar = char;
+                            } else if (stringChar === char) {
+                                inString = false;
+                            }
+                        }
+                        if (!inString) {
+                            if (char === '[') {
+                                bracketCount++;
+                            } else if (char === ']') {
+                                bracketCount--;
+                                if (bracketCount === 0) {
+                                    jsonEndIndex = i + 1;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    
+                    if (jsonEndIndex === -1) {
+                        return json(res, 400, { error: "Failed to locate matching JSON array boundaries in the form page." });
+                    }
+                    
+                    const dataStr = html.slice(bracketIndex, jsonEndIndex);
+                    let data;
+                    try {
+                        data = JSON.parse(dataStr);
+                    } catch (parseErr) {
+                        console.error("[IMPORT_GOOGLE_FORM_JSON_PARSE_ERROR]:", parseErr);
+                        return json(res, 400, { error: "Malformed form data. Could not parse JSON structure." });
+                    }
+
+                    if (!data || !data[1] || !Array.isArray(data[1][1])) {
+                        return json(res, 400, { error: "No questions found in this Google Form. Please ensure it has input fields." });
+                    }
+
+                    const title = data[1][8] || "";
+                    const description = data[1][0] || "";
+                    const questionsList = data[1][1];
+                    const customFields = [];
+
+                    for (let i = 0; i < questionsList.length; i++) {
+                        const item = questionsList[i];
+                        const itemId = String(item[0] || Date.now() + i);
+                        const label = item[1];
+                        const typeCode = item[3];
+
+                        // Skip layout fields/headers that don't collect data (have no label or no item[4])
+                        if (!label || !item[4]) continue;
+
+                        let type = 'text';
+                        switch (typeCode) {
+                            case 0: type = 'text'; break;
+                            case 1: type = 'textarea'; break;
+                            case 2: type = 'select'; break;
+                            case 3: type = 'select'; break;
+                            case 4: type = 'select'; break; // check box maps to select (multi-option) in our system
+                            case 5: type = 'select'; break; // linear scale maps to select
+                            case 11: type = 'file'; break; // file upload
+                            default: type = 'text'; break;
+                        }
+
+                        let required = false;
+                        let options = [];
+
+                        const itemInfo = item[4];
+                        if (itemInfo && itemInfo[0]) {
+                            const nestedInfo = itemInfo[0];
+                            required = nestedInfo[2] === 1 || nestedInfo[2] === true;
+                            
+                            const optionsArray = nestedInfo[1];
+                            if (optionsArray && Array.isArray(optionsArray)) {
+                                options = optionsArray.map(opt => opt[0]).filter(opt => typeof opt === 'string' && opt.trim() !== '');
+                            }
+                        }
+
+                        customFields.push({
+                            id: `gf_${itemId}`,
+                            label: label.trim(),
+                            type,
+                            required,
+                            options
+                        });
+                    }
+
+                    return json(res, 200, {
+                        title,
+                        description,
+                        customForms: customFields
+                    });
+
+                } catch (fetchErr) {
+                    console.error("[IMPORT_GOOGLE_FORM_FETCH_ERROR]:", fetchErr);
+                    return json(res, 500, { error: "Failed to fetch Google Form" });
+                }
+            }
+
             // Handle Razorpay Order Creation (if requested)
             if (body.action === "create_order") {
                 const { default: Razorpay } = await import("razorpay");
