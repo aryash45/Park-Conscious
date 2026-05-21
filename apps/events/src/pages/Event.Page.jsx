@@ -147,11 +147,8 @@ const EventPage = () => {
     discountedRemaining: 0,
     isEscalated: false
   };
-  const primaryColor = liveTheme?.primaryColor || '#E33B76';
-  const displayMode = liveTheme?.displayMode || 'light';
-  const primaryColor = themeConfig?.primaryColor || '#E33B76';
+  const primaryColor = themeConfig?.primaryColor || '`#E33B76`';
   const displayMode = themeConfig?.displayMode || 'light';
-  
   const textTitleClass = displayMode === 'dark' ? 'text-white' : 'text-slate-900';
   const textSubtitleClass = displayMode === 'dark' ? 'text-slate-400' : 'text-slate-500';
   const textBodyClass = displayMode === 'dark' ? 'text-slate-300' : 'text-slate-700';
