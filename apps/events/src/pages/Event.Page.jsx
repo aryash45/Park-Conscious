@@ -17,6 +17,8 @@ import {
   Calendar, Clock, Users, ArrowUpRight, Share2, Instagram, Globe, Link2
 } from "lucide-react";
 import { Helmet } from "react-helmet";
+import { getEventUrlId } from "../utils/eventUrl";
+import { getOgImageUrl } from "../utils/ogImage";
 
 /**
  * Inject Cloudinary transformations into a Cloudinary URL.
@@ -29,11 +31,27 @@ const clUrl = (url, type = 'image') => {
 };
 
 const formatINR = (value) => `INR ${Number(value || 0).toLocaleString('en-IN')}`;
+const eventMatchesRoute = (data, routeId) => {
+  if (!data || !routeId) return false;
+  const rid = String(routeId);
+  return [data.slug, data._id, data.id].some((key) => key != null && String(key) === rid);
+};
+
+const normalizeEventData = (rawEvent) => ({
+  ...rawEvent,
+  displayTitle: rawEvent.title || rawEvent.name || "Untitled",
+  displayDate: rawEvent.date || rawEvent.createdAt,
+  displayLocation: rawEvent.location?.name || rawEvent.locationName || rawEvent.venue || "TBA",
+  displayAddress: rawEvent.location?.address || rawEvent.locationAddress || "",
+  displayDescription: rawEvent.description || "",
+  hosts: Array.isArray(rawEvent.hosts) ? rawEvent.hosts : [],
+  ticketTiers: Array.isArray(rawEvent.ticketTiers) ? rawEvent.ticketTiers : [],
+  mediaGallery: Array.isArray(rawEvent.mediaGallery) ? rawEvent.mediaGallery : [],
+});
 
 const EventPage = () => {
   const { id } = useParams();
   const [event, setEvent] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [selectedTier, setSelectedTier] = useState(null);
   const [liveTheme, setLiveTheme] = useState(null);
@@ -66,40 +84,37 @@ const EventPage = () => {
     }
   }, [error, navigate]);
 
-  // Normalize Data when rawEvent arrives
+  // Redirect ObjectId (or stale) URLs to canonical slug URL
   useEffect(() => {
-    if (rawEvent) {
-      const normalized = {
-        ...rawEvent,
-        displayTitle: rawEvent.title || rawEvent.name || "Untitled",
-        displayDate: rawEvent.date || rawEvent.createdAt,
-        displayLocation: rawEvent.location?.name || rawEvent.locationName || rawEvent.venue || "TBA",
-        displayAddress: rawEvent.location?.address || rawEvent.locationAddress || "",
-        displayDescription: rawEvent.description || "",
-        hosts: Array.isArray(rawEvent.hosts) ? rawEvent.hosts : [],
-        ticketTiers: Array.isArray(rawEvent.ticketTiers) ? rawEvent.ticketTiers : [],
-        mediaGallery: Array.isArray(rawEvent.mediaGallery) ? rawEvent.mediaGallery : []
-      };
+    if (!rawEvent?.slug || id === rawEvent.slug) return;
+    const search = window.location.search;
+    navigate(`/event/${rawEvent.slug}${search}`, { replace: true });
+  }, [rawEvent, id, navigate]);
 
-      setEvent(normalized);
-      
-      // Only set initial theme and tier if they haven't been set yet
-      setLiveTheme(prev => prev || normalized.themeConfig);
-      
-      if (normalized.ticketTiers.length > 0) {
-        setSelectedTier(prev => prev || normalized.ticketTiers[0]);
-      }
-    }
-  }, [rawEvent]);
-
-  // Scroll to top and reset derived state on route change
+  // Apply cached/fetched event + theme atomically (avoids id-reset racing with SWR cache)
   useEffect(() => {
-    setLiveTheme(null);
-    setSelectedTier(null);
     window.scrollTo(0, 0);
-  }, [id]);
 
-  if (isLoading || !event) {
+    if (!rawEvent || !eventMatchesRoute(rawEvent, id)) {
+      setEvent(null);
+      setLiveTheme(null);
+      setSelectedTier(null);
+      return;
+    }
+
+    const normalized = normalizeEventData(rawEvent);
+    setEvent(normalized);
+    setLiveTheme(normalized.themeConfig ?? null);
+    if (normalized.ticketTiers.length > 0) {
+      setSelectedTier(normalized.ticketTiers[0]);
+    } else {
+      setSelectedTier(null);
+    }
+  }, [id, rawEvent]);
+
+  const themeConfig = liveTheme ?? event?.themeConfig;
+
+  if ((isLoading && !rawEvent) || !event) {
     return (
       <div className="bg-[#050507] min-h-screen flex items-center justify-center">
         <div className="w-12 h-12 border-2 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
@@ -134,6 +149,8 @@ const EventPage = () => {
   };
   const primaryColor = liveTheme?.primaryColor || '#E33B76';
   const displayMode = liveTheme?.displayMode || 'light';
+  const primaryColor = themeConfig?.primaryColor || '#E33B76';
+  const displayMode = themeConfig?.displayMode || 'light';
   
   const textTitleClass = displayMode === 'dark' ? 'text-white' : 'text-slate-900';
   const textSubtitleClass = displayMode === 'dark' ? 'text-slate-400' : 'text-slate-500';
@@ -190,17 +207,20 @@ const EventPage = () => {
   };
 
   return (
-    <PremiumBackground themeConfig={liveTheme}>
+    <PremiumBackground themeConfig={themeConfig}>
       <Helmet>
+        <link rel="canonical" href={`https://events.parkconscious.in/event/${getEventUrlId(event)}`} />
         <title>{`${event.displayTitle} | BACKSTAGE`}</title>
         <meta name="description" content={event.displayDescription?.substring(0, 160) || "Join us for an exclusive event experience."} />
         <meta property="og:title" content={event.displayTitle} />
         <meta property="og:description" content={event.displayDescription?.substring(0, 160) || "Join us for an exclusive event experience."} />
-        <meta property="og:image" content={clUrl(event.images?.[0] || event.image)} />
+        <meta property="og:image" content={getOgImageUrl(event)} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="1600" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={event.displayTitle} />
         <meta name="twitter:description" content={event.displayDescription?.substring(0, 160) || "Join us for an exclusive event experience."} />
-        <meta name="twitter:image" content={clUrl(event.images?.[0] || event.image)} />
+        <meta name="twitter:image" content={getOgImageUrl(event)} />
         
         {/* JSON-LD Schema for Events */}
         <script type="application/ld+json">
@@ -500,7 +520,7 @@ const EventPage = () => {
           isOpen={isBookingOpen}
           setIsOpen={setIsBookingOpen}
           event={{...event, selectedTier}}
-          themeConfig={liveTheme}
+          themeConfig={themeConfig}
         />
       </div>
     </PremiumBackground>

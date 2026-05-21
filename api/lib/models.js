@@ -89,6 +89,10 @@ export const eventSchema = new mongoose.Schema(
     featuredTitle: String,
     featuredSubtitle: String,
     featuredLabel: String,
+    bannerImage: { type: String, default: null },
+    featuredOrder: { type: Number, default: 0 },
+    featuredStart: { type: Date, default: null },
+    featuredEnd: { type: Date, default: null },
     accentColor: String, // Tailwind class name like 'red-600' or 'indigo-500'
     // Media Gallery: extra photos/videos shown on the event detail page
     mediaGallery: [{
@@ -322,6 +326,17 @@ const verificationCodeSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+export const spotlightSchema = new mongoose.Schema(
+  {
+    title: { type: String, required: true },
+    subtitle: String,
+    brandPoster: { type: String, default: "" },
+    eventIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Event' }],
+    isActive: { type: Boolean, default: true }
+  },
+  { timestamps: true }
+);
+
 export const User = mongoose.models.User || mongoose.model("User", userSchema);
 export const VerificationCode = mongoose.models.VerificationCode || mongoose.model("VerificationCode", verificationCodeSchema);
 export const Owner = mongoose.models.Owner || mongoose.model("Owner", ownerSchema);
@@ -335,6 +350,7 @@ export const Parking = mongoose.models.Parking || mongoose.model("Parking", park
 export const Booking = mongoose.models.Booking || mongoose.model("Booking", bookingSchema);
 export const EventRequest = mongoose.models.EventRequest || mongoose.model("EventRequest", eventRequestSchema);
 export const SystemLog = mongoose.models.SystemLog || mongoose.model("SystemLog", systemLogSchema);
+export const Spotlight = mongoose.models.Spotlight || mongoose.model("Spotlight", spotlightSchema);
 
 export const getSecondaryModel = (modelName) => {
     // This safely creates or retrieves a secondary connection to park_conscious

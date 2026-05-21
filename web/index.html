@@ -1091,74 +1091,160 @@
                 
                 const bestOpt = data.options[0];
                 
-                // Set minimal glassmorphic class based on mode
+                // Set minimal glassmorphic class based on mode safely
                 modeEl.className = 'font-bold uppercase tracking-tighter text-2xl leading-none flex items-center gap-3';
-                let accentColor = 'text-slate-900';
-                let dotColor = 'bg-slate-900';
+                modeEl.innerHTML = ''; // Clear prior nodes safely
 
-                if(data.best_mode === 'metro') {
-                    accentColor = 'text-emerald-500';
-                    dotColor = 'bg-emerald-500';
-                } else if(data.best_mode === 'cab') {
-                    accentColor = 'text-blue-500';
-                    dotColor = 'bg-blue-500';
+                let dotColorClass = 'bg-slate-900';
+                let accentColorClass = 'text-slate-900';
+
+                if (data.best_mode === 'metro') {
+                    dotColorClass = 'bg-emerald-500';
+                    accentColorClass = 'text-emerald-500';
+                } else if (data.best_mode === 'cab') {
+                    dotColorClass = 'bg-blue-500';
+                    accentColorClass = 'text-blue-500';
                 }
-                
-                modeEl.innerHTML = `<span class="w-3 h-3 rounded-full ${dotColor} shadow-[0_0_12px_rgba(0,0,0,0.1)]"></span> <span class="${accentColor}">${data.best_mode}</span>`;
-                expEl.innerHTML = `<span class="block mb-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Recommendation</span> ${data.explanation}`;
 
-                // Minimal Glassmorphic Stats
-                const statsHtml = `
-                    <div class="grid grid-cols-2 gap-2 my-5">
-                        <div class="bg-white/40 backdrop-blur-md rounded-xl p-3 border border-white/60 shadow-sm">
-                            <div class="text-[9px] uppercase font-black text-slate-400 tracking-widest mb-1">Duration</div>
-                            <div class="text-lg font-bold text-slate-900 tracking-tight">${Math.round(bestOpt.time)}<span class="text-xs ml-1 font-medium text-slate-500">mins</span></div>
-                        </div>
-                        <div class="bg-white/40 backdrop-blur-md rounded-xl p-3 border border-white/60 shadow-sm">
-                            <div class="text-[9px] uppercase font-black text-slate-400 tracking-widest mb-1">Est. Fare</div>
-                            <div class="text-lg font-bold text-slate-900 tracking-tight">₹${Math.round(bestOpt.cost)}</div>
-                        </div>
-                    </div>
-                `;
+                const dotSpan = document.createElement('span');
+                dotSpan.className = `w-3 h-3 rounded-full ${dotColorClass} shadow-[0_0_12px_rgba(0,0,0,0.1)]`;
+                
+                const modeTextSpan = document.createElement('span');
+                modeTextSpan.className = accentColorClass;
+                modeTextSpan.textContent = data.best_mode;
+
+                modeEl.appendChild(dotSpan);
+                modeEl.appendChild(modeTextSpan);
+
+                // Explanation block safety
+                expEl.innerHTML = '';
+                const recHeader = document.createElement('span');
+                recHeader.className = 'block mb-1 text-[10px] font-black uppercase tracking-widest text-slate-400';
+                recHeader.textContent = 'Recommendation';
+                expEl.appendChild(recHeader);
+                expEl.appendChild(document.createTextNode(data.explanation || ''));
 
                 // Handle Multimodal Segments
                 const segmentsBox = document.getElementById('res-segments');
-                segmentsBox.innerHTML = statsHtml;
+                segmentsBox.innerHTML = ''; // Reset segments
+
+                // Minimal Glassmorphic Stats Container
+                const statsContainer = document.createElement('div');
+                statsContainer.className = 'grid grid-cols-2 gap-2 my-5';
+
+                // Duration Stat
+                const durationDiv = document.createElement('div');
+                durationDiv.className = 'bg-white/40 backdrop-blur-md rounded-xl p-3 border border-white/60 shadow-sm';
+                const durLabel = document.createElement('div');
+                durLabel.className = 'text-[9px] uppercase font-black text-slate-400 tracking-widest mb-1';
+                durLabel.textContent = 'Duration';
+                const durVal = document.createElement('div');
+                durVal.className = 'text-lg font-bold text-slate-900 tracking-tight';
+                durVal.textContent = Math.round(bestOpt.time);
+                const minsSpan = document.createElement('span');
+                minsSpan.className = 'text-xs ml-1 font-medium text-slate-500';
+                minsSpan.textContent = 'mins';
+                durVal.appendChild(minsSpan);
+                durationDiv.appendChild(durLabel);
+                durationDiv.appendChild(durVal);
+
+                // Fare Stat
+                const fareDiv = document.createElement('div');
+                fareDiv.className = 'bg-white/40 backdrop-blur-md rounded-xl p-3 border border-white/60 shadow-sm';
+                const fareLabel = document.createElement('div');
+                fareLabel.className = 'text-[9px] uppercase font-black text-slate-400 tracking-widest mb-1';
+                fareLabel.textContent = 'Est. Fare';
+                const fareVal = document.createElement('div');
+                fareVal.className = 'text-lg font-bold text-slate-900 tracking-tight';
+                fareVal.textContent = `₹${Math.round(bestOpt.cost)}`;
+                fareDiv.appendChild(fareLabel);
+                fareDiv.appendChild(fareVal);
+
+                statsContainer.appendChild(durationDiv);
+                statsContainer.appendChild(fareDiv);
+                segmentsBox.appendChild(statsContainer);
 
                 if (bestOpt.segments && bestOpt.segments.length > 0) {
                     segmentsBox.classList.remove('hidden');
                     
+                    // Tailwind background color whitelist to prevent arbitrary CSS injection
+                    const BG_COLOR_WHITELIST = {
+                        'bg-red-500': true,
+                        'bg-blue-500': true,
+                        'bg-green-500': true,
+                        'bg-yellow-500': true,
+                        'bg-purple-500': true,
+                        'bg-pink-500': true,
+                        'bg-orange-500': true,
+                        'bg-indigo-500': true,
+                        'bg-teal-500': true,
+                        'bg-emerald-500': true,
+                        'bg-slate-900': true
+                    };
+
                     bestOpt.segments.forEach((seg, idx) => {
                         const step = document.createElement('div');
                         step.className = 'flex gap-4 items-start animate-fade-in-up mt-4';
                         step.style.animationDelay = `${(idx + 1) * 80}ms`;
                         
                         let colorClass = 'bg-slate-900';
-                        if (seg.mode === 'metro' && seg.color) {
-                            colorClass = seg.color.startsWith('bg-') ? seg.color : `bg-[${seg.color}]`;
-                        } else if (seg.mode === 'metro') {
-                            colorClass = 'bg-emerald-500';
+                        if (seg.mode === 'metro') {
+                            if (seg.color) {
+                                const resolvedColor = seg.color.startsWith('bg-') ? seg.color : `bg-${seg.color}`;
+                                colorClass = BG_COLOR_WHITELIST[resolvedColor] ? resolvedColor : 'bg-emerald-500';
+                            } else {
+                                colorClass = 'bg-emerald-500';
+                            }
                         } else if (seg.mode === 'cab') {
                             colorClass = 'bg-blue-500';
                         }
                         
-                        let extraInfo = '';
-                        if (seg.mode === 'metro' && seg.line) {
-                            extraInfo = `<span class="ml-2 px-1.5 py-0.5 rounded-md text-[8px] font-black text-white ${colorClass}">${seg.line.toUpperCase()}</span>`;
+                        // Left line and bullet construction
+                        const bulletCol = document.createElement('div');
+                        bulletCol.className = 'flex flex-col items-center shrink-0';
+                        const dot = document.createElement('div');
+                        dot.className = `w-1.5 h-1.5 rounded-full ${colorClass} mt-1.5`;
+                        bulletCol.appendChild(dot);
+
+                        if (idx < bestOpt.segments.length - 1) {
+                            const line = document.createElement('div');
+                            line.className = 'w-px h-12 bg-slate-200/60 my-1';
+                            bulletCol.appendChild(line);
                         }
 
-                        step.innerHTML = `
-                            <div class="flex flex-col items-center shrink-0">
-                                <div class="w-1.5 h-1.5 rounded-full ${colorClass} mt-1.5"></div>
-                                ${idx < bestOpt.segments.length - 1 ? '<div class="w-px h-12 bg-slate-200/60 my-1"></div>' : ''}
-                            </div>
-                            <div class="flex-1 pb-2">
-                                <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none flex items-center">
-                                    ${seg.mode} • ${Math.round(seg.duration_min)}m ${extraInfo}
-                                </p>
-                                <p class="text-[13px] text-slate-800 font-bold mt-1.5 tracking-tight">${seg.from_loc} <span class="text-slate-300 mx-1 font-light">→</span> ${seg.to_loc}</p>
-                            </div>
-                        `;
+                        // Right description construction
+                        const detailsCol = document.createElement('div');
+                        detailsCol.className = 'flex-1 pb-2';
+                        
+                        const metaPara = document.createElement('p');
+                        metaPara.className = 'text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none flex items-center gap-2';
+                        metaPara.textContent = `${seg.mode} • ${Math.round(seg.duration_min)}m`;
+
+                        if (seg.mode === 'metro' && seg.line) {
+                            const badge = document.createElement('span');
+                            badge.className = `px-1.5 py-0.5 rounded-md text-[8px] font-black text-white ${colorClass}`;
+                            badge.textContent = seg.line.toUpperCase();
+                            metaPara.appendChild(badge);
+                        }
+
+                        const pathPara = document.createElement('p');
+                        pathPara.className = 'text-[13px] text-slate-800 font-bold mt-1.5 tracking-tight';
+                        pathPara.textContent = seg.from_loc;
+
+                        const arrowSpan = document.createElement('span');
+                        arrowSpan.className = 'text-slate-300 mx-1 font-light';
+                        arrowSpan.textContent = ' → ';
+
+                        const destText = document.createTextNode(seg.to_loc);
+                        
+                        pathPara.appendChild(arrowSpan);
+                        pathPara.appendChild(destText);
+
+                        detailsCol.appendChild(metaPara);
+                        detailsCol.appendChild(pathPara);
+
+                        step.appendChild(bulletCol);
+                        step.appendChild(detailsCol);
                         segmentsBox.appendChild(step);
                     });
                 } else {

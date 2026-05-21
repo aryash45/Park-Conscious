@@ -56,7 +56,7 @@ const SearchBar = ({ onSearch }) => {
     };
 
     return (
-        <div className="w-full max-w-3xl mx-auto mt-6 animate-reveal" style={{ animationDelay: '0.8s' }}>
+        <div className="w-full max-w-3xl mx-auto mt-2 md:mt-6 animate-reveal" style={{ animationDelay: '0.8s' }}>
             <form onSubmit={handleSubmit} className="flex flex-col md:flex-row items-center gap-4 px-4 md:px-0">
                 <div className="relative flex-grow w-full group">
                     {/* Glassmorphic Pill */}

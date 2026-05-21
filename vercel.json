@@ -64,8 +64,13 @@
     },
     {
       "source": "/sitemap.xml",
+      "has": [{ "type": "host", "value": "parkconscious.in" }],
+      "destination": "/api/sitemap.js"
+    },
+    {
+      "source": "/sitemap.xml",
       "has": [{ "type": "host", "value": "www.parkconscious.in" }],
-      "destination": "/web/sitemap.xml"
+      "destination": "/api/sitemap.js"
     },
     {
       "source": "/robots.txt",

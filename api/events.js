@@ -18,8 +18,9 @@ import {
     logSystemError 
 } from "./lib/utils.js";
 import crypto from "crypto";
+import axios from "axios";
 import { getCache, setCache, delCache } from "./lib/redis.js";
-import { getMemoryCache, setMemoryCache } from "./lib/memoryCache.js";
+import { getMemoryCache, setMemoryCache, clearMemoryCache } from "./lib/memoryCache.js";
 
 async function getUniqueSlug(titleOrSlug, EventModel, excludeId = null) {
     let sanitized = titleOrSlug ? titleOrSlug.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') : '';
@@ -43,7 +44,7 @@ export default async function handler(req, res) {
     // 2. Main Logic wrapper
     try {
         await connectDB();
-        const { Event, Discussion, Comment } = models;
+        const { Event, Discussion, Comment, Spotlight } = models;
 
         // Health check (Now accurately reflects the connection)
         const fullUrl = req.url || "/";
@@ -82,6 +83,60 @@ export default async function handler(req, res) {
         const method = req.method || 'GET';
 
         const action = parsedUrl.searchParams.get('action');
+
+        // -- Brand Spotlight Curation endpoints --
+        if (urlPath.includes('/spotlight')) {
+            // GET /api/spotlight: Fetch the active spotlight populated with events
+            if (method === "GET") {
+                let spotlight = await Spotlight.findOne({ isActive: true }).populate('eventIds').lean();
+                if (!spotlight) {
+                    return json(res, 200, {
+                        title: "Brand Spotlight",
+                        subtitle: "Curated experiences from our premier partner networks.",
+                        brandPoster: "",
+                        eventIds: [],
+                        isActive: false
+                    });
+                }
+                if (spotlight.eventIds && Array.isArray(spotlight.eventIds)) {
+                    spotlight.eventIds = spotlight.eventIds
+                        .filter(event => event && (event.isPublic || event.status === 'published'))
+                        .map(event => pruneEvent(event, false));
+                }
+                return json(res, 200, spotlight);
+            }
+
+            // PUT /api/spotlight: Save or update the global spotlight config (Super Admin only!)
+            if (method === "PUT") {
+                const user = verifyUser(req);
+                if (!user) return json(res, 401, { error: "Unauthorized" });
+
+                const isSuperAdmin = user && user.role === 'superadmin';
+                if (!isSuperAdmin) return json(res, 403, { error: "Permission denied" });
+
+                const body = await getBody(req);
+                
+                let spotlight = await Spotlight.findOne({ isActive: true });
+                if (!spotlight) {
+                    spotlight = new Spotlight({ isActive: true });
+                }
+
+                spotlight.title = body.title || "";
+                spotlight.subtitle = body.subtitle || "";
+                spotlight.brandPoster = body.brandPoster || "";
+                spotlight.eventIds = body.eventIds || [];
+                
+                await spotlight.save();
+
+                clearMemoryCache();
+                await delCache(`events:public`);
+                await delCache(`events:featured`);
+
+                return json(res, 200, spotlight.toObject());
+            }
+
+            return json(res, 405, { error: "Method not allowed for spotlight" });
+        }
 
         // -- Discussions & Comments --
         if (urlPath.includes('/discussions') || (action && action.startsWith('discussions'))) {
@@ -318,12 +373,39 @@ export default async function handler(req, res) {
             if (type) filter.type = type;
 
             const featured = parsedUrl.searchParams.get("featured");
-            if (featured === "true") filter.isFeatured = true;
-            
-            console.log(`[DEBUG_API]: Querying Event model. DB: ${Event.db.name}, Filter:`, JSON.stringify(filter));
+            let sortObj = { date: 1 };
+            let selectStr = '-description -requiredFields -customForms -faqs';
+
+            if (featured === "true") {
+                filter.isFeatured = true;
+                sortObj = { featuredOrder: 1, date: 1 };
+                // Keep description for featured banner ticket stub display
+                selectStr = '-requiredFields -customForms -faqs';
+
+                // Enforce time-gated scheduling filters
+                const now = new Date();
+                filter.$and = [
+                    {
+                        $or: [
+                            { featuredStart: null },
+                            { featuredStart: { $exists: false } },
+                            { featuredStart: { $lte: now } }
+                        ]
+                    },
+                    {
+                        $or: [
+                            { featuredEnd: null },
+                            { featuredEnd: { $exists: false } },
+                            { featuredEnd: { $gte: now } }
+                        ]
+                    }
+                ];
+            }
             
             // OPTIMIZATION: Check In-Memory Cache First
-            const memCacheKey = `events_feed_${JSON.stringify(filter)}`;
+            const keyFilter = { ...filter };
+            delete keyFilter.$and;
+            const memCacheKey = `events_feed_${JSON.stringify(keyFilter)}`;
             const memCachedEvents = getMemoryCache(memCacheKey);
             
             if (memCachedEvents) {
@@ -334,10 +416,10 @@ export default async function handler(req, res) {
                 }));
             }
             
-            // OPTIMIZATION: Projection excludes large text fields for list views
+            // OPTIMIZATION: Projection excludes large text fields for standard feed list views, but preserves descriptions for banners
             const events = await Event.find(filter)
-                .select('-description -requiredFields -customForms -faqs')
-                .sort({ date: 1 })
+                .select(selectStr)
+                .sort(sortObj)
                 .limit(50)
                 .lean();
 
@@ -360,7 +442,183 @@ export default async function handler(req, res) {
             if (!user) return json(res, 401, { error: "Unauthorized" });
 
             const body = await getBody(req);
+            const isGlobalAdmin = user && ['admin', 'superadmin', 'owner'].includes(user.role);
+
+            // Strip featured properties for standard users to prevent spoofing homepage slots
+            if (!isGlobalAdmin) {
+                delete body.isFeatured;
+                delete body.featuredTitle;
+                delete body.featuredSubtitle;
+                delete body.featuredLabel;
+                delete body.bannerImage;
+                delete body.featuredOrder;
+                delete body.featuredStart;
+                delete body.featuredEnd;
+            }
             
+            // Handle Google Form Import
+            if (action === "import_google_form" || body.action === "import_google_form") {
+                const { url } = body;
+                if (!url) {
+                    return json(res, 400, { error: "Google Form URL is required" });
+                }
+                
+                try {
+                    // Normalize the URL
+                    let targetUrl = url.trim();
+                    if (targetUrl.includes('/edit')) {
+                        targetUrl = targetUrl.replace(/\/edit(\?.*)?$/, '/viewform');
+                    }
+                    if (!targetUrl.includes('/viewform') && !targetUrl.match(/\/forms\/d\/e\/[a-zA-Z0-9_-]+\/?$/)) {
+                        if (targetUrl.includes('/viewform')) {
+                            // already has it
+                        } else {
+                            if (targetUrl.endsWith('/')) {
+                                targetUrl += 'viewform';
+                            } else if (!targetUrl.endsWith('viewform')) {
+                                targetUrl += '/viewform';
+                            }
+                        }
+                    }
+
+                    console.log(`[IMPORT_GOOGLE_FORM]: Fetching and parsing form from URL: ${targetUrl}`);
+                    const response = await axios.get(targetUrl, {
+                        headers: {
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                            'Accept-Language': 'en-US,en;q=0.5'
+                        },
+                        timeout: 10000
+                    });
+
+                    const html = response.data;
+                    
+                    // Parse FB_PUBLIC_LOAD_DATA_ using the matching bracket parser
+                    const startIndex = html.indexOf('FB_PUBLIC_LOAD_DATA_');
+                    if (startIndex === -1) {
+                        return json(res, 400, { error: "Could not find form data in the page. Please ensure the Google Form is public and accessible." });
+                    }
+                    
+                    const bracketIndex = html.indexOf('[', startIndex);
+                    if (bracketIndex === -1) {
+                        return json(res, 400, { error: "Failed to parse Google Form data structure." });
+                    }
+                    
+                    let bracketCount = 0;
+                    let jsonEndIndex = -1;
+                    let inString = false;
+                    let stringChar = '';
+                    let escaped = false;
+                    
+                    for (let i = bracketIndex; i < html.length; i++) {
+                        const char = html[i];
+                        if (escaped) {
+                            escaped = false;
+                            continue;
+                        }
+                        if (char === '\\') {
+                            escaped = true;
+                            continue;
+                        }
+                        if (char === '"' || char === "'") {
+                            if (!inString) {
+                                inString = true;
+                                stringChar = char;
+                            } else if (stringChar === char) {
+                                inString = false;
+                            }
+                        }
+                        if (!inString) {
+                            if (char === '[') {
+                                bracketCount++;
+                            } else if (char === ']') {
+                                bracketCount--;
+                                if (bracketCount === 0) {
+                                    jsonEndIndex = i + 1;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    
+                    if (jsonEndIndex === -1) {
+                        return json(res, 400, { error: "Failed to locate matching JSON array boundaries in the form page." });
+                    }
+                    
+                    const dataStr = html.slice(bracketIndex, jsonEndIndex);
+                    let data;
+                    try {
+                        data = JSON.parse(dataStr);
+                    } catch (parseErr) {
+                        console.error("[IMPORT_GOOGLE_FORM_JSON_PARSE_ERROR]:", parseErr);
+                        return json(res, 400, { error: "Malformed form data. Could not parse JSON structure." });
+                    }
+
+                    if (!data || !data[1] || !Array.isArray(data[1][1])) {
+                        return json(res, 400, { error: "No questions found in this Google Form. Please ensure it has input fields." });
+                    }
+
+                    const title = data[1][8] || "";
+                    const description = data[1][0] || "";
+                    const questionsList = data[1][1];
+                    const customFields = [];
+
+                    for (let i = 0; i < questionsList.length; i++) {
+                        const item = questionsList[i];
+                        const itemId = String(item[0] || Date.now() + i);
+                        const label = item[1];
+                        const typeCode = item[3];
+
+                        // Skip layout fields/headers that don't collect data (have no label or no item[4])
+                        if (!label || !item[4]) continue;
+
+                        let type = 'text';
+                        switch (typeCode) {
+                            case 0: type = 'text'; break;
+                            case 1: type = 'textarea'; break;
+                            case 2: type = 'select'; break;
+                            case 3: type = 'select'; break;
+                            case 4: type = 'select'; break; // check box maps to select (multi-option) in our system
+                            case 5: type = 'select'; break; // linear scale maps to select
+                            case 11: type = 'file'; break; // file upload
+                            default: type = 'text'; break;
+                        }
+
+                        let required = false;
+                        let options = [];
+
+                        const itemInfo = item[4];
+                        if (itemInfo && itemInfo[0]) {
+                            const nestedInfo = itemInfo[0];
+                            required = nestedInfo[2] === 1 || nestedInfo[2] === true;
+                            
+                            const optionsArray = nestedInfo[1];
+                            if (optionsArray && Array.isArray(optionsArray)) {
+                                options = optionsArray.map(opt => opt[0]).filter(opt => typeof opt === 'string' && opt.trim() !== '');
+                            }
+                        }
+
+                        customFields.push({
+                            id: `gf_${itemId}`,
+                            label: label.trim(),
+                            type,
+                            required,
+                            options
+                        });
+                    }
+
+                    return json(res, 200, {
+                        title,
+                        description,
+                        customForms: customFields
+                    });
+
+                } catch (fetchErr) {
+                    console.error("[IMPORT_GOOGLE_FORM_FETCH_ERROR]:", fetchErr);
+                    return json(res, 500, { error: "Failed to fetch Google Form" });
+                }
+            }
+
             // Handle Razorpay Order Creation (if requested)
             if (body.action === "create_order") {
                 const { default: Razorpay } = await import("razorpay");
@@ -385,7 +643,6 @@ export default async function handler(req, res) {
             // RBAC: Validate organizerId mapping to prevent spoofing/claiming other organizers
             let organizerId = user.id;
             if (body.organizerId && body.organizerId !== user.id) {
-                const isGlobalAdmin = user && ['admin', 'superadmin', 'owner'].includes(user.role);
                 if (!isGlobalAdmin) {
                     return json(res, 403, { error: "Permission denied: only admins can assign events to other organizers" });
                 }
@@ -428,6 +685,7 @@ export default async function handler(req, res) {
             // Invalidate list caches
             await delCache(`events:public`);
             await delCache(`events:featured`);
+            clearMemoryCache();
 
             return json(res, 201, normalizeEvent(newEvent));
         }
@@ -451,6 +709,18 @@ export default async function handler(req, res) {
                 return json(res, 403, { error: "Permission denied" });
             }
 
+            // Strip featured/promotional settings for standard creators to maintain platform curation
+            if (!isGlobalAdmin) {
+                delete body.isFeatured;
+                delete body.featuredTitle;
+                delete body.featuredSubtitle;
+                delete body.featuredLabel;
+                delete body.bannerImage;
+                delete body.featuredOrder;
+                delete body.featuredStart;
+                delete body.featuredEnd;
+            }
+
             // Clean/sanitize slug if updated (including if set to an empty string)
             if (body.hasOwnProperty('slug')) {
                 body.slug = await getUniqueSlug(body.slug, Event, eventId);
@@ -468,6 +738,7 @@ export default async function handler(req, res) {
             await delCache(`event:${eventId}:privileged`);
             await delCache(`events:public`);
             await delCache(`events:featured`);
+            clearMemoryCache();
 
             return json(res, 200, normalizeEvent(updatedEvent));
         }
@@ -495,6 +766,7 @@ export default async function handler(req, res) {
             await delCache(`event:${eventId}:privileged`);
             await delCache(`events:public`);
             await delCache(`events:featured`);
+            clearMemoryCache();
 
             return json(res, 200, { success: true, message: "Event terminated" });
         }

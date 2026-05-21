@@ -69,6 +69,7 @@ export const eventService = {
   create: (eventData) => api.post('/api/events', eventData),
   update: (id, eventData) => api.put(`/api/events/${id}`, eventData),
   delete: (id) => api.delete(`/api/events/${id}`),
+  importGoogleForm: (formUrl) => api.post('/api/events', { action: 'import_google_form', url: formUrl }),
   // Deprecated: Moving to direct frontend upload to bypass serverless limits
   // uploadImage: (formData) => api.post('/api/events/upload', formData, {
   //   headers: { 'Content-Type': 'multipart/form-data' }
@@ -102,6 +103,11 @@ export const adminService = {
     if (action === 'patch' || action === 'update') return api.patch(`/api/admin/inquiries/request/${id}`, data);
     throw new Error(`Invalid inquiry action: ${action}`);
   }
+};
+
+export const spotlightService = {
+  get: () => api.get('/api/spotlight'),
+  update: (spotlightData) => api.put('/api/spotlight', spotlightData)
 };
 
 export default api;
