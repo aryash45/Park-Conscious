@@ -78,9 +78,14 @@ export default async function handler(req, res) {
         return res.status(200).end();
     }
 
-    const host = req.headers['x-forwarded-host'] || req.headers.host || '';
+    const rawHost = req.headers['x-forwarded-host'] || req.headers.host || '';
+    const host = rawHost.split(',')[0].trim().toLowerCase();
+    const hostname = host.split(':')[0];
     const siteParam = req.query.site || '';
-    const isEvents = host.includes('events.') || siteParam === 'events';
+    const isEvents =
+        siteParam === 'events' ||
+        hostname === 'events.parkconscious.in' ||
+        hostname.endsWith('.vercel.app');
     const origin = isEvents ? EVENTS_ORIGIN : WWW_ORIGIN;
 
     try {
