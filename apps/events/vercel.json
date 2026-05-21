@@ -7,7 +7,7 @@
     },
     {
       "source": "/sitemap.xml",
-      "destination": "https://www.parkconscious.in/api/sitemap.js"
+      "destination": "https://www.parkconscious.in/api/sitemap.xml?site=events"
     },
     {
       "source": "/robots.txt",
