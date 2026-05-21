@@ -30,10 +30,27 @@ const clUrl = (url, type = 'image') => {
   return url.replace('/upload/', `/upload/${transforms}/`);
 };
 
+const eventMatchesRoute = (data, routeId) => {
+  if (!data || !routeId) return false;
+  const rid = String(routeId);
+  return [data.slug, data._id, data.id].some((key) => key != null && String(key) === rid);
+};
+
+const normalizeEventData = (rawEvent) => ({
+  ...rawEvent,
+  displayTitle: rawEvent.title || rawEvent.name || "Untitled",
+  displayDate: rawEvent.date || rawEvent.createdAt,
+  displayLocation: rawEvent.location?.name || rawEvent.locationName || rawEvent.venue || "TBA",
+  displayAddress: rawEvent.location?.address || rawEvent.locationAddress || "",
+  displayDescription: rawEvent.description || "",
+  hosts: Array.isArray(rawEvent.hosts) ? rawEvent.hosts : [],
+  ticketTiers: Array.isArray(rawEvent.ticketTiers) ? rawEvent.ticketTiers : [],
+  mediaGallery: Array.isArray(rawEvent.mediaGallery) ? rawEvent.mediaGallery : [],
+});
+
 const EventPage = () => {
   const { id } = useParams();
   const [event, setEvent] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [selectedTier, setSelectedTier] = useState(null);
   const [liveTheme, setLiveTheme] = useState(null);
@@ -73,40 +90,30 @@ const EventPage = () => {
     navigate(`/event/${rawEvent.slug}${search}`, { replace: true });
   }, [rawEvent, id, navigate]);
 
-  // Normalize Data when rawEvent arrives
+  // Apply cached/fetched event + theme atomically (avoids id-reset racing with SWR cache)
   useEffect(() => {
-    if (rawEvent) {
-      const normalized = {
-        ...rawEvent,
-        displayTitle: rawEvent.title || rawEvent.name || "Untitled",
-        displayDate: rawEvent.date || rawEvent.createdAt,
-        displayLocation: rawEvent.location?.name || rawEvent.locationName || rawEvent.venue || "TBA",
-        displayAddress: rawEvent.location?.address || rawEvent.locationAddress || "",
-        displayDescription: rawEvent.description || "",
-        hosts: Array.isArray(rawEvent.hosts) ? rawEvent.hosts : [],
-        ticketTiers: Array.isArray(rawEvent.ticketTiers) ? rawEvent.ticketTiers : [],
-        mediaGallery: Array.isArray(rawEvent.mediaGallery) ? rawEvent.mediaGallery : []
-      };
-
-      setEvent(normalized);
-      
-      // Only set initial theme and tier if they haven't been set yet
-      setLiveTheme(prev => prev || normalized.themeConfig);
-      
-      if (normalized.ticketTiers.length > 0) {
-        setSelectedTier(prev => prev || normalized.ticketTiers[0]);
-      }
-    }
-  }, [rawEvent]);
-
-  // Scroll to top and reset derived state on route change
-  useEffect(() => {
-    setLiveTheme(null);
-    setSelectedTier(null);
     window.scrollTo(0, 0);
-  }, [id]);
 
-  if (isLoading || !event) {
+    if (!rawEvent || !eventMatchesRoute(rawEvent, id)) {
+      setEvent(null);
+      setLiveTheme(null);
+      setSelectedTier(null);
+      return;
+    }
+
+    const normalized = normalizeEventData(rawEvent);
+    setEvent(normalized);
+    setLiveTheme(normalized.themeConfig ?? null);
+    if (normalized.ticketTiers.length > 0) {
+      setSelectedTier(normalized.ticketTiers[0]);
+    } else {
+      setSelectedTier(null);
+    }
+  }, [id, rawEvent]);
+
+  const themeConfig = liveTheme ?? event?.themeConfig;
+
+  if ((isLoading && !rawEvent) || !event) {
     return (
       <div className="bg-[#050507] min-h-screen flex items-center justify-center">
         <div className="w-12 h-12 border-2 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
@@ -131,8 +138,8 @@ const EventPage = () => {
     : dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 
   const hostsList = Array.isArray(event.hosts) ? event.hosts : [];
-  const primaryColor = liveTheme?.primaryColor || '#E33B76';
-  const displayMode = liveTheme?.displayMode || 'light';
+  const primaryColor = themeConfig?.primaryColor || '#E33B76';
+  const displayMode = themeConfig?.displayMode || 'light';
   
   const textTitleClass = displayMode === 'dark' ? 'text-white' : 'text-slate-900';
   const textSubtitleClass = displayMode === 'dark' ? 'text-slate-400' : 'text-slate-500';
@@ -189,7 +196,7 @@ const EventPage = () => {
   };
 
   return (
-    <PremiumBackground themeConfig={liveTheme}>
+    <PremiumBackground themeConfig={themeConfig}>
       <Helmet>
         <link rel="canonical" href={`https://events.parkconscious.in/event/${getEventUrlId(event)}`} />
         <title>{`${event.displayTitle} | BACKSTAGE`}</title>
@@ -455,7 +462,7 @@ const EventPage = () => {
           isOpen={isBookingOpen}
           setIsOpen={setIsBookingOpen}
           event={{...event, selectedTier}}
-          themeConfig={liveTheme}
+          themeConfig={themeConfig}
         />
       </div>
     </PremiumBackground>
