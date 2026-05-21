@@ -121,7 +121,11 @@ const EventForm = ({ initialData = null, onSubmit, loading, onThemeChange }) => 
     setImportSuccess(null);
     try {
       const { data } = await eventService.importGoogleForm(importUrl.trim());
-      const newFields = (data.customForms || []).map(f => ({ ...f, id: f.id || `gf_${Date.now()}_${Math.random().toString(36).slice(2)}` }));
+      const makeFieldId = () => `gf_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+      const newFields = (data.customForms || []).map(f => ({
+        ...f,
+        id: importMode === 'append' ? makeFieldId() : (f.id || makeFieldId()),
+      }));
       setFormData(prev => ({
         ...prev,
         customForms: importMode === 'overwrite'

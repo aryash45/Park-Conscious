@@ -615,7 +615,7 @@ export default async function handler(req, res) {
 
                 } catch (fetchErr) {
                     console.error("[IMPORT_GOOGLE_FORM_FETCH_ERROR]:", fetchErr);
-                    return json(res, 500, { error: `Failed to fetch Google Form: ${fetchErr.message}` });
+                    return json(res, 500, { error: "Failed to fetch Google Form" });
                 }
             }
 
