@@ -8,8 +8,12 @@ const WWW_ORIGIN = process.env.CANONICAL_ORIGIN || 'https://www.parkconscious.in
 const EVENTS_ORIGIN = process.env.EVENTS_CANONICAL_ORIGIN || 'https://events.parkconscious.in';
 
 export default function handler(req, res) {
-    const host = req.headers.host || '';
-    const isEvents = host.includes('events.');
+    const rawHost = req.headers['x-forwarded-host'] || req.headers.host || '';
+    const host = rawHost.split(',')[0].trim().toLowerCase();
+    const hostname = host.split(':')[0];
+    const isEvents =
+        hostname === 'events.parkconscious.in' ||
+        hostname.endsWith('.vercel.app');
     
     let robots = `User-agent: *
 Disallow: /owner/
