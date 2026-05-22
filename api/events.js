@@ -373,7 +373,7 @@ export default async function handler(req, res) {
             if (type) filter.type = type;
 
             const featured = parsedUrl.searchParams.get("featured");
-            let sortObj = { date: 1 };
+            let sortObj = { createdAt: -1, _id: -1 };
             let selectStr = '-description -requiredFields -customForms -faqs';
 
             if (featured === "true") {

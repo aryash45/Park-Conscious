@@ -25,6 +25,9 @@ const StatusBadge = ({ attended, onToggle, loading }) => (
   </button>
 );
 
+const getEventTitle = (item) => item?.event?.title || item?.event?.name || item?.locationName || 'Unassigned Event';
+const getEventVenue = (item) => item?.event?.venue || item?.event?.locationName || item?.event?.location?.name || item?.event?.venueCity || '';
+
 const Attendees = () => {
   const { admin } = useAuth();
   const isSuperAdmin = admin?.role === 'superadmin';
@@ -84,9 +87,10 @@ const Attendees = () => {
       const matchesSearch = 
         (item.user?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
         (item.user?.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        getEventTitle(item).toLowerCase().includes(searchQuery.toLowerCase()) ||
         (item.ticketId || '').toLowerCase().includes(searchQuery.toLowerCase());
       const matchesStatus = statusFilter === 'all' || (statusFilter === 'attended' && item.attended) || (statusFilter === 'pending' && !item.attended);
-      const matchesEvent = eventFilter === 'all' || item.event?.title === eventFilter;
+      const matchesEvent = eventFilter === 'all' || getEventTitle(item) === eventFilter;
       return matchesSearch && matchesStatus && matchesEvent;
     });
   }, [attendees, searchQuery, statusFilter, eventFilter]);
@@ -318,7 +322,7 @@ const Attendees = () => {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-sky-400 transition-colors" size={18} />
           <input 
             type="text" 
-            placeholder="Search Identity, Email, or Token..."
+            placeholder="Search Identity, Email, Event, or Token..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-zinc-900/50 border border-white/5 rounded-2xl py-4 pl-12 pr-6 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-sky-500/50 transition-all shadow-inner"
@@ -344,7 +348,7 @@ const Attendees = () => {
               className="bg-zinc-900/50 border border-white/5 rounded-2xl px-6 py-4 text-[10px] font-black uppercase tracking-widest text-zinc-400 focus:outline-none focus:border-sky-500/50 appearance-none cursor-pointer pr-12 min-w-[200px]"
             >
               <option value="all">All Events</option>
-              {[...new Set(attendees.map(a => a.event?.title))].filter(Boolean).map(title => (
+              {[...new Set(attendees.map(getEventTitle))].filter(Boolean).map(title => (
                 <option key={title} value={title}>{title}</option>
               ))}
             </select>
@@ -374,6 +378,7 @@ const Attendees = () => {
                     />
                   </th>
                   <th className="px-10 py-6">Identity Profile</th>
+                  <th className="px-10 py-6">Registered Event</th>
                   <th className="px-10 py-6">Verification Protocol</th>
                   <th className="px-10 py-6 text-right">Actions</th>
                 </tr>
@@ -402,6 +407,25 @@ const Attendees = () => {
                                 )}
                              </div>
                              <p className="text-[11px] font-medium text-zinc-600 font-mono tracking-tighter">{item.user?.email || item.email}</p>
+                          </div>
+                       </div>
+                    </td>
+                    <td className="px-10 py-8">
+                       <div className="max-w-[280px] space-y-2">
+                          <p className="text-[13px] font-black text-white uppercase tracking-tight leading-snug">
+                            {getEventTitle(item)}
+                          </p>
+                          <div className="flex flex-wrap items-center gap-2">
+                            {item.tierName && (
+                              <span className="px-2.5 py-1 rounded-lg bg-sky-500/10 border border-sky-500/20 text-[8px] font-black uppercase tracking-widest text-sky-400">
+                                {item.tierName}
+                              </span>
+                            )}
+                            {getEventVenue(item) && (
+                              <span className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest truncate max-w-[220px]">
+                                {getEventVenue(item)}
+                              </span>
+                            )}
                           </div>
                        </div>
                     </td>
@@ -465,6 +489,24 @@ const Attendees = () => {
                      <p className="text-xs font-medium text-sky-500/60 font-mono tracking-tighter mt-1">{selectedAttendee.user?.email || selectedAttendee.email}</p>
                   </div>
                   <div className="space-y-6 pt-6 border-t border-white/5">
+                     <div>
+                        <p className="text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-2">Registered Event</p>
+                        <div className="rounded-2xl bg-black/30 border border-white/5 p-4 space-y-3">
+                          <p className="text-sm font-black text-white uppercase tracking-tight leading-snug">{getEventTitle(selectedAttendee)}</p>
+                          <div className="flex flex-wrap gap-2">
+                            {selectedAttendee.tierName && (
+                              <span className="px-2.5 py-1 rounded-lg bg-sky-500/10 border border-sky-500/20 text-[8px] font-black uppercase tracking-widest text-sky-400">
+                                {selectedAttendee.tierName}
+                              </span>
+                            )}
+                            {getEventVenue(selectedAttendee) && (
+                              <span className="px-2.5 py-1 rounded-lg bg-zinc-800 text-[8px] font-black uppercase tracking-widest text-zinc-500">
+                                {getEventVenue(selectedAttendee)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                     </div>
                      <div>
                         <p className="text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-1">Entry Token</p>
                         <p className="text-xl font-black text-white tracking-widest">{selectedAttendee.ticketId}</p>
