@@ -17,6 +17,20 @@ import { dispatchTicketEmail } from './lib/email.js';
 const { Booking, Owner, User, Event } = models;
 const PLATFORM_FEE_PERCENT = 0.08; // 8% commission
 
+const normalizeTierName = (tierName) => String(tierName || '').trim().toLowerCase();
+
+async function requiresManualTicketDispatch(booking) {
+    if (!booking?.eventId || String(booking.eventId).length !== 24) return false;
+
+    const bookedTierName = normalizeTierName(booking.tierName);
+    if (!bookedTierName) return false;
+
+    const event = await Event.findById(booking.eventId).select('ticketTiers').lean();
+    const tier = event?.ticketTiers?.find((ticketTier) => normalizeTierName(ticketTier.name) === bookedTierName);
+
+    return tier?.requireApproval === true;
+}
+
 export default async function handler(req, res) {
     if (setupCors(req, res)) return;
 
@@ -129,8 +143,11 @@ export default async function handler(req, res) {
                     console.warn(`[BOOKING_DEBUG_FREE] Skipping capacity decrement for non-ObjectId: ${targetEventId}`);
                 }
 
-                // Dispatch ticket email (Smart Dual-Mode)
-                dispatchTicketEmail(newBooking._id);
+                if (await requiresManualTicketDispatch(newBooking)) {
+                    console.log(`[TICKET_DISPATCH]: Manual approval required for booking ${newBooking._id}. Email left pending.`);
+                } else {
+                    dispatchTicketEmail(newBooking._id);
+                }
 
                 return json(res, 200, { success: true, redirectUrl: `${redirectBase}/payment-success?txnId=${txId}` });
             }
@@ -235,8 +252,13 @@ export default async function handler(req, res) {
                     console.warn(`[BOOKING_DEBUG] Skipping capacity decrement for non-ObjectId: ${updatedBooking?.eventId}`);
                 }
                 
-                // Dispatch ticket email (Smart Dual-Mode)
-                dispatchTicketEmail(updatedBooking._id);
+                if (updatedBooking) {
+                    if (await requiresManualTicketDispatch(updatedBooking)) {
+                        console.log(`[TICKET_DISPATCH]: Manual approval required for booking ${updatedBooking._id}. Email left pending.`);
+                    } else {
+                        dispatchTicketEmail(updatedBooking._id);
+                    }
+                }
 
                 return json(res, 200, { success: true, message: "Payment verified successfully", txnId: razorpay_order_id });
             } else {

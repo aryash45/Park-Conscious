@@ -78,7 +78,7 @@ const EventPromptCard = ({ event, hookLine, onClick }) => {
 };
 
 const DiscussionBoard = () => {
-  const { user, token, signOut, signInWithGoogle } = useAuth();
+  const { user, signOut, signInWithGoogle } = useAuth();
   const [discussions, setDiscussions] = useState([]);
   const [newReleases, setNewReleases] = useState([]);
   const [loadingDiscussions, setLoadingDiscussions] = useState(true);
