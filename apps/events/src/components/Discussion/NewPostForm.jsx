@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { BiX } from "react-icons/bi";
-import { useAuth } from "../../context/DiscussionAuth.context";
 import { API_BASE_URL } from "../../config";
+
+const MAX_DISCUSSION_EVENTS = 6;
 
 const StarPicker = ({ value, onChange }) => (
   <div className="flex gap-1">
@@ -19,7 +20,6 @@ const StarPicker = ({ value, onChange }) => (
 );
 
 const NewPostForm = ({ onClose, onSuccess, preselectedEvent = null }) => {
-  const { token } = useAuth();
   const [events, setEvents] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(preselectedEvent);
   const [review, setReview] = useState("");
@@ -32,7 +32,7 @@ const NewPostForm = ({ onClose, onSuccess, preselectedEvent = null }) => {
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {
-          setEvents(data.slice(0, 20));
+          setEvents(data.slice(0, MAX_DISCUSSION_EVENTS));
         }
       })
       .catch(() => {});

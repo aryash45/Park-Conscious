@@ -75,6 +75,19 @@ const invalidateEventCache = async (eventId) => {
     delMemoryCache(`event_${eventId}_public`);
     delMemoryCache(`event_${eventId}_privileged`);
 };
+const normalizeTierName = (tierName) => String(tierName || '').trim().toLowerCase();
+
+async function requiresManualTicketDispatch(booking) {
+    if (!booking?.eventId || String(booking.eventId).length !== 24) return false;
+
+    const bookedTierName = normalizeTierName(booking.tierName);
+    if (!bookedTierName) return false;
+
+    const event = await Event.findById(booking.eventId).select('ticketTiers').lean();
+    const tier = event?.ticketTiers?.find((ticketTier) => normalizeTierName(ticketTier.name) === bookedTierName);
+
+    return tier?.requireApproval === true;
+}
 
 export default async function handler(req, res) {
     if (setupCors(req, res)) return;
@@ -206,6 +219,34 @@ export default async function handler(req, res) {
                 // Dispatch ticket email (Smart Dual-Mode)
                 dispatchTicketEmail(newBooking._id);
                 await invalidateEventCache(targetEventId);
+                if (targetEventId && targetEventId.length === 24) {
+                    const tierName = body.tierName;
+                    const filter = { _id: targetEventId };
+                    const updateQuery = { $inc: { capacity: -1 } };
+                    
+                    if (tierName) {
+                        const event = await models.Event.findById(targetEventId).lean();
+                        if (event && event.ticketTiers?.some(t => t.name === tierName)) {
+                            filter["ticketTiers.name"] = tierName;
+                            updateQuery.$inc["ticketTiers.$.capacity"] = -1;
+                        }
+                    }
+
+                    const eventBefore = await models.Event.findById(targetEventId).lean();
+                    const updateResult = await models.Event.findOneAndUpdate(filter, updateQuery, { new: true }).lean();
+                    
+                    console.log(`[BOOKING_DEBUG_FREE] CID: ${targetEventId} Tier: ${tierName}`);
+                    console.log(`[BOOKING_DEBUG_FREE] BEFORE: Cap=${eventBefore?.capacity}`);
+                    console.log(`[BOOKING_DEBUG_FREE] AFTER:  Cap=${updateResult?.capacity}`);
+                } else {
+                    console.warn(`[BOOKING_DEBUG_FREE] Skipping capacity decrement for non-ObjectId: ${targetEventId}`);
+                }
+
+                if (await requiresManualTicketDispatch(newBooking)) {
+                    console.log(`[TICKET_DISPATCH]: Manual approval required for booking ${newBooking._id}. Email left pending.`);
+                } else {
+                    dispatchTicketEmail(newBooking._id);
+                }
 
                 return json(res, 200, { success: true, redirectUrl: `${redirectBase}/payment-success?txnId=${txId}` });
             }
@@ -375,6 +416,13 @@ export default async function handler(req, res) {
                 // Dispatch ticket email (Smart Dual-Mode)
                 dispatchTicketEmail(updatedBooking._id);
                 await invalidateEventCache(updatedBooking.eventId);
+                if (updatedBooking) {
+                    if (await requiresManualTicketDispatch(updatedBooking)) {
+                        console.log(`[TICKET_DISPATCH]: Manual approval required for booking ${updatedBooking._id}. Email left pending.`);
+                    } else {
+                        dispatchTicketEmail(updatedBooking._id);
+                    }
+                }
 
                 return json(res, 200, { success: true, message: "Payment verified successfully", txnId: razorpay_order_id });
             } else {

@@ -8,6 +8,9 @@ import * as models from '../lib/models.js';
 
 const { Contact, EventRequest } = models;
 
+const PLATFORM_ADMIN_ROLES = new Set(['admin', 'superadmin']);
+const EVENT_MANAGER_ROLES = new Set(['admin', 'superadmin', 'organizer', 'owner']);
+
 export async function handleEvents(url, method, body, user, req, res) {
     // -- Inquiries Management (SuperAdmin Only) --
     if (url.includes('inquiries')) {
@@ -43,10 +46,9 @@ export async function handleEvents(url, method, body, user, req, res) {
         if (!user) return json(res, 401, { message: 'Auth required' });
         
         const role = (user.role || '').toLowerCase();
-        let query = {};
-        if (role !== 'superadmin' && role !== 'admin') {
-            query.organizerId = user.id;
-        }
+        if (!EVENT_MANAGER_ROLES.has(role)) return json(res, 403, { message: 'Permission denied' });
+
+        const query = PLATFORM_ADMIN_ROLES.has(role) ? {} : { organizerId: user.id };
 
         const events = await models.Event.find(query).sort({ createdAt: -1 }).lean();
         return json(res, 200, events);

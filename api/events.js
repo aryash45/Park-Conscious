@@ -22,6 +22,12 @@ import axios from "axios";
 import { getCache, setCache, delCache } from "./lib/redis.js";
 import { getMemoryCache, setMemoryCache, clearMemoryCache } from "./lib/memoryCache.js";
 
+const PLATFORM_ADMIN_ROLES = new Set(['admin', 'superadmin']);
+const EVENT_MANAGER_ROLES = new Set(['admin', 'superadmin', 'organizer', 'owner']);
+
+const getUserRole = (user) => (user?.role || '').toLowerCase();
+const isPlatformAdminRole = (role) => PLATFORM_ADMIN_ROLES.has(role);
+
 async function getUniqueSlug(titleOrSlug, EventModel, excludeId = null) {
     let sanitized = titleOrSlug ? titleOrSlug.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') : '';
     let baseSlug = sanitized || 'event';
@@ -272,11 +278,12 @@ export default async function handler(req, res) {
             }
 
             const user = verifyUser(req);
+            const role = getUserRole(user);
             const isConnected = mongoose.connection.readyState === 1;
             console.log(`[AUTH_DEBUG]: Active Session User:`, JSON.stringify(user));
             
             // Global Admin roles (can see everything)
-            const isGlobalAdmin = user && ['admin', 'superadmin', 'owner'].includes(user.role);
+            const isGlobalAdmin = isPlatformAdminRole(role);
 
             if (eventId) {
                 // NITPICK: Fast-path for public users (hits cache before DB fetch)
@@ -334,11 +341,9 @@ export default async function handler(req, res) {
             // -- Administrative List (Full access or Organizer scoped) --
             if (urlPath.includes('/admin/all')) {
                 if (!user) return json(res, 401, { message: 'Authentication required' });
+                if (!EVENT_MANAGER_ROLES.has(role)) return json(res, 403, { message: 'Permission denied' });
                 
-                let query = {};
-                if (!isGlobalAdmin && user.role !== 'organizer') {
-                    query.organizerId = user.id;
-                }
+                const query = isGlobalAdmin ? {} : { organizerId: user.id };
 
                 console.log(`[ADMIN_DEBUG]: Fetching all events. User: ${user.email}, Role: ${user.role}, Query:`, JSON.stringify(query));
                 const events = await Event.find(query).sort({ createdAt: -1 }).lean();
@@ -373,7 +378,7 @@ export default async function handler(req, res) {
             if (type) filter.type = type;
 
             const featured = parsedUrl.searchParams.get("featured");
-            let sortObj = { date: 1 };
+            let sortObj = { createdAt: -1, _id: -1 };
             let selectStr = '-description -requiredFields -customForms -faqs';
 
             if (featured === "true") {
@@ -440,9 +445,11 @@ export default async function handler(req, res) {
         if (req.method === "POST") {
             const user = verifyUser(req);
             if (!user) return json(res, 401, { error: "Unauthorized" });
+            const role = getUserRole(user);
+            if (!EVENT_MANAGER_ROLES.has(role)) return json(res, 403, { error: "Permission denied" });
 
             const body = await getBody(req);
-            const isGlobalAdmin = user && ['admin', 'superadmin', 'owner'].includes(user.role);
+            const isGlobalAdmin = isPlatformAdminRole(role);
 
             // Strip featured properties for standard users to prevent spoofing homepage slots
             if (!isGlobalAdmin) {
@@ -703,7 +710,8 @@ export default async function handler(req, res) {
 
             // RBAC: Only owner or Global Admin can update
             const isOwner = String(event.organizerId) === String(user.id);
-            const isGlobalAdmin = ['admin', 'superadmin', 'owner'].includes(user.role);
+            const role = getUserRole(user);
+            const isGlobalAdmin = isPlatformAdminRole(role);
 
             if (!isOwner && !isGlobalAdmin) {
                 return json(res, 403, { error: "Permission denied" });
@@ -753,7 +761,8 @@ export default async function handler(req, res) {
             if (!event) return json(res, 404, { error: "Event not found" });
 
             const isOwner = String(event.organizerId) === String(user.id);
-            const isGlobalAdmin = ['admin', 'superadmin', 'owner'].includes(user.role);
+            const role = getUserRole(user);
+            const isGlobalAdmin = isPlatformAdminRole(role);
 
             if (!isOwner && !isGlobalAdmin) {
                 return json(res, 403, { error: "Permission denied" });
